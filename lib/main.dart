@@ -1,5 +1,7 @@
 
-import 'package:biopet/home_screen.dart';
+import 'package:biopet/Login_Screen.dart';
+import 'package:biopet/map_screen.dart';
+import 'package:biopet/register_screen.dart';
 import 'package:flutter/material.dart';
 
 void main() {
@@ -60,7 +62,7 @@ class MyApp extends StatelessWidget {
           ),
         ),
       ),
-      home: HomeScreen(),
+      home: MapScreen(),
     );
   }
 }
