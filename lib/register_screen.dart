@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:biopet/services/api_service.dart';
 import 'Login_Screen.dart';
+import 'email_verification_screen.dart';
 
 // ============================================================
 // Bio Pet – Register Screen
@@ -161,7 +162,14 @@ class _RegisterScreenState extends State<RegisterScreen>
           behavior: SnackBarBehavior.floating,
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
         ));
-        Navigator.pop(context);
+        Navigator.pushReplacement(
+            context,
+            MaterialPageRoute(
+              builder: (context) => EmailVerificationScreen(
+                email: _emailController.text.trim(),
+              ),
+            )
+        );
       } else {
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(
           content: Text(data['message'] ?? 'Register Fail'),
