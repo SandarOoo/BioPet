@@ -1,5 +1,6 @@
 import 'package:biopet/register_screen.dart';
 import 'package:flutter/material.dart';
+
 import 'package:biopet/services/api_service.dart';
 
 // ============================================================
@@ -91,8 +92,8 @@ class BioPetApp extends StatelessWidget {
 /// Handles:
 ///   • Form validation (email + password)
 ///   • Password visibility toggle
-///   • Mock login with loading state
-///   • Navigation placeholders for Home and Register
+///   • Real login via [ApiService.login] with loading state
+///   • Role-based navigation placeholders
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
 
@@ -143,35 +144,10 @@ class _LoginScreenState extends State<LoginScreen>
     super.dispose();
   }
 
-  // ── Mock login logic ──────────────────────────────────────
+  // ── Login logic ───────────────────────────────────────────
 
-  // /// Validates the form, simulates an API call, then navigates to HomeScreen.
-  // Future<void> _handleLogin() async {
-  //   if (!_formKey.currentState!.validate()) return;
-  //
-  //   setState(() => _isLoading = true);
-  //
-  //   // Simulate network delay (replace with real API call later)
-  //   await Future.delayed(const Duration(seconds: 2));
-  //
-  //   if (!mounted) return;
-  //   setState(() => _isLoading = false);
-  //
-  //   // TODO: Replace with actual navigation once HomeScreen is implemented.
-  //   ScaffoldMessenger.of(context).showSnackBar(
-  //     SnackBar(
-  //       content: const Text('Login successful! Navigating to Home…'),
-  //       backgroundColor: _primary,
-  //       behavior: SnackBarBehavior.floating,
-  //       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-  //     ),
-  //   );
-  //   // Navigator.pushReplacement(context,
-  //   //     MaterialPageRoute(builder: (_) => const HomeScreen()));
-  // }
-
-
-
+  /// Validates the form, calls the real login API, then navigates
+  /// based on the returned user role.
   Future<void> _handleLogin() async {
     if (!_formKey.currentState!.validate()) return;
     setState(() => _isLoading = true);
@@ -183,11 +159,9 @@ class _LoginScreenState extends State<LoginScreen>
       );
 
       if (data['success'] == true) {
-
         await ApiService.saveToken(data['token']);
 
         final role = data['user']['role'];
-
 
         if (!mounted) return;
         if (role == 'admin') {
@@ -203,19 +177,17 @@ class _LoginScreenState extends State<LoginScreen>
           //   MaterialPageRoute(builder: (_) => const UserHomeScreen()));
           _showSnack('Go To User Home  🐾', success: true);
         }
-
       } else {
         _showSnack(data['message'] ?? 'Login Fail');
       }
-
     } catch (e) {
-      _showSnack('Server cannot connect — Need backend running ');
+      _showSnack('Server cannot connect — Need backend running');
     } finally {
-      setState(() => _isLoading = false);
+      if (mounted) setState(() => _isLoading = false);
     }
   }
 
-
+  /// Shows a [SnackBar] with [msg], styled green for success or red for error.
   void _showSnack(String msg, {bool success = false}) {
     ScaffoldMessenger.of(context).showSnackBar(SnackBar(
       content: Text(msg),
@@ -511,7 +483,7 @@ class _LoginScreenState extends State<LoginScreen>
       )
           : ElevatedButton(
         key: const ValueKey('login'),
-        onPressed: _handleLogin,
+        onPressed: _isLoading ? null : _handleLogin,
         child: const Text('Log In'),
       ),
     );
