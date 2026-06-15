@@ -32,6 +32,10 @@ const userSchema = new mongoose.Schema({
     enum: ['user', 'business_owner', 'admin'],
     default: 'user',
   },
+  isVerified: {
+    type: Boolean,
+    default: false,
+  },
   businessProfile: {
     businessName: { type: String, default: '' },
     businessType: {
