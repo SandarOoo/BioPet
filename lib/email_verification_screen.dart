@@ -1,6 +1,9 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'dart:convert';
+import 'package:http/http.dart' as http;
+import 'login_Screen.dart';
 
 // ============================================================
 // Bio Pet – Email Verification Screen
@@ -142,58 +145,126 @@ class _EmailVerificationScreenState extends State<EmailVerificationScreen>
   /// Validates OTP and simulates a verification API call.
   Future<void> _handleVerify() async {
     final code = _otpValue;
+
     if (code.length < _otpLength) {
       setState(() => _otpError = 'Please enter all 6 digits.');
       return;
     }
+
     setState(() {
       _otpError = null;
       _isVerifying = true;
     });
 
-    // Simulate network call – replace with real API later.
-    await Future.delayed(const Duration(seconds: 2));
+    try {
+      final response = await http.post(
+        Uri.parse(
 
-    if (!mounted) return;
-    setState(() => _isVerifying = false);
+          'http://192.168.1.11:3000/api/auth/verify-email',
+        ),
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: jsonEncode({
+          'email': widget.email,
+          'otp': code,
+        }),
+      );
 
-    // TODO: Navigate to HomeScreen on success.
-    // Navigator.pushAndRemoveUntil(context,
-    //   MaterialPageRoute(builder: (_) => const HomeScreen()),
-    //   (route) => false);
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: const Text('Email verified! Navigating to Home…'),
-        backgroundColor: _primary,
-        behavior: SnackBarBehavior.floating,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-      ),
-    );
+      final data = jsonDecode(response.body);
+
+      if (!mounted) return;
+
+      if (response.statusCode == 200 &&
+          data['success'] == true) {
+
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Email verified successfully'),
+          ),
+        );
+
+        // TODO
+
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(
+            builder: (context) => const LoginScreen(),
+          ),
+        );
+
+      } else {
+        setState(() {
+          _otpError =
+              data['message'] ?? 'Verification failed';
+        });
+      }
+
+    } catch (e) {
+      setState(() {
+        _otpError = e.toString();
+      });
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isVerifying = false;
+        });
+      }
+    }
   }
 
   /// Simulates resending the verification code.
   Future<void> _handleResend() async {
     if (!_canResend || _isResending) return;
+
     setState(() => _isResending = true);
 
-    // Simulate network call – replace with real API later.
-    await Future.delayed(const Duration(seconds: 1));
+    try {
+      final response = await http.post(
+        Uri.parse(
+          'http://192.168.1.11:3000/api/auth/resend-otp',
+        ),
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: jsonEncode({
+          'email': widget.email,
+        }),
+      );
 
-    if (!mounted) return;
-    setState(() => _isResending = false);
-    _clearOtp();
-    _startCountdown();
+      final data = jsonDecode(response.body);
 
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: const Text('A new code has been sent to your email.'),
-        backgroundColor: _primary,
-        behavior: SnackBarBehavior.floating,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-      ),
-    );
+      if (response.statusCode == 200 &&
+          data['success'] == true) {
+        _clearOtp();
+        _startCountdown();
+
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('OTP resent successfully'),
+          ),
+        );
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              data['message'] ?? 'Failed to resend OTP',
+            ),
+          ),
+        );
+      }
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Error: $e'),
+        ),
+      );
+    } finally {
+      if (mounted) {
+        setState(() => _isResending = false);
+      }
+    }
   }
-
   // ── Build ─────────────────────────────────────────────────
 
   @override

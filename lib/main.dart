@@ -1,6 +1,7 @@
 
 import 'package:biopet/Login_Screen.dart';
 import 'package:biopet/map_screen.dart';
+import 'package:biopet/newfeed_screen.dart';
 import 'package:biopet/register_screen.dart';
 import 'package:flutter/material.dart';
 
@@ -15,7 +16,7 @@ class MyApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'Flutter Demo',
+      title: 'BioPet',
       theme: ThemeData(
         colorScheme: ColorScheme.fromSeed(
           seedColor: const Color(0xFF8B4513),
@@ -48,7 +49,7 @@ class MyApp extends StatelessWidget {
           style: OutlinedButton.styleFrom(
             foregroundColor: const Color(0xFF8B4513),
             side: const BorderSide(color: Color(0xFF8B4513)),
-            shape: RoundedRectangleBorder(
+                shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(10),
             ),
           ),
@@ -62,7 +63,7 @@ class MyApp extends StatelessWidget {
           ),
         ),
       ),
-      home: MapScreen(),
+      home: LoginScreen(),
     );
   }
 }
