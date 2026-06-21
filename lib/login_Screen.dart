@@ -1,3 +1,5 @@
+import 'package:biopet/email_verification_screen.dart';
+import 'package:biopet/newfeed_screen.dart';
 import 'package:biopet/register_screen.dart';
 import 'package:flutter/material.dart';
 
@@ -150,40 +152,107 @@ class _LoginScreenState extends State<LoginScreen>
   /// based on the returned user role.
   Future<void> _handleLogin() async {
     if (!_formKey.currentState!.validate()) return;
-    setState(() => _isLoading = true);
+
+    setState(() {
+      _isLoading = true;
+    });
 
     try {
       final data = await ApiService.login(
         _emailController.text.trim(),
-        _passwordController.text,
+        _passwordController.text.trim(),
       );
 
       if (data['success'] == true) {
+
+        // Save JWT token
         await ApiService.saveToken(data['token']);
 
         final role = data['user']['role'];
 
         if (!mounted) return;
+
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text("Login Successful"),
+          ),
+        );
+
+        // Navigate according to role
+
         if (role == 'admin') {
-          // Navigator.pushReplacement(context,
-          //   MaterialPageRoute(builder: (_) => const AdminHomeScreen()));
-          _showSnack('Go To Admin Home 🛡️', success: true);
+
+          Navigator.pushReplacement(
+            context,
+            MaterialPageRoute(
+              builder: (_) => const HomeScreen(),
+            ),
+          );
+
         } else if (role == 'business_owner') {
-          // Navigator.pushReplacement(context,
-          //   MaterialPageRoute(builder: (_) => const ShopHomeScreen()));
-          _showSnack('Go To Shop Owner Home  🏪', success: true);
+
+          Navigator.pushReplacement(
+            context,
+            MaterialPageRoute(
+              builder: (_) => const HomeScreen(),
+            ),
+          );
+
         } else {
-          // Navigator.pushReplacement(context,
-          //   MaterialPageRoute(builder: (_) => const UserHomeScreen()));
-          _showSnack('Go To User Home  🐾', success: true);
+
+          Navigator.pushReplacement(
+            context,
+            MaterialPageRoute(
+              builder: (_) => const HomeScreen(),
+            ),
+          );
+
         }
+
       } else {
-        _showSnack(data['message'] ?? 'Login Fail');
+
+        // EMAIL NOT VERIFIED
+        if (data['code'] == 'NOT_VERIFIED') {
+
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (_) => EmailVerificationScreen(
+                email: _emailController.text.trim(),
+              ),
+            ),
+          );
+
+        } else {
+
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(
+                data['message'] ?? 'Login failed',
+              ),
+            ),
+          );
+
+        }
+
       }
+
     } catch (e) {
-      _showSnack('Server cannot connect — Need backend running');
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Error: $e'),
+        ),
+      );
+
     } finally {
-      if (mounted) setState(() => _isLoading = false);
+
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+      }
+
     }
   }
 

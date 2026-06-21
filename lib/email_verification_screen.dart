@@ -4,6 +4,7 @@ import 'package:flutter/services.dart';
 import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'login_Screen.dart';
+import '../services/api_service.dart';
 
 // ============================================================
 // Bio Pet – Email Verification Screen
@@ -143,74 +144,45 @@ class _EmailVerificationScreenState extends State<EmailVerificationScreen>
   // ── Actions ───────────────────────────────────────────────
 
   /// Validates OTP and simulates a verification API call.
+
+
   Future<void> _handleVerify() async {
     final code = _otpValue;
 
-    if (code.length < _otpLength) {
-      setState(() => _otpError = 'Please enter all 6 digits.');
+    if (code.length < 6) {
+      setState(() => _otpError = "Please enter all 6 digits");
       return;
     }
 
-    setState(() {
-      _otpError = null;
-      _isVerifying = true;
-    });
+    setState(() => _isVerifying = true);
 
     try {
-      final response = await http.post(
-        Uri.parse(
-
-          'http://192.168.1.11:3000/api/auth/verify-email',
-        ),
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: jsonEncode({
-          'email': widget.email,
-          'otp': code,
-        }),
+      final result = await ApiService.verifyEmail(
+        widget.email,
+        code,
       );
 
-      final data = jsonDecode(response.body);
-
-      if (!mounted) return;
-
-      if (response.statusCode == 200 &&
-          data['success'] == true) {
+      if (result["success"] == true) {
+        if (!mounted) return;
 
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Email verified successfully'),
-          ),
+          const SnackBar(content: Text("Email verified successfully")),
         );
-
-        // TODO
 
         Navigator.pushReplacement(
           context,
-          MaterialPageRoute(
-            builder: (context) => const LoginScreen(),
-          ),
+          MaterialPageRoute(builder: (_) => const LoginScreen()),
         );
-
       } else {
         setState(() {
-          _otpError =
-              data['message'] ?? 'Verification failed';
+          _otpError = result["message"] ?? "Verification failed";
         });
       }
-
     } catch (e) {
-      setState(() {
-        _otpError = e.toString();
-      });
-    } finally {
-      if (mounted) {
-        setState(() {
-          _isVerifying = false;
-        });
-      }
+      setState(() => _otpError = "Error: $e");
     }
+
+    setState(() => _isVerifying = false);
   }
 
   /// Simulates resending the verification code.
@@ -220,50 +192,27 @@ class _EmailVerificationScreenState extends State<EmailVerificationScreen>
     setState(() => _isResending = true);
 
     try {
-      final response = await http.post(
-        Uri.parse(
-          'http://192.168.1.11:3000/api/auth/resend-otp',
-        ),
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: jsonEncode({
-          'email': widget.email,
-        }),
-      );
+      final result = await ApiService.resendOtp(widget.email);
 
-      final data = jsonDecode(response.body);
-
-      if (response.statusCode == 200 &&
-          data['success'] == true) {
+      if (result["success"] == true) {
         _clearOtp();
         _startCountdown();
 
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('OTP resent successfully'),
-          ),
+          const SnackBar(content: Text("OTP resent successfully")),
         );
       } else {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(
-              data['message'] ?? 'Failed to resend OTP',
-            ),
-          ),
+          SnackBar(content: Text(result["message"])),
         );
       }
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Error: $e'),
-        ),
+        SnackBar(content: Text("Error: $e")),
       );
-    } finally {
-      if (mounted) {
-        setState(() => _isResending = false);
-      }
     }
+
+    setState(() => _isResending = false);
   }
   // ── Build ─────────────────────────────────────────────────
 

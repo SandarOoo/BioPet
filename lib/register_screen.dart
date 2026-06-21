@@ -156,20 +156,17 @@ class _RegisterScreenState extends State<RegisterScreen>
       if (!mounted) return;
 
       if (data['success'] == true) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-          content: const Text('Register Success! Please Login 🐾'),
-          backgroundColor: const Color(0xFF2E7D32),
-          behavior: SnackBarBehavior.floating,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-        ));
+
         Navigator.pushReplacement(
-            context,
-            MaterialPageRoute(
-              builder: (context) => EmailVerificationScreen(
-                email: _emailController.text.trim(),
-              ),
-            )
+          context,
+          MaterialPageRoute(
+            builder: (_) => EmailVerificationScreen(
+              email: _emailController.text.trim(),
+            ),
+          ),
         );
+
+
       } else {
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(
           content: Text(data['message'] ?? 'Register Fail'),
@@ -180,10 +177,13 @@ class _RegisterScreenState extends State<RegisterScreen>
       }
 
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-        content: Text('Server cannot connect — Need Backend run '),
-        backgroundColor: Colors.redAccent,
-      ));
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text("Error : $e"),
+          backgroundColor: Colors.red,
+        ),
+      );
+
     } finally {
       setState(() => _isLoading = false);
     }
