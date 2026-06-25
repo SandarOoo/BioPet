@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'dart:io';
+import 'package:biopet/services/api_service.dart';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:image_picker/image_picker.dart';
@@ -74,34 +75,47 @@ class Post {
 // ─────────────────────────────────────────────
 
 class PostApiService {
-  // TODO: Replace with your actual base URL (use your computer's IP for phone testing)
-  static const String _baseUrl = 'http://10.0.2.2:3000'; // Android emulator
-  // static const String _baseUrl = 'http://192.168.x.x:3000'; // real device
+  static const String _baseUrl =  "https://itinerary-smite-expend.ngrok-free.dev";
 
-  static const String _currentUserId = 'user_001';
-  static const String _currentUserName = 'Pet Lover';
+  // FIX #1: Cached sync fields so they can be used without await everywhere
+  static String currentUserId = '';
+  static String currentUserName = '';
+
+  /// Call this once at startup (e.g. in HomeScreen.initState)
+  static Future<void> init() async {
+    currentUserId = await ApiService.getUserId() ?? '';
+    currentUserName = await ApiService.getUserName() ?? '';
+  }
 
   static Future<List<Post>> fetchPosts(int page) async {
     final uri = Uri.parse('$_baseUrl/api/posts?page=$page&limit=10');
     final response = await http.get(uri);
 
+    print("GET POSTS => ${response.statusCode}");
+    print(response.body);
+
     if (response.statusCode == 200) {
-      final List<dynamic> data = jsonDecode(response.body);
+      final List data = jsonDecode(response.body);
       return data.map((e) => Post.fromJson(e)).toList();
     }
-    throw Exception('Failed to load posts (${response.statusCode})');
+
+    throw Exception('Failed to load posts');
   }
 
   static Future<Post> createPostWithImages({
     required String text,
     required List<File> imageFiles,
   }) async {
+
+    final userId = await ApiService.getUserId();
+    final userName = await ApiService.getUserName();
+
     final uri = Uri.parse('$_baseUrl/api/posts/create');
 
     var request = http.MultipartRequest('POST', uri);
 
-    request.fields['userId'] = _currentUserId;
-    request.fields['name'] = _currentUserName;
+    request.fields['userId'] = userId ?? '';
+    request.fields['name'] = userName ?? 'Unknown';
     request.fields['text'] = text;
 
     for (int i = 0; i < imageFiles.length; i++) {
@@ -109,13 +123,14 @@ class PostApiService {
       final stream = http.ByteStream(file.openRead());
       final length = await file.length();
 
-      final multipartFile = http.MultipartFile(
-        'images',
-        stream,
-        length,
-        filename: file.path.split('/').last,
+      request.files.add(
+        http.MultipartFile(
+          'images',
+          stream,
+          length,
+          filename: file.path.split('/').last,
+        ),
       );
-      request.files.add(multipartFile);
     }
 
     final response = await request.send();
@@ -130,34 +145,35 @@ class PostApiService {
   }
 
   static Future<void> toggleLike(String postId) async {
-    final uri = Uri.parse('$_baseUrl/api/posts/like');
     final response = await http.post(
-      uri,
+      Uri.parse('$_baseUrl/api/posts/like'),
       headers: {'Content-Type': 'application/json'},
-      body: jsonEncode({'postId': postId, 'userId': _currentUserId}),
+      body: jsonEncode({
+        'postId': postId,
+        'userId': currentUserId,
+      }),
     );
+
     if (response.statusCode != 200) {
-      throw Exception('Failed to toggle like');
+      throw Exception(response.body);
     }
   }
 
   static Future<void> addComment(String postId, String text) async {
-    final uri = Uri.parse('$_baseUrl/api/posts/comment');
     final response = await http.post(
-      uri,
+      Uri.parse('$_baseUrl/api/posts/comment'),
       headers: {'Content-Type': 'application/json'},
       body: jsonEncode({
         'postId': postId,
-        'userId': _currentUserId,
+        'userId': currentUserId,
         'text': text,
       }),
     );
+
     if (response.statusCode != 200) {
-      throw Exception('Failed to post comment');
+      throw Exception(response.body);
     }
   }
-
-  static String get currentUserId => _currentUserId;
 }
 
 // ─────────────────────────────────────────────
@@ -201,7 +217,8 @@ class _HomeScreenState extends State<HomeScreen> {
   @override
   void initState() {
     super.initState();
-    _loadPosts();
+    // FIX #1: Init cached userId/userName first, then load posts
+    PostApiService.init().then((_) => _loadPosts());
     _scrollController.addListener(_onScroll);
   }
 
@@ -249,6 +266,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
   Future<void> _handleLike(int index) async {
     final post = _posts[index];
+    // FIX #2: Use sync cached field directly — no await needed
     final userId = PostApiService.currentUserId;
     final alreadyLiked = post.likes.contains(userId);
 
@@ -263,6 +281,7 @@ class _HomeScreenState extends State<HomeScreen> {
     try {
       await PostApiService.toggleLike(post.id);
     } catch (_) {
+      // Rollback optimistic update on failure
       setState(() {
         if (alreadyLiked) {
           post.likes.add(userId);
@@ -275,8 +294,9 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   void _showSnack(String msg) {
-    ScaffoldMessenger.of(context)
-        .showSnackBar(SnackBar(content: Text(msg), duration: const Duration(seconds: 2)));
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(msg), duration: const Duration(seconds: 2)),
+    );
   }
 
   void _openCreatePost() {
@@ -340,6 +360,7 @@ class _HomeScreenState extends State<HomeScreen> {
     if (postIndex < _posts.length) {
       return _PostCard(
         post: _posts[postIndex],
+        // FIX #3: currentUserId is now a sync String — no type mismatch
         currentUserId: PostApiService.currentUserId,
         onLike: () => _handleLike(postIndex),
         onComment: () => _openComments(postIndex),
@@ -347,7 +368,9 @@ class _HomeScreenState extends State<HomeScreen> {
     }
 
     if (_isLoading) return const _LoadingFooter();
-    if (_errorMessage != null) return _ErrorFooter(message: _errorMessage!, onRetry: _loadPosts);
+    if (_errorMessage != null) {
+      return _ErrorFooter(message: _errorMessage!, onRetry: _loadPosts);
+    }
     return const _EndFooter();
   }
 
@@ -401,7 +424,10 @@ class _HomeScreenState extends State<HomeScreen> {
       onPressed: _openCreatePost,
       backgroundColor: _T.primary,
       icon: const Icon(Icons.add_photo_alternate_outlined, color: Colors.white),
-      label: const Text('Post', style: TextStyle(color: Colors.white, fontWeight: FontWeight.w600)),
+      label: const Text(
+        'Post',
+        style: TextStyle(color: Colors.white, fontWeight: FontWeight.w600),
+      ),
       elevation: 4,
     );
   }
@@ -503,6 +529,7 @@ class _PostCard extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
+            // Header
             Padding(
               padding: const EdgeInsets.fromLTRB(14, 14, 14, 0),
               child: Row(
@@ -544,6 +571,7 @@ class _PostCard extends StatelessWidget {
                 ],
               ),
             ),
+            // Post text
             Padding(
               padding: const EdgeInsets.fromLTRB(14, 12, 14, 12),
               child: Text(
@@ -555,7 +583,7 @@ class _PostCard extends StatelessWidget {
                 ),
               ),
             ),
-            // IMAGES GALLERY (NEW)
+            // Images gallery
             if (post.images.isNotEmpty)
               Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
@@ -580,6 +608,7 @@ class _PostCard extends StatelessWidget {
                   ),
                 ),
               ),
+            // Likes & comments count
             if (post.likes.isNotEmpty || post.comments.isNotEmpty)
               Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 14),
@@ -592,7 +621,11 @@ class _PostCard extends StatelessWidget {
                           const SizedBox(width: 3),
                           Text(
                             '${post.likes.length}',
-                            style: TextStyle(fontSize: 12, color: _T.textSecondary, fontWeight: FontWeight.w500),
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: _T.textSecondary,
+                              fontWeight: FontWeight.w500,
+                            ),
                           ),
                         ],
                       ),
@@ -609,6 +642,7 @@ class _PostCard extends StatelessWidget {
               padding: EdgeInsets.symmetric(vertical: 6),
               child: Divider(height: 1, color: _T.divider),
             ),
+            // Action buttons
             Padding(
               padding: const EdgeInsets.fromLTRB(4, 2, 4, 10),
               child: Row(
@@ -666,7 +700,11 @@ class _ActionButton extends StatelessWidget {
             const SizedBox(width: 6),
             Text(
               label,
-              style: TextStyle(color: color, fontWeight: FontWeight.w600, fontSize: 13),
+              style: TextStyle(
+                color: color,
+                fontWeight: FontWeight.w600,
+                fontSize: 13,
+              ),
             ),
           ],
         ),
@@ -704,9 +742,7 @@ class _CreatePostSheetState extends State<_CreatePostSheet> {
   }
 
   void _removeImage(int index) {
-    setState(() {
-      _selectedImages.removeAt(index);
-    });
+    setState(() => _selectedImages.removeAt(index));
   }
 
   Future<void> _submit() async {
@@ -723,9 +759,7 @@ class _CreatePostSheetState extends State<_CreatePostSheet> {
         text: text,
         imageFiles: _selectedImages,
       );
-      if (mounted) {
-        widget.onPostCreated(post);
-      }
+      if (mounted) widget.onPostCreated(post);
     } catch (e) {
       setState(() => _error = e.toString().replaceFirst('Exception: ', ''));
     } finally {
@@ -875,7 +909,8 @@ class _CreatePostSheetState extends State<_CreatePostSheet> {
           SizedBox(
             width: double.infinity,
             child: FilledButton(
-              onPressed: (_isPosting || (_controller.text.trim().isEmpty && _selectedImages.isEmpty))
+              onPressed:
+              (_isPosting || (_controller.text.trim().isEmpty && _selectedImages.isEmpty))
                   ? null
                   : _submit,
               style: FilledButton.styleFrom(
@@ -889,7 +924,10 @@ class _CreatePostSheetState extends State<_CreatePostSheet> {
                   ? const SizedBox(
                 width: 20,
                 height: 20,
-                child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2),
+                child: CircularProgressIndicator(
+                  color: Colors.white,
+                  strokeWidth: 2,
+                ),
               )
                   : const Text(
                 'Post',
@@ -928,14 +966,21 @@ class _CommentsSheetState extends State<_CommentsSheet> {
     setState(() => _isSending = true);
     try {
       await PostApiService.addComment(widget.post.id, text);
-      final comment = Comment(userId: PostApiService.currentUserId, text: text);
+
+      final comment = Comment(
+        userId: PostApiService.currentUserId,
+        text: text,
+      );
+
+      // FIX #4: Only add comment once via the callback — removed duplicate setState add
       widget.onCommentAdded(comment);
-      setState(() => widget.post.comments.add(comment));
       _controller.clear();
     } catch (_) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Could not send comment.')),
-      );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Could not send comment.')),
+        );
+      }
     } finally {
       if (mounted) setState(() => _isSending = false);
     }
@@ -993,17 +1038,21 @@ class _CommentsSheetState extends State<_CommentsSheet> {
                 ? const Padding(
               padding: EdgeInsets.symmetric(vertical: 32),
               child: Center(
-                child: Text('No comments yet. Be the first! 🐾',
-                    style: TextStyle(color: _T.textSecondary, fontSize: 14)),
+                child: Text(
+                  'No comments yet. Be the first! 🐾',
+                  style: TextStyle(color: _T.textSecondary, fontSize: 14),
+                ),
               ),
             )
                 : ListView.separated(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+              padding: const EdgeInsets.symmetric(
+                horizontal: 16,
+                vertical: 12,
+              ),
               itemCount: widget.post.comments.length,
               separatorBuilder: (_, __) => const SizedBox(height: 10),
               itemBuilder: (_, i) {
-                final c = widget.post.comments[i];
-                return _CommentTile(comment: c);
+                return _CommentTile(comment: widget.post.comments[i]);
               },
             ),
           ),
@@ -1026,11 +1075,16 @@ class _CommentsSheetState extends State<_CommentsSheet> {
                     style: const TextStyle(fontSize: 14, color: _T.textPrimary),
                     decoration: InputDecoration(
                       hintText: 'Add a comment…',
-                      hintStyle: TextStyle(color: _T.textSecondary, fontSize: 14),
+                      hintStyle: TextStyle(
+                        color: _T.textSecondary,
+                        fontSize: 14,
+                      ),
                       filled: true,
                       fillColor: _T.bg,
-                      contentPadding:
-                      const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                      contentPadding: const EdgeInsets.symmetric(
+                        horizontal: 14,
+                        vertical: 10,
+                      ),
                       border: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(_T.chipRadius),
                         borderSide: BorderSide.none,
@@ -1043,7 +1097,10 @@ class _CommentsSheetState extends State<_CommentsSheet> {
                     ? const SizedBox(
                   width: 36,
                   height: 36,
-                  child: CircularProgressIndicator(color: _T.primary, strokeWidth: 2),
+                  child: CircularProgressIndicator(
+                    color: _T.primary,
+                    strokeWidth: 2,
+                  ),
                 )
                     : IconButton(
                   onPressed: _sendComment,
@@ -1051,7 +1108,10 @@ class _CommentsSheetState extends State<_CommentsSheet> {
                   color: _T.primary,
                   iconSize: 26,
                   padding: EdgeInsets.zero,
-                  constraints: const BoxConstraints(minWidth: 36, minHeight: 36),
+                  constraints: const BoxConstraints(
+                    minWidth: 36,
+                    minHeight: 36,
+                  ),
                 ),
               ],
             ),
@@ -1068,7 +1128,8 @@ class _CommentTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final initials = comment.userId.isNotEmpty ? comment.userId[0].toUpperCase() : '?';
+    final initials =
+    comment.userId.isNotEmpty ? comment.userId[0].toUpperCase() : '?';
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -1106,7 +1167,11 @@ class _CommentTile extends StatelessWidget {
                 const SizedBox(height: 2),
                 Text(
                   comment.text,
-                  style: const TextStyle(fontSize: 13, color: _T.textPrimary, height: 1.4),
+                  style: const TextStyle(
+                    fontSize: 13,
+                    color: _T.textPrimary,
+                    height: 1.4,
+                  ),
                 ),
               ],
             ),
@@ -1146,7 +1211,10 @@ class _ErrorFooter extends StatelessWidget {
       padding: const EdgeInsets.symmetric(vertical: 24, horizontal: _T.pagePad),
       child: Column(
         children: [
-          Text(message, style: TextStyle(color: _T.textSecondary, fontSize: 14)),
+          Text(
+            message,
+            style: TextStyle(color: _T.textSecondary, fontSize: 14),
+          ),
           const SizedBox(height: 10),
           OutlinedButton(
             onPressed: onRetry,
