@@ -131,6 +131,7 @@ class _RegisterScreenState extends State<RegisterScreen>
 
   Future<void> _handleRegister() async {
     if (!_formKey.currentState!.validate()) return;
+
     setState(() => _isLoading = true);
 
     try {
@@ -153,10 +154,12 @@ class _RegisterScreenState extends State<RegisterScreen>
         );
       }
 
+      // 🔴 PRINT FULL RESPONSE
+      print("REGISTER RESPONSE => $data");
+
       if (!mounted) return;
 
       if (data['success'] == true) {
-
         Navigator.pushReplacement(
           context,
           MaterialPageRoute(
@@ -165,25 +168,27 @@ class _RegisterScreenState extends State<RegisterScreen>
             ),
           ),
         );
-
-
       } else {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-          content: Text(data['message'] ?? 'Register Fail'),
-          backgroundColor: Colors.redAccent,
-          behavior: SnackBarBehavior.floating,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-        ));
-      }
+        print("REGISTER FAILED => ${data['message']}");
 
-    } catch (e) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(data['message'] ?? 'Register Fail'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    } catch (e, stackTrace) {
+      // 🔴 FULL ERROR IN CONSOLE
+      print("REGISTER ERROR => $e");
+      print("STACK TRACE => $stackTrace");
+
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text("Error : $e"),
+          content: Text("Error: $e"),
           backgroundColor: Colors.red,
         ),
       );
-
     } finally {
       setState(() => _isLoading = false);
     }
