@@ -151,6 +151,7 @@ class _LoginScreenState extends State<LoginScreen>
   /// Validates the form, calls the real login API, then navigates
   /// based on the returned user role.
   Future<void> _handleLogin() async {
+    print("STEP 1: Login button pressed");
     if (!_formKey.currentState!.validate()) return;
 
     setState(() {
@@ -158,10 +159,13 @@ class _LoginScreenState extends State<LoginScreen>
     });
 
     try {
+      print("STEP 2: Calling ApiService.login");
       final data = await ApiService.login(
         _emailController.text.trim(),
         _passwordController.text.trim(),
       );
+      print("STEP 3: Login returned");
+      print(data);
 
       if (data['success'] == true) {
 

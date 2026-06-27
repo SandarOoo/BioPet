@@ -1,14 +1,14 @@
 import 'dart:convert';
 import 'dart:io';
+import 'package:biopet/time_ago.dart';
+import 'package:http_parser/http_parser.dart';
 import 'package:biopet/services/api_service.dart';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:image_picker/image_picker.dart';
+import 'package:mime/mime.dart';
 
-// ─────────────────────────────────────────────
-// MODELS
-// ─────────────────────────────────────────────
-
+// models comment + post + imageData
 class Comment {
   final String userId;
   final String text;
@@ -43,6 +43,7 @@ class Post {
   final String id;
   final String name;
   final String text;
+  final DateTime createAt;
   List<String> likes;
   List<Comment> comments;
   final List<ImageData> images;
@@ -51,6 +52,7 @@ class Post {
     required this.id,
     required this.name,
     required this.text,
+    required this.createAt,
     required this.likes,
     required this.comments,
     required this.images,
@@ -60,6 +62,9 @@ class Post {
     id: json['_id'] ?? json['id'] ?? '',
     name: json['name'] ?? 'Anonymous',
     text: json['text'] ?? '',
+    createAt: json['createdAt'] != null          // ✅ correct key + null-safe parse
+        ? DateTime.parse(json['createdAt'])
+        : DateTime.now(),
     likes: List<String>.from(json['likes'] ?? []),
     comments: (json['comments'] as List<dynamic>? ?? [])
         .map((c) => Comment.fromJson(c))
@@ -75,8 +80,7 @@ class Post {
 // ─────────────────────────────────────────────
 
 class PostApiService {
-  static const String _baseUrl =  "https://itinerary-smite-expend.ngrok-free.dev";
-
+  static String get _baseUrl => ApiService.baseUrl;
   // FIX #1: Cached sync fields so they can be used without await everywhere
   static String currentUserId = '';
   static String currentUserName = '';
@@ -106,15 +110,22 @@ class PostApiService {
     required String text,
     required List<File> imageFiles,
   }) async {
-
     final userId = await ApiService.getUserId();
     final userName = await ApiService.getUserName();
 
-    final uri = Uri.parse('$_baseUrl/api/posts/create');
+    print("userId => $userId");
+    print("userName => $userName");
 
+    if (userId == null || userId.isEmpty) {
+      throw Exception('Not logged in. Please log out and log back in.');
+    }
+
+    final uri = Uri.parse('$_baseUrl/api/posts/create');
     var request = http.MultipartRequest('POST', uri);
 
-    request.fields['userId'] = userId ?? '';
+    request.headers['ngrok-skip-browser-warning'] = 'true';
+
+    request.fields['userId'] = userId;
     request.fields['name'] = userName ?? 'Unknown';
     request.fields['text'] = text;
 
@@ -123,24 +134,30 @@ class PostApiService {
       final stream = http.ByteStream(file.openRead());
       final length = await file.length();
 
-      request.files.add(
-        http.MultipartFile(
-          'images',
-          stream,
-          length,
-          filename: file.path.split('/').last,
-        ),
+      final mimeType = lookupMimeType(file.path) ?? 'image/jpeg';
+      final mimeSplit = mimeType.split('/');
+
+      final requestFile = http.MultipartFile(
+        'images',
+        stream,
+        length,
+        filename: file.path.split('/').last,
+        contentType: MediaType(mimeSplit[0], mimeSplit[1]),
       );
+      request.files.add(requestFile);
     }
 
     final response = await request.send();
     final responseBody = await response.stream.bytesToString();
 
+    print("CREATE POST STATUS => ${response.statusCode}");
+    print("CREATE POST BODY => $responseBody");
+
     if (response.statusCode == 201) {
       final Map<String, dynamic> json = jsonDecode(responseBody);
       return Post.fromJson(json['post']);
     } else {
-      throw Exception('Failed to create post: ${response.statusCode}');
+      throw Exception('Failed to create post: $responseBody');
     }
   }
 
@@ -561,7 +578,7 @@ class _PostCard extends StatelessWidget {
                         ),
                         const SizedBox(height: 1),
                         Text(
-                          'Just now',
+                          TimeAgo.format(post.createAt),
                           style: TextStyle(fontSize: 12, color: _T.textSecondary),
                         ),
                       ],

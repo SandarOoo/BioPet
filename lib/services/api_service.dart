@@ -1,11 +1,11 @@
 import 'dart:convert';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 
 class ApiService {
   // ✅ IMPORTANT: NO SPACE BEFORE URL
-  static const String baseUrl =
-      "https://itinerary-smite-expend.ngrok-free.dev";
+  static final baseUrl = dotenv.env['BASE_URL'] ?? "";
 
   static const Map<String, String> _headers = {
     'Content-Type': 'application/json',
@@ -108,6 +108,7 @@ class ApiService {
       }),
     );
 
+
     return jsonDecode(res.body);
   }
 
@@ -150,17 +151,20 @@ class ApiService {
   static Future<Map<String, dynamic>> login(
       String email, String password) async {
     try {
-      final res = await http.post(
+      final res = await http
+          .post(
         Uri.parse('$baseUrl/api/auth/login'),
         headers: _headers,
         body: jsonEncode({
           'email': email,
           'password': password,
         }),
-      );
+      )
+          .timeout(const Duration(seconds: 10));
+
 
       print("LOGIN STATUS => ${res.statusCode}");
-      print("LOGIN BODY => ${res.body}");
+      print("LOGIN BODY => ${res.body}");  // ADD THIS
 
       final data = jsonDecode(res.body);
 
@@ -169,23 +173,29 @@ class ApiService {
 
         final user = data['user'];
 
-        if (user != null) {
+        print("USER => $user");
+        print("FULL USER JSON => ${jsonEncode(user)}");
+
+        final id = user?['_id'] ?? user?['id'] ?? '';
+        final name = user?['name'] ?? '';
+
+        print("EXTRACTED ID => $id");
+        print("EXTRACTED NAME => $name");
+
+        if (id.toString().isNotEmpty) {
           await saveUser(
-            user['_id']?.toString() ?? '',
-            user['name']?.toString() ?? '',
+            id.toString(),
+            name.toString(),
           );
         } else {
-          print("❌ user is NULL from backend");
+          print("❌ USER ID IS EMPTY - NOT SAVED");
         }
       }
 
       return data;
     } catch (e) {
       print("LOGIN ERROR => $e");
-      return {
-        "success": false,
-        "message": e.toString(),
-      };
+      return {"success": false, "message": e.toString()};
     }
   }
   // ─────────────────────────────
