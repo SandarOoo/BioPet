@@ -1,4 +1,4 @@
-import 'package:bio_pet/utils/constants.dart';
+import 'package:biopet/utils/constants.dart';
 import 'package:flutter/material.dart';
 
 /// Loading widget displayed during classification

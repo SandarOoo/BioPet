@@ -1,13 +1,14 @@
-import 'package:bio_pet/providers/classification_provider.dart';
-import 'package:bio_pet/providers/history_provider.dart';
-import 'package:bio_pet/utils/constants.dart';
-import 'package:bio_pet/views/history/history_page.dart';
-import 'package:bio_pet/widgets/loading_widget.dart';
-import 'package:bio_pet/views/result/result_page.dart';
-import 'package:bio_pet/utils/responsive.dart';
+import 'package:biopet/providers/classification_provider.dart';
+import 'package:biopet/providers/history_provider.dart';
+import 'package:biopet/utils/constants.dart';
+import 'package:biopet/views/history/history_page.dart';
+import 'package:biopet/widgets/loading_widget.dart';
+import 'package:biopet/views/result/result_page.dart';
+import 'package:biopet/utils/responsive.dart';
 import 'package:flutter/material.dart';
-import 'package:image_picker/image_picker.dart';
 import 'package:provider/provider.dart';
+import 'package:image_picker/image_picker.dart';
+
 
 class HomePage extends StatefulWidget {
   const HomePage({super.key});

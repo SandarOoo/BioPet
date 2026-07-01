@@ -1,10 +1,10 @@
 import 'dart:io';
 
-import 'package:bio_pet/models/history.dart';
-import 'package:bio_pet/providers/history_provider.dart';
-import 'package:bio_pet/utils/constants.dart';
-import 'package:flutter/material.dart';
+import 'package:biopet/models/history.dart';
 import 'package:provider/provider.dart';
+import 'package:biopet/utils/constants.dart';
+import 'package:flutter/material.dart';
+import 'package:biopet/providers/history_provider.dart';
 
 class HistoryPage extends StatelessWidget {
   const HistoryPage({super.key});

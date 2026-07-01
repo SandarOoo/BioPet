@@ -1,9 +1,9 @@
 import 'dart:io';
 
-import 'package:bio_pet/models/breed.dart';
-import 'package:bio_pet/providers/classification_provider.dart';
-import 'package:bio_pet/providers/history_provider.dart';
-import 'package:bio_pet/utils/constants.dart';
+import 'package:biopet/models/breed.dart';
+import 'package:biopet/providers/classification_provider.dart';
+import 'package:biopet/providers/history_provider.dart';
+import 'package:biopet/utils/constants.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
