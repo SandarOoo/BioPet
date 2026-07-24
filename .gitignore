@@ -1,0 +1,23 @@
+# Flutter
+.dart_tool/
+.packages
+.pub/
+build/
+.flutter-plugins
+.flutter-plugins-dependencies
+.metadata
+
+# Android
+.gradle/
+local.properties
+*.iml
+
+# Node.js
+node_modules/
+
+# Environment
+.env
+
+# IDE
+.vscode/
+.idea/
