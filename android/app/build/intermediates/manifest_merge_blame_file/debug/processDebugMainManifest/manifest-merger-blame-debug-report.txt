@@ -1,0 +1,312 @@
+1<?xml version="1.0" encoding="utf-8"?>
+2<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+3    package="com.example.biopet"
+4    android:versionCode="1"
+5    android:versionName="1.0.0" >
+6
+7    <uses-sdk
+8        android:minSdkVersion="24"
+9        android:targetSdkVersion="36" />
+10    <!--
+11         The INTERNET permission is required for development. Specifically,
+12         the Flutter tool needs it to communicate with the running application
+13         to allow setting breakpoints, to provide hot reload, etc.
+14    -->
+15    <uses-permission android:name="android.permission.INTERNET" />
+15-->E:\BioPet\android\app\src\main\AndroidManifest.xml:4:5-66
+15-->E:\BioPet\android\app\src\main\AndroidManifest.xml:4:22-64
+16    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
+16-->E:\BioPet\android\app\src\main\AndroidManifest.xml:2:5-78
+16-->E:\BioPet\android\app\src\main\AndroidManifest.xml:2:22-76
+17    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
+17-->E:\BioPet\android\app\src\main\AndroidManifest.xml:3:5-80
+17-->E:\BioPet\android\app\src\main\AndroidManifest.xml:3:22-78
+18    <uses-permission android:name="android.permission.ACCESS_BACKGROUND_LOCATION" />
+18-->E:\BioPet\android\app\src\main\AndroidManifest.xml:5:5-84
+18-->E:\BioPet\android\app\src\main\AndroidManifest.xml:5:22-82
+19    <!--
+20 Required to query activities that can process text, see:
+21         https://developer.android.com/training/package-visibility and
+22         https://developer.android.com/reference/android/content/Intent#ACTION_PROCESS_TEXT.
+23
+24         In particular, this is used by the Flutter engine in io.flutter.plugin.text.ProcessTextPlugin.
+25    -->
+26    <queries>
+26-->E:\BioPet\android\app\src\main\AndroidManifest.xml:46:5-51:15
+27        <intent>
+27-->E:\BioPet\android\app\src\main\AndroidManifest.xml:47:9-50:18
+28            <action android:name="android.intent.action.PROCESS_TEXT" />
+28-->E:\BioPet\android\app\src\main\AndroidManifest.xml:48:13-72
+28-->E:\BioPet\android\app\src\main\AndroidManifest.xml:48:21-70
+29
+30            <data android:mimeType="text/plain" />
+30-->E:\BioPet\android\app\src\main\AndroidManifest.xml:49:13-50
+30-->E:\BioPet\android\app\src\main\AndroidManifest.xml:49:19-48
+31        </intent>
+32        <!-- Needs to be explicitly declared on Android R+ -->
+33        <package android:name="com.google.android.apps.maps" />
+33-->[com.google.android.gms:play-services-maps:20.0.0] C:\Users\Acer\.gradle\caches\8.14\transforms\2396197226a9697d5a6c16b00190c8cf\transformed\jetified-play-services-maps-20.0.0\AndroidManifest.xml:29:7-61
+33-->[com.google.android.gms:play-services-maps:20.0.0] C:\Users\Acer\.gradle\caches\8.14\transforms\2396197226a9697d5a6c16b00190c8cf\transformed\jetified-play-services-maps-20.0.0\AndroidManifest.xml:29:16-59
+34    </queries> <!-- Include required permissions for Google Maps API to run. -->
+35    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+35-->[com.google.android.gms:play-services-maps:20.0.0] C:\Users\Acer\.gradle\caches\8.14\transforms\2396197226a9697d5a6c16b00190c8cf\transformed\jetified-play-services-maps-20.0.0\AndroidManifest.xml:20:5-78
+35-->[com.google.android.gms:play-services-maps:20.0.0] C:\Users\Acer\.gradle\caches\8.14\transforms\2396197226a9697d5a6c16b00190c8cf\transformed\jetified-play-services-maps-20.0.0\AndroidManifest.xml:20:22-76
+36
+37    <uses-feature
+37-->[com.google.android.gms:play-services-maps:20.0.0] C:\Users\Acer\.gradle\caches\8.14\transforms\2396197226a9697d5a6c16b00190c8cf\transformed\jetified-play-services-maps-20.0.0\AndroidManifest.xml:22:5-24:33
+38        android:glEsVersion="0x00020000"
+38-->[com.google.android.gms:play-services-maps:20.0.0] C:\Users\Acer\.gradle\caches\8.14\transforms\2396197226a9697d5a6c16b00190c8cf\transformed\jetified-play-services-maps-20.0.0\AndroidManifest.xml:23:8-40
+39        android:required="true" />
+39-->[com.google.android.gms:play-services-maps:20.0.0] C:\Users\Acer\.gradle\caches\8.14\transforms\2396197226a9697d5a6c16b00190c8cf\transformed\jetified-play-services-maps-20.0.0\AndroidManifest.xml:24:8-31
+40
+41    <permission
+41-->[androidx.core:core:1.18.0] C:\Users\Acer\.gradle\caches\8.14\transforms\e5ff22184a18667da2400ec3665b193c\transformed\core-1.18.0\AndroidManifest.xml:22:5-24:47
+42        android:name="com.example.biopet.DYNAMIC_RECEIVER_NOT_EXPORTED_PERMISSION"
+42-->[androidx.core:core:1.18.0] C:\Users\Acer\.gradle\caches\8.14\transforms\e5ff22184a18667da2400ec3665b193c\transformed\core-1.18.0\AndroidManifest.xml:23:9-81
+43        android:protectionLevel="signature" />
+43-->[androidx.core:core:1.18.0] C:\Users\Acer\.gradle\caches\8.14\transforms\e5ff22184a18667da2400ec3665b193c\transformed\core-1.18.0\AndroidManifest.xml:24:9-44
+44
+45    <uses-permission android:name="com.example.biopet.DYNAMIC_RECEIVER_NOT_EXPORTED_PERMISSION" />
+45-->[androidx.core:core:1.18.0] C:\Users\Acer\.gradle\caches\8.14\transforms\e5ff22184a18667da2400ec3665b193c\transformed\core-1.18.0\AndroidManifest.xml:26:5-97
+45-->[androidx.core:core:1.18.0] C:\Users\Acer\.gradle\caches\8.14\transforms\e5ff22184a18667da2400ec3665b193c\transformed\core-1.18.0\AndroidManifest.xml:26:22-94
+46    <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" />
+47    <uses-permission android:name="android.permission.READ_PHONE_STATE" />
+48    <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" />
+49
+50    <application
+51        android:name="android.app.Application"
+52        android:appComponentFactory="androidx.core.app.CoreComponentFactory"
+52-->[androidx.core:core:1.18.0] C:\Users\Acer\.gradle\caches\8.14\transforms\e5ff22184a18667da2400ec3665b193c\transformed\core-1.18.0\AndroidManifest.xml:28:18-86
+53        android:debuggable="true"
+54        android:extractNativeLibs="false"
+55        android:icon="@mipmap/ic_launcher"
+56        android:label="biopet" >
+57        <meta-data
+58            android:name="com.google.android.geo.API_KEY"
+59            android:value="AIzaSyC4uNvcXlhJHKKMHRqS0G9IP__BLyT0krI" />
+60
+61        <activity
+62            android:name="com.example.biopet.MainActivity"
+63            android:configChanges="orientation|keyboardHidden|keyboard|screenSize|smallestScreenSize|locale|layoutDirection|fontScale|screenLayout|density|uiMode"
+64            android:exported="true"
+65            android:hardwareAccelerated="true"
+66            android:launchMode="singleTop"
+67            android:taskAffinity=""
+68            android:theme="@style/LaunchTheme"
+69            android:windowSoftInputMode="adjustResize" >
+70
+71            <!--
+72                 Specifies an Android theme to apply to this Activity as soon as
+73                 the Android process has started. This theme is visible to the user
+74                 while the Flutter UI initializes. After that, this theme continues
+75                 to determine the Window background behind the Flutter UI.
+76            -->
+77            <meta-data
+78                android:name="io.flutter.embedding.android.NormalTheme"
+79                android:resource="@style/NormalTheme" />
+80
+81            <intent-filter>
+82                <action android:name="android.intent.action.MAIN" />
+83
+84                <category android:name="android.intent.category.LAUNCHER" />
+85            </intent-filter>
+86        </activity>
+87        <!--
+88             Don't delete the meta-data below.
+89             This is used by the Flutter tool to generate GeneratedPluginRegistrant.java
+90        -->
+91        <meta-data
+92            android:name="flutterEmbedding"
+93            android:value="2" />
+94
+95        <uses-library
+95-->[:google_maps_flutter_android] C:\Users\Acer\AppData\Local\Pub\Cache\hosted\pub.dev\google_maps_flutter_android-2.19.8\android\build\intermediates\merged_manifest\debug\processDebugManifest\AndroidManifest.xml:8:9-10:40
+96            android:name="org.apache.http.legacy"
+96-->[:google_maps_flutter_android] C:\Users\Acer\AppData\Local\Pub\Cache\hosted\pub.dev\google_maps_flutter_android-2.19.8\android\build\intermediates\merged_manifest\debug\processDebugManifest\AndroidManifest.xml:9:13-50
+97            android:required="false" />
+97-->[:google_maps_flutter_android] C:\Users\Acer\AppData\Local\Pub\Cache\hosted\pub.dev\google_maps_flutter_android-2.19.8\android\build\intermediates\merged_manifest\debug\processDebugManifest\AndroidManifest.xml:10:13-37
+98
+99        <provider
+99-->[:image_picker_android] C:\Users\Acer\AppData\Local\Pub\Cache\hosted\pub.dev\image_picker_android-0.8.13+17\android\build\intermediates\merged_manifest\debug\processDebugManifest\AndroidManifest.xml:9:9-17:20
+100            android:name="io.flutter.plugins.imagepicker.ImagePickerFileProvider"
+100-->[:image_picker_android] C:\Users\Acer\AppData\Local\Pub\Cache\hosted\pub.dev\image_picker_android-0.8.13+17\android\build\intermediates\merged_manifest\debug\processDebugManifest\AndroidManifest.xml:10:13-82
+101            android:authorities="com.example.biopet.flutter.image_provider"
+101-->[:image_picker_android] C:\Users\Acer\AppData\Local\Pub\Cache\hosted\pub.dev\image_picker_android-0.8.13+17\android\build\intermediates\merged_manifest\debug\processDebugManifest\AndroidManifest.xml:11:13-74
+102            android:exported="false"
+102-->[:image_picker_android] C:\Users\Acer\AppData\Local\Pub\Cache\hosted\pub.dev\image_picker_android-0.8.13+17\android\build\intermediates\merged_manifest\debug\processDebugManifest\AndroidManifest.xml:12:13-37
+103            android:grantUriPermissions="true" >
+103-->[:image_picker_android] C:\Users\Acer\AppData\Local\Pub\Cache\hosted\pub.dev\image_picker_android-0.8.13+17\android\build\intermediates\merged_manifest\debug\processDebugManifest\AndroidManifest.xml:13:13-47
+104            <meta-data
+104-->[:image_picker_android] C:\Users\Acer\AppData\Local\Pub\Cache\hosted\pub.dev\image_picker_android-0.8.13+17\android\build\intermediates\merged_manifest\debug\processDebugManifest\AndroidManifest.xml:14:13-16:75
+105                android:name="android.support.FILE_PROVIDER_PATHS"
+105-->[:image_picker_android] C:\Users\Acer\AppData\Local\Pub\Cache\hosted\pub.dev\image_picker_android-0.8.13+17\android\build\intermediates\merged_manifest\debug\processDebugManifest\AndroidManifest.xml:15:17-67
+106                android:resource="@xml/flutter_image_picker_file_paths" />
+106-->[:image_picker_android] C:\Users\Acer\AppData\Local\Pub\Cache\hosted\pub.dev\image_picker_android-0.8.13+17\android\build\intermediates\merged_manifest\debug\processDebugManifest\AndroidManifest.xml:16:17-72
+107        </provider> <!-- Trigger Google Play services to install the backported photo picker module. -->
+108        <service
+108-->[:image_picker_android] C:\Users\Acer\AppData\Local\Pub\Cache\hosted\pub.dev\image_picker_android-0.8.13+17\android\build\intermediates\merged_manifest\debug\processDebugManifest\AndroidManifest.xml:19:9-31:19
+109            android:name="com.google.android.gms.metadata.ModuleDependencies"
+109-->[:image_picker_android] C:\Users\Acer\AppData\Local\Pub\Cache\hosted\pub.dev\image_picker_android-0.8.13+17\android\build\intermediates\merged_manifest\debug\processDebugManifest\AndroidManifest.xml:20:13-78
+110            android:enabled="false"
+110-->[:image_picker_android] C:\Users\Acer\AppData\Local\Pub\Cache\hosted\pub.dev\image_picker_android-0.8.13+17\android\build\intermediates\merged_manifest\debug\processDebugManifest\AndroidManifest.xml:21:13-36
+111            android:exported="false" >
+111-->[:image_picker_android] C:\Users\Acer\AppData\Local\Pub\Cache\hosted\pub.dev\image_picker_android-0.8.13+17\android\build\intermediates\merged_manifest\debug\processDebugManifest\AndroidManifest.xml:22:13-37
+112            <intent-filter>
+112-->[:image_picker_android] C:\Users\Acer\AppData\Local\Pub\Cache\hosted\pub.dev\image_picker_android-0.8.13+17\android\build\intermediates\merged_manifest\debug\processDebugManifest\AndroidManifest.xml:24:13-26:29
+113                <action android:name="com.google.android.gms.metadata.MODULE_DEPENDENCIES" />
+113-->[:image_picker_android] C:\Users\Acer\AppData\Local\Pub\Cache\hosted\pub.dev\image_picker_android-0.8.13+17\android\build\intermediates\merged_manifest\debug\processDebugManifest\AndroidManifest.xml:25:17-94
+113-->[:image_picker_android] C:\Users\Acer\AppData\Local\Pub\Cache\hosted\pub.dev\image_picker_android-0.8.13+17\android\build\intermediates\merged_manifest\debug\processDebugManifest\AndroidManifest.xml:25:25-91
+114            </intent-filter>
+115
+116            <meta-data
+116-->[:image_picker_android] C:\Users\Acer\AppData\Local\Pub\Cache\hosted\pub.dev\image_picker_android-0.8.13+17\android\build\intermediates\merged_manifest\debug\processDebugManifest\AndroidManifest.xml:28:13-30:36
+117                android:name="photopicker_activity:0:required"
+117-->[:image_picker_android] C:\Users\Acer\AppData\Local\Pub\Cache\hosted\pub.dev\image_picker_android-0.8.13+17\android\build\intermediates\merged_manifest\debug\processDebugManifest\AndroidManifest.xml:29:17-63
+118                android:value="" />
+118-->[:image_picker_android] C:\Users\Acer\AppData\Local\Pub\Cache\hosted\pub.dev\image_picker_android-0.8.13+17\android\build\intermediates\merged_manifest\debug\processDebugManifest\AndroidManifest.xml:30:17-33
+119        </service>
+120        <service
+120-->[:geolocator_android] C:\Users\Acer\AppData\Local\Pub\Cache\hosted\pub.dev\geolocator_android-5.0.3\android\build\intermediates\merged_manifest\debug\processDebugManifest\AndroidManifest.xml:8:9-12:56
+121            android:name="com.baseflow.geolocator.GeolocatorLocationService"
+121-->[:geolocator_android] C:\Users\Acer\AppData\Local\Pub\Cache\hosted\pub.dev\geolocator_android-5.0.3\android\build\intermediates\merged_manifest\debug\processDebugManifest\AndroidManifest.xml:9:13-77
+122            android:enabled="true"
+122-->[:geolocator_android] C:\Users\Acer\AppData\Local\Pub\Cache\hosted\pub.dev\geolocator_android-5.0.3\android\build\intermediates\merged_manifest\debug\processDebugManifest\AndroidManifest.xml:10:13-35
+123            android:exported="false"
+123-->[:geolocator_android] C:\Users\Acer\AppData\Local\Pub\Cache\hosted\pub.dev\geolocator_android-5.0.3\android\build\intermediates\merged_manifest\debug\processDebugManifest\AndroidManifest.xml:11:13-37
+124            android:foregroundServiceType="location" />
+124-->[:geolocator_android] C:\Users\Acer\AppData\Local\Pub\Cache\hosted\pub.dev\geolocator_android-5.0.3\android\build\intermediates\merged_manifest\debug\processDebugManifest\AndroidManifest.xml:12:13-53
+125
+126        <activity
+126-->[:url_launcher_android] C:\Users\Acer\AppData\Local\Pub\Cache\hosted\pub.dev\url_launcher_android-6.3.32\android\build\intermediates\merged_manifest\debug\processDebugManifest\AndroidManifest.xml:8:9-11:74
+127            android:name="io.flutter.plugins.urllauncher.WebViewActivity"
+127-->[:url_launcher_android] C:\Users\Acer\AppData\Local\Pub\Cache\hosted\pub.dev\url_launcher_android-6.3.32\android\build\intermediates\merged_manifest\debug\processDebugManifest\AndroidManifest.xml:9:13-74
+128            android:exported="false"
+128-->[:url_launcher_android] C:\Users\Acer\AppData\Local\Pub\Cache\hosted\pub.dev\url_launcher_android-6.3.32\android\build\intermediates\merged_manifest\debug\processDebugManifest\AndroidManifest.xml:10:13-37
+129            android:theme="@android:style/Theme.NoTitleBar.Fullscreen" />
+129-->[:url_launcher_android] C:\Users\Acer\AppData\Local\Pub\Cache\hosted\pub.dev\url_launcher_android-6.3.32\android\build\intermediates\merged_manifest\debug\processDebugManifest\AndroidManifest.xml:11:13-71
+130
+131        <uses-library
+131-->[androidx.window:window:1.2.0] C:\Users\Acer\.gradle\caches\8.14\transforms\1d4b511eae8efb124571d5da39b054b7\transformed\jetified-window-1.2.0\AndroidManifest.xml:23:9-25:40
+132            android:name="androidx.window.extensions"
+132-->[androidx.window:window:1.2.0] C:\Users\Acer\.gradle\caches\8.14\transforms\1d4b511eae8efb124571d5da39b054b7\transformed\jetified-window-1.2.0\AndroidManifest.xml:24:13-54
+133            android:required="false" />
+133-->[androidx.window:window:1.2.0] C:\Users\Acer\.gradle\caches\8.14\transforms\1d4b511eae8efb124571d5da39b054b7\transformed\jetified-window-1.2.0\AndroidManifest.xml:25:13-37
+134        <uses-library
+134-->[androidx.window:window:1.2.0] C:\Users\Acer\.gradle\caches\8.14\transforms\1d4b511eae8efb124571d5da39b054b7\transformed\jetified-window-1.2.0\AndroidManifest.xml:26:9-28:40
+135            android:name="androidx.window.sidecar"
+135-->[androidx.window:window:1.2.0] C:\Users\Acer\.gradle\caches\8.14\transforms\1d4b511eae8efb124571d5da39b054b7\transformed\jetified-window-1.2.0\AndroidManifest.xml:27:13-51
+136            android:required="false" />
+136-->[androidx.window:window:1.2.0] C:\Users\Acer\.gradle\caches\8.14\transforms\1d4b511eae8efb124571d5da39b054b7\transformed\jetified-window-1.2.0\AndroidManifest.xml:28:13-37
+137
+138        <meta-data
+138-->[com.google.maps.android:android-maps-utils:4.1.0] C:\Users\Acer\.gradle\caches\8.14\transforms\3e93401807ace4b9a8b7bf21d69531ef\transformed\jetified-android-maps-utils-4.1.0\AndroidManifest.xml:24:9-26:69
+139            android:name="com.google.android.gms.version"
+139-->[com.google.maps.android:android-maps-utils:4.1.0] C:\Users\Acer\.gradle\caches\8.14\transforms\3e93401807ace4b9a8b7bf21d69531ef\transformed\jetified-android-maps-utils-4.1.0\AndroidManifest.xml:25:13-58
+140            android:value="@integer/google_play_services_version" />
+140-->[com.google.maps.android:android-maps-utils:4.1.0] C:\Users\Acer\.gradle\caches\8.14\transforms\3e93401807ace4b9a8b7bf21d69531ef\transformed\jetified-android-maps-utils-4.1.0\AndroidManifest.xml:26:13-66
+141
+142        <provider
+142-->[com.google.maps.android:android-maps-utils:4.1.0] C:\Users\Acer\.gradle\caches\8.14\transforms\3e93401807ace4b9a8b7bf21d69531ef\transformed\jetified-android-maps-utils-4.1.0\AndroidManifest.xml:28:9-36:20
+143            android:name="androidx.startup.InitializationProvider"
+143-->[com.google.maps.android:android-maps-utils:4.1.0] C:\Users\Acer\.gradle\caches\8.14\transforms\3e93401807ace4b9a8b7bf21d69531ef\transformed\jetified-android-maps-utils-4.1.0\AndroidManifest.xml:29:13-67
+144            android:authorities="com.example.biopet.androidx-startup"
+144-->[com.google.maps.android:android-maps-utils:4.1.0] C:\Users\Acer\.gradle\caches\8.14\transforms\3e93401807ace4b9a8b7bf21d69531ef\transformed\jetified-android-maps-utils-4.1.0\AndroidManifest.xml:30:13-68
+145            android:exported="false" >
+145-->[com.google.maps.android:android-maps-utils:4.1.0] C:\Users\Acer\.gradle\caches\8.14\transforms\3e93401807ace4b9a8b7bf21d69531ef\transformed\jetified-android-maps-utils-4.1.0\AndroidManifest.xml:31:13-37
+146            <meta-data
+146-->[com.google.maps.android:android-maps-utils:4.1.0] C:\Users\Acer\.gradle\caches\8.14\transforms\3e93401807ace4b9a8b7bf21d69531ef\transformed\jetified-android-maps-utils-4.1.0\AndroidManifest.xml:33:13-35:52
+147                android:name="com.google.maps.android.utils.attribution.AttributionIdInitializer"
+147-->[com.google.maps.android:android-maps-utils:4.1.0] C:\Users\Acer\.gradle\caches\8.14\transforms\3e93401807ace4b9a8b7bf21d69531ef\transformed\jetified-android-maps-utils-4.1.0\AndroidManifest.xml:34:17-98
+148                android:value="androidx.startup" />
+148-->[com.google.maps.android:android-maps-utils:4.1.0] C:\Users\Acer\.gradle\caches\8.14\transforms\3e93401807ace4b9a8b7bf21d69531ef\transformed\jetified-android-maps-utils-4.1.0\AndroidManifest.xml:35:17-49
+149            <meta-data
+149-->[androidx.emoji2:emoji2:1.3.0] C:\Users\Acer\.gradle\caches\8.14\transforms\efabc59ad62a76cb23df9da330c1e1b4\transformed\jetified-emoji2-1.3.0\AndroidManifest.xml:29:13-31:52
+150                android:name="androidx.emoji2.text.EmojiCompatInitializer"
+150-->[androidx.emoji2:emoji2:1.3.0] C:\Users\Acer\.gradle\caches\8.14\transforms\efabc59ad62a76cb23df9da330c1e1b4\transformed\jetified-emoji2-1.3.0\AndroidManifest.xml:30:17-75
+151                android:value="androidx.startup" />
+151-->[androidx.emoji2:emoji2:1.3.0] C:\Users\Acer\.gradle\caches\8.14\transforms\efabc59ad62a76cb23df9da330c1e1b4\transformed\jetified-emoji2-1.3.0\AndroidManifest.xml:31:17-49
+152            <meta-data
+152-->[androidx.lifecycle:lifecycle-process:2.7.0] C:\Users\Acer\.gradle\caches\8.14\transforms\0b50aea4fae1196fbc959101ad55b9c7\transformed\jetified-lifecycle-process-2.7.0\AndroidManifest.xml:29:13-31:52
+153                android:name="androidx.lifecycle.ProcessLifecycleInitializer"
+153-->[androidx.lifecycle:lifecycle-process:2.7.0] C:\Users\Acer\.gradle\caches\8.14\transforms\0b50aea4fae1196fbc959101ad55b9c7\transformed\jetified-lifecycle-process-2.7.0\AndroidManifest.xml:30:17-78
+154                android:value="androidx.startup" />
+154-->[androidx.lifecycle:lifecycle-process:2.7.0] C:\Users\Acer\.gradle\caches\8.14\transforms\0b50aea4fae1196fbc959101ad55b9c7\transformed\jetified-lifecycle-process-2.7.0\AndroidManifest.xml:31:17-49
+155            <meta-data
+155-->[androidx.profileinstaller:profileinstaller:1.4.0] C:\Users\Acer\.gradle\caches\8.14\transforms\1855993de6732ab96373b6190c2c4bf8\transformed\jetified-profileinstaller-1.4.0\AndroidManifest.xml:29:13-31:52
+156                android:name="androidx.profileinstaller.ProfileInstallerInitializer"
+156-->[androidx.profileinstaller:profileinstaller:1.4.0] C:\Users\Acer\.gradle\caches\8.14\transforms\1855993de6732ab96373b6190c2c4bf8\transformed\jetified-profileinstaller-1.4.0\AndroidManifest.xml:30:17-85
+157                android:value="androidx.startup" />
+157-->[androidx.profileinstaller:profileinstaller:1.4.0] C:\Users\Acer\.gradle\caches\8.14\transforms\1855993de6732ab96373b6190c2c4bf8\transformed\jetified-profileinstaller-1.4.0\AndroidManifest.xml:31:17-49
+158        </provider>
+159
+160        <activity
+160-->[com.google.android.gms:play-services-base:18.5.0] C:\Users\Acer\.gradle\caches\8.14\transforms\c88e03b3eb5117430c1a91e4d2694a5b\transformed\jetified-play-services-base-18.5.0\AndroidManifest.xml:5:9-173
+161            android:name="com.google.android.gms.common.api.GoogleApiActivity"
+161-->[com.google.android.gms:play-services-base:18.5.0] C:\Users\Acer\.gradle\caches\8.14\transforms\c88e03b3eb5117430c1a91e4d2694a5b\transformed\jetified-play-services-base-18.5.0\AndroidManifest.xml:5:19-85
+162            android:exported="false"
+162-->[com.google.android.gms:play-services-base:18.5.0] C:\Users\Acer\.gradle\caches\8.14\transforms\c88e03b3eb5117430c1a91e4d2694a5b\transformed\jetified-play-services-base-18.5.0\AndroidManifest.xml:5:146-170
+163            android:theme="@android:style/Theme.Translucent.NoTitleBar" />
+163-->[com.google.android.gms:play-services-base:18.5.0] C:\Users\Acer\.gradle\caches\8.14\transforms\c88e03b3eb5117430c1a91e4d2694a5b\transformed\jetified-play-services-base-18.5.0\AndroidManifest.xml:5:86-145
+164
+165        <receiver
+165-->[androidx.profileinstaller:profileinstaller:1.4.0] C:\Users\Acer\.gradle\caches\8.14\transforms\1855993de6732ab96373b6190c2c4bf8\transformed\jetified-profileinstaller-1.4.0\AndroidManifest.xml:34:9-52:20
+166            android:name="androidx.profileinstaller.ProfileInstallReceiver"
+166-->[androidx.profileinstaller:profileinstaller:1.4.0] C:\Users\Acer\.gradle\caches\8.14\transforms\1855993de6732ab96373b6190c2c4bf8\transformed\jetified-profileinstaller-1.4.0\AndroidManifest.xml:35:13-76
+167            android:directBootAware="false"
+167-->[androidx.profileinstaller:profileinstaller:1.4.0] C:\Users\Acer\.gradle\caches\8.14\transforms\1855993de6732ab96373b6190c2c4bf8\transformed\jetified-profileinstaller-1.4.0\AndroidManifest.xml:36:13-44
+168            android:enabled="true"
+168-->[androidx.profileinstaller:profileinstaller:1.4.0] C:\Users\Acer\.gradle\caches\8.14\transforms\1855993de6732ab96373b6190c2c4bf8\transformed\jetified-profileinstaller-1.4.0\AndroidManifest.xml:37:13-35
+169            android:exported="true"
+169-->[androidx.profileinstaller:profileinstaller:1.4.0] C:\Users\Acer\.gradle\caches\8.14\transforms\1855993de6732ab96373b6190c2c4bf8\transformed\jetified-profileinstaller-1.4.0\AndroidManifest.xml:38:13-36
+170            android:permission="android.permission.DUMP" >
+170-->[androidx.profileinstaller:profileinstaller:1.4.0] C:\Users\Acer\.gradle\caches\8.14\transforms\1855993de6732ab96373b6190c2c4bf8\transformed\jetified-profileinstaller-1.4.0\AndroidManifest.xml:39:13-57
+171            <intent-filter>
+171-->[androidx.profileinstaller:profileinstaller:1.4.0] C:\Users\Acer\.gradle\caches\8.14\transforms\1855993de6732ab96373b6190c2c4bf8\transformed\jetified-profileinstaller-1.4.0\AndroidManifest.xml:40:13-42:29
+172                <action android:name="androidx.profileinstaller.action.INSTALL_PROFILE" />
+172-->[androidx.profileinstaller:profileinstaller:1.4.0] C:\Users\Acer\.gradle\caches\8.14\transforms\1855993de6732ab96373b6190c2c4bf8\transformed\jetified-profileinstaller-1.4.0\AndroidManifest.xml:41:17-91
+172-->[androidx.profileinstaller:profileinstaller:1.4.0] C:\Users\Acer\.gradle\caches\8.14\transforms\1855993de6732ab96373b6190c2c4bf8\transformed\jetified-profileinstaller-1.4.0\AndroidManifest.xml:41:25-88
+173            </intent-filter>
+174            <intent-filter>
+174-->[androidx.profileinstaller:profileinstaller:1.4.0] C:\Users\Acer\.gradle\caches\8.14\transforms\1855993de6732ab96373b6190c2c4bf8\transformed\jetified-profileinstaller-1.4.0\AndroidManifest.xml:43:13-45:29
+175                <action android:name="androidx.profileinstaller.action.SKIP_FILE" />
+175-->[androidx.profileinstaller:profileinstaller:1.4.0] C:\Users\Acer\.gradle\caches\8.14\transforms\1855993de6732ab96373b6190c2c4bf8\transformed\jetified-profileinstaller-1.4.0\AndroidManifest.xml:44:17-85
+175-->[androidx.profileinstaller:profileinstaller:1.4.0] C:\Users\Acer\.gradle\caches\8.14\transforms\1855993de6732ab96373b6190c2c4bf8\transformed\jetified-profileinstaller-1.4.0\AndroidManifest.xml:44:25-82
+176            </intent-filter>
+177            <intent-filter>
+177-->[androidx.profileinstaller:profileinstaller:1.4.0] C:\Users\Acer\.gradle\caches\8.14\transforms\1855993de6732ab96373b6190c2c4bf8\transformed\jetified-profileinstaller-1.4.0\AndroidManifest.xml:46:13-48:29
+178                <action android:name="androidx.profileinstaller.action.SAVE_PROFILE" />
+178-->[androidx.profileinstaller:profileinstaller:1.4.0] C:\Users\Acer\.gradle\caches\8.14\transforms\1855993de6732ab96373b6190c2c4bf8\transformed\jetified-profileinstaller-1.4.0\AndroidManifest.xml:47:17-88
+178-->[androidx.profileinstaller:profileinstaller:1.4.0] C:\Users\Acer\.gradle\caches\8.14\transforms\1855993de6732ab96373b6190c2c4bf8\transformed\jetified-profileinstaller-1.4.0\AndroidManifest.xml:47:25-85
+179            </intent-filter>
+180            <intent-filter>
+180-->[androidx.profileinstaller:profileinstaller:1.4.0] C:\Users\Acer\.gradle\caches\8.14\transforms\1855993de6732ab96373b6190c2c4bf8\transformed\jetified-profileinstaller-1.4.0\AndroidManifest.xml:49:13-51:29
+181                <action android:name="androidx.profileinstaller.action.BENCHMARK_OPERATION" />
+181-->[androidx.profileinstaller:profileinstaller:1.4.0] C:\Users\Acer\.gradle\caches\8.14\transforms\1855993de6732ab96373b6190c2c4bf8\transformed\jetified-profileinstaller-1.4.0\AndroidManifest.xml:50:17-95
+181-->[androidx.profileinstaller:profileinstaller:1.4.0] C:\Users\Acer\.gradle\caches\8.14\transforms\1855993de6732ab96373b6190c2c4bf8\transformed\jetified-profileinstaller-1.4.0\AndroidManifest.xml:50:25-92
+182            </intent-filter>
+183        </receiver>
+184        <!--
+185 Applications that target Android S+ require explicit declaration of
+186             any referenced vendor-provided libraries.
+187        -->
+188        <uses-native-library
+188-->[com.google.ai.edge.litert:litert-gpu-api:1.4.0] C:\Users\Acer\.gradle\caches\8.14\transforms\d8f5cf31b0c0e5e7e27bf878c4e7b8d1\transformed\jetified-litert-gpu-api-1.4.0\AndroidManifest.xml:8:9-10:40
+189            android:name="libOpenCL.so"
+189-->[com.google.ai.edge.litert:litert-gpu-api:1.4.0] C:\Users\Acer\.gradle\caches\8.14\transforms\d8f5cf31b0c0e5e7e27bf878c4e7b8d1\transformed\jetified-litert-gpu-api-1.4.0\AndroidManifest.xml:9:13-40
+190            android:required="false" />
+190-->[com.google.ai.edge.litert:litert-gpu-api:1.4.0] C:\Users\Acer\.gradle\caches\8.14\transforms\d8f5cf31b0c0e5e7e27bf878c4e7b8d1\transformed\jetified-litert-gpu-api-1.4.0\AndroidManifest.xml:10:13-37
+191        <uses-native-library
+191-->[com.google.ai.edge.litert:litert-gpu-api:1.4.0] C:\Users\Acer\.gradle\caches\8.14\transforms\d8f5cf31b0c0e5e7e27bf878c4e7b8d1\transformed\jetified-litert-gpu-api-1.4.0\AndroidManifest.xml:8:9-10:40
+192            android:name="libOpenCL-car.so"
+192-->[com.google.ai.edge.litert:litert-gpu-api:1.4.0] C:\Users\Acer\.gradle\caches\8.14\transforms\d8f5cf31b0c0e5e7e27bf878c4e7b8d1\transformed\jetified-litert-gpu-api-1.4.0\AndroidManifest.xml:9:13-40
+193            android:required="false" />
+193-->[com.google.ai.edge.litert:litert-gpu-api:1.4.0] C:\Users\Acer\.gradle\caches\8.14\transforms\d8f5cf31b0c0e5e7e27bf878c4e7b8d1\transformed\jetified-litert-gpu-api-1.4.0\AndroidManifest.xml:10:13-37
+194        <uses-native-library
+194-->[com.google.ai.edge.litert:litert-gpu-api:1.4.0] C:\Users\Acer\.gradle\caches\8.14\transforms\d8f5cf31b0c0e5e7e27bf878c4e7b8d1\transformed\jetified-litert-gpu-api-1.4.0\AndroidManifest.xml:8:9-10:40
+195            android:name="libOpenCL-pixel.so"
+195-->[com.google.ai.edge.litert:litert-gpu-api:1.4.0] C:\Users\Acer\.gradle\caches\8.14\transforms\d8f5cf31b0c0e5e7e27bf878c4e7b8d1\transformed\jetified-litert-gpu-api-1.4.0\AndroidManifest.xml:9:13-40
+196            android:required="false" />
+196-->[com.google.ai.edge.litert:litert-gpu-api:1.4.0] C:\Users\Acer\.gradle\caches\8.14\transforms\d8f5cf31b0c0e5e7e27bf878c4e7b8d1\transformed\jetified-litert-gpu-api-1.4.0\AndroidManifest.xml:10:13-37
+197    </application>
+198
+199</manifest>
