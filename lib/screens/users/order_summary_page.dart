@@ -1,763 +1,171 @@
 import 'package:flutter/material.dart';
 import 'order_success_page.dart';
 
-
 class OrderSummaryPage extends StatelessWidget {
+  final Map<String, dynamic> order;
+  final double subtotal;
+  final double deliveryFee;
+  final double total;
+  final String paymentMethod;
+  final String phone;
+  final String address;
 
-  const OrderSummaryPage({super.key});
-
+  const OrderSummaryPage({
+    super.key,
+    required this.order,
+    required this.subtotal,
+    required this.deliveryFee,
+    required this.total,
+    required this.paymentMethod,
+    required this.phone,
+    required this.address,
+  });
 
   @override
   Widget build(BuildContext context) {
-
+    final items = order['items'] as List? ?? [];
 
     return Scaffold(
-
-      backgroundColor:
-      const Color(0xffF7F7F7),
-
-
-
+      backgroundColor: const Color(0xffF7F7F7),
       appBar: AppBar(
-
-        title:
-        const Text(
-
-          "Order Summary",
-
-          style:
-          TextStyle(
-
-            color:Colors.black,
-
-            fontWeight:
-            FontWeight.bold,
-
-          ),
-
-        ),
-
-
-        centerTitle:true,
-
-
-        backgroundColor:
-        Colors.white,
-
-
-        elevation:0,
-
-
-        iconTheme:
-        const IconThemeData(
-
-          color:Colors.black,
-
-        ),
-
+        title: const Text("Order Summary", style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold)),
+        centerTitle: true,
+        backgroundColor: Colors.white,
+        elevation: 0,
+        iconTheme: const IconThemeData(color: Colors.black),
       ),
-
-
-
-
-
-
-      body:
-      SingleChildScrollView(
-
-
-        padding:
-        const EdgeInsets.all(16),
-
-
-
-        child:
-        Column(
-
-
-          crossAxisAlignment:
-          CrossAxisAlignment.start,
-
-
-
-          children:[
-
-
-
-
-
-
-            sectionTitle(
-              "Products",
-            ),
-
-
-
-            const SizedBox(height:10),
-
-
-
-
-
-            productCard(),
-
-
-
-
-
-            const SizedBox(height:25),
-
-
-
-
-
-            sectionTitle(
-              "Delivery Information",
-            ),
-
-
-
-
-
-            const SizedBox(height:10),
-
-
-
-
-
-            infoCard([
-
-
-              "Name: Chit Snow Oo",
-
-              "Phone: 09xxxxxxxxx",
-
-              "Address: Yangon, Myanmar",
-
-            ]),
-
-
-
-
-
-            const SizedBox(height:25),
-
-
-
-
-
-            sectionTitle(
-              "Payment Method",
-            ),
-
-
-
-
-            const SizedBox(height:10),
-
-
-
-
-            infoCard([
-
-              "Payment: KBZPay",
-
-              "Status: Pending",
-
-            ]),
-
-
-
-
-
-            const SizedBox(height:25),
-
-
-
-
-
-            sectionTitle(
-              "Price Details",
-            ),
-
-
-
-
-            const SizedBox(height:10),
-
-
-
-
+      body: SingleChildScrollView(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            sectionTitle("Products"),
+            const SizedBox(height: 10),
+            ...items.map((item) => Padding(
+              padding: const EdgeInsets.only(bottom: 12),
+              child: productCard(item),
+            )),
+            const SizedBox(height: 15),
+            sectionTitle("Delivery Information"),
+            const SizedBox(height: 10),
+            infoCard(["Phone: $phone", "Address: $address"]),
+            const SizedBox(height: 25),
+            sectionTitle("Payment Method"),
+            const SizedBox(height: 10),
+            infoCard(["Payment: $paymentMethod", "Status: ${order['status'] ?? 'Pending'}"]),
+            const SizedBox(height: 25),
+            sectionTitle("Price Details"),
+            const SizedBox(height: 10),
             priceCard(),
-
-
-
-
-
-            const SizedBox(height:30),
-
-
-
-
-
-
+            const SizedBox(height: 30),
             SizedBox(
-
-              width:
-              double.infinity,
-
-
-              height:
-              55,
-
-
-
-              child:
-              ElevatedButton(
-
-
-                onPressed:(){
-
-
-
-                  Navigator.push(
-
+              width: double.infinity,
+              height: 55,
+              child: ElevatedButton(
+                onPressed: () {
+                  Navigator.pushReplacement(
                     context,
-
-                    MaterialPageRoute(
-
-                      builder:
-                          (context)=>
-
-                      const OrderSuccessPage(),
-
-                    ),
-
+                    MaterialPageRoute(builder: (_) => OrderSuccessPage(order: order)),
                   );
-
-
-
                 },
-
-
-
-                style:
-                ElevatedButton.styleFrom(
-
-                  backgroundColor:
-                  Colors.orange,
-
-
-                  shape:
-                  RoundedRectangleBorder(
-
-                    borderRadius:
-                    BorderRadius.circular(15),
-
-                  ),
-
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.orange,
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
                 ),
-
-
-
-                child:
-                const Text(
-
-                  "Place Order",
-
-                  style:
-                  TextStyle(
-
-                    color:
-                    Colors.white,
-
-
-                    fontSize:17,
-
-
-                    fontWeight:
-                    FontWeight.bold,
-
-                  ),
-
-                ),
-
-
+                child: const Text("Done",
+                    style: TextStyle(color: Colors.white, fontSize: 17, fontWeight: FontWeight.bold)),
               ),
-
-
-            )
-
-
-
+            ),
           ],
-
-
         ),
-
-
       ),
-
-
-
     );
-
-
   }
 
+  Widget sectionTitle(String title) =>
+      Text(title, style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold));
 
-
-
-
-
-
-
-
-  Widget sectionTitle(String title){
-
-
-    return Text(
-
-      title,
-
-      style:
-      const TextStyle(
-
-        fontSize:20,
-
-        fontWeight:
-        FontWeight.bold,
-
-      ),
-
-    );
-
-
-  }
-
-
-
-
-
-
-
-
-
-  Widget productCard(){
-
+  Widget productCard(dynamic item) {
+    final name = item['name']?.toString() ?? 'Product';
+    final image = item['image']?.toString() ?? '';
+    final quantity = item['quantity']?.toString() ?? '1';
+    final price = (item['price'] ?? 0).toDouble();
+    final lineTotal = price * (item['quantity'] ?? 1);
 
     return Container(
-
-
-      padding:
-      const EdgeInsets.all(15),
-
-
-      decoration:
-      BoxDecoration(
-
-        color:
-        Colors.white,
-
-
-        borderRadius:
-        BorderRadius.circular(18),
-
-      ),
-
-
-
-      child:
-      Row(
-
-
-        children:[
-
-
-
+      padding: const EdgeInsets.all(15),
+      decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(18)),
+      child: Row(
+        children: [
           ClipRRect(
-
-            borderRadius:
-            BorderRadius.circular(15),
-
-
-            child:
-            Image.network(
-
-              "https://images.unsplash.com/photo-1589924691995-400dc9ecc119",
-
-
-              width:80,
-
-              height:80,
-
-
-              fit:
-              BoxFit.cover,
-
-
-              errorBuilder:
-                  (_,__,___){
-
-                return const Icon(
-                  Icons.pets,
-                  size:60,
-                );
-
-              },
-
-            ),
-
+            borderRadius: BorderRadius.circular(15),
+            child: image.isNotEmpty
+                ? Image.network(image, width: 80, height: 80, fit: BoxFit.cover,
+                errorBuilder: (_, __, ___) => const Icon(Icons.pets, size: 60))
+                : const Icon(Icons.pets, size: 60),
           ),
-
-
-
-
-
-
-          const SizedBox(width:15),
-
-
-
-
-
-          const Expanded(
-
-            child:
-            Column(
-
-
-              crossAxisAlignment:
-              CrossAxisAlignment.start,
-
-
-
-              children:[
-
-
-                Text(
-
-                  "Royal Canin Puppy Food",
-
-                  style:
-                  TextStyle(
-
-                    fontWeight:
-                    FontWeight.bold,
-
-                    fontSize:16,
-
-                  ),
-
-                ),
-
-
-
-
-
-                SizedBox(height:8),
-
-
-
-
-
-                Text(
-
-                  "Quantity: 2",
-
-                ),
-
-
-
-
-
-                SizedBox(height:5),
-
-
-
-
-                Text(
-
-                  "90,000 MMK",
-
-                  style:
-                  TextStyle(
-
-                    color:
-                    Colors.green,
-
-                    fontWeight:
-                    FontWeight.bold,
-
-                  ),
-
-                )
-
-
-
+          const SizedBox(width: 15),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(name, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+                const SizedBox(height: 8),
+                Text("Quantity: $quantity"),
+                const SizedBox(height: 5),
+                Text("${lineTotal.toStringAsFixed(0)} MMK",
+                    style: const TextStyle(color: Colors.green, fontWeight: FontWeight.bold)),
               ],
-
             ),
-
-          )
-
-
-
-
+          ),
         ],
-
-
       ),
-
-
     );
-
-
   }
 
-
-
-
-
-
-
-
-
-  Widget infoCard(List<String> data){
-
-
+  Widget infoCard(List<String> data) {
     return Container(
-
-
-      padding:
-      const EdgeInsets.all(15),
-
-
-      decoration:
-      BoxDecoration(
-
-        color:
-        Colors.white,
-
-
-        borderRadius:
-        BorderRadius.circular(18),
-
+      padding: const EdgeInsets.all(15),
+      decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(18)),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: data
+            .map((e) => Padding(
+            padding: const EdgeInsets.symmetric(vertical: 5),
+            child: Text(e, style: const TextStyle(fontSize: 15))))
+            .toList(),
       ),
-
-
-
-      child:
-      Column(
-
-
-        crossAxisAlignment:
-        CrossAxisAlignment.start,
-
-
-
-        children:
-        data.map((e)=>Padding(
-
-          padding:
-          const EdgeInsets.symmetric(
-            vertical:5,
-          ),
-
-
-          child:
-          Text(
-
-            e,
-
-            style:
-            const TextStyle(
-
-              fontSize:15,
-
-            ),
-
-          ),
-
-
-        )).toList(),
-
-
-      ),
-
-
     );
-
-
   }
 
-
-
-
-
-
-
-
-
-  Widget priceCard(){
-
-
+  Widget priceCard() {
     return Container(
-
-
-      padding:
-      const EdgeInsets.all(15),
-
-
-      decoration:
-      BoxDecoration(
-
-        color:
-        Colors.white,
-
-
-        borderRadius:
-        BorderRadius.circular(18),
-
-      ),
-
-
-
-
-      child:
-      Column(
-
-        children:[
-
-
-          priceRow(
-            "Subtotal",
-            "90,000 MMK",
-          ),
-
-
-          priceRow(
-            "Delivery Fee",
-            "3,000 MMK",
-          ),
-
-
-
+      padding: const EdgeInsets.all(15),
+      decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(18)),
+      child: Column(
+        children: [
+          priceRow("Subtotal", "${subtotal.toStringAsFixed(0)} MMK"),
+          priceRow("Delivery Fee", "${deliveryFee.toStringAsFixed(0)} MMK"),
           const Divider(),
-
-
-
-
-          priceRow(
-            "Total",
-            "93,000 MMK",
-            bold:true,
-          ),
-
-
-
+          priceRow("Total", "${total.toStringAsFixed(0)} MMK", bold: true),
         ],
-
-
       ),
-
-
     );
-
-
   }
 
-
-
-
-
-
-
-
-
-  Widget priceRow(
-      String title,
-      String value,
-      {
-        bool bold=false,
-      }
-      ){
-
-
-
+  Widget priceRow(String title, String value, {bool bold = false}) {
     return Padding(
-
-      padding:
-      const EdgeInsets.symmetric(
-        vertical:8,
-      ),
-
-
-      child:
-      Row(
-
-
-        mainAxisAlignment:
-        MainAxisAlignment.spaceBetween,
-
-
-
-        children:[
-
-
-          Text(
-
-            title,
-
-            style:
-            TextStyle(
-
-              fontWeight:
-              bold
-                  ? FontWeight.bold
-                  : FontWeight.normal,
-
-            ),
-
-          ),
-
-
-
-
-          Text(
-
-            value,
-
-            style:
-            TextStyle(
-
-              color:
-              bold
-                  ? Colors.green
-                  : Colors.black,
-
-
-              fontWeight:
-              bold
-                  ? FontWeight.bold
-                  : FontWeight.normal,
-
-            ),
-
-
-          )
-
-
+      padding: const EdgeInsets.symmetric(vertical: 8),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Text(title, style: TextStyle(fontWeight: bold ? FontWeight.bold : FontWeight.normal)),
+          Text(value,
+              style: TextStyle(
+                  color: bold ? Colors.green : Colors.black,
+                  fontWeight: bold ? FontWeight.bold : FontWeight.normal)),
         ],
-
-
       ),
-
     );
-
-
   }
-
-
-
 }

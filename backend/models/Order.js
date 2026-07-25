@@ -13,6 +13,11 @@ const orderItemSchema = new mongoose.Schema(
       required: true,
     },
 
+    image: {
+      type: String,
+      default: "",
+    },
+
     price: {
       type: Number,
       required: true,
@@ -24,9 +29,9 @@ const orderItemSchema = new mongoose.Schema(
       min: 1,
     },
 
-    image: {
-      type: String,
-      default: "",
+    subtotal: {
+      type: Number,
+      required: true,
     },
   },
   { _id: false }
@@ -34,22 +39,19 @@ const orderItemSchema = new mongoose.Schema(
 
 const orderSchema = new mongoose.Schema(
   {
+    orderNumber: {
+      type: String,
+      unique: true,
+      required: true,
+    },
+
     customer: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "User",
       required: true,
     },
 
-    seller: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: "User",
-      required: true,
-    },
-
-    items: {
-      type: [orderItemSchema],
-      required: true,
-    },
+    items: [orderItemSchema],
 
     totalAmount: {
       type: Number,
@@ -57,26 +59,34 @@ const orderSchema = new mongoose.Schema(
     },
 
     shippingAddress: {
-      type: String,
-      required: true,
+      name: String,
+      phone: String,
+      address: String,
     },
 
-    phone: {
+    paymentMethod: {
       type: String,
-      required: true,
+      enum: ["COD", "KBZ_PAY", "WAVE_PAY", "CARD"],
+      default: "COD",
+    },
+
+    paymentStatus: {
+      type: String,
+      enum: ["Pending", "Paid", "Failed"],
+      default: "Pending",
     },
 
     status: {
       type: String,
       enum: [
-        "pending",
-        "confirmed",
-        "processing",
-        "shipped",
-        "delivered",
-        "cancelled",
+        "Pending",
+        "Confirmed",
+        "Processing",
+        "Shipping",
+        "Delivered",
+        "Cancelled",
       ],
-      default: "pending",
+      default: "Pending",
     },
   },
   {

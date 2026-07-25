@@ -1,31 +1,41 @@
 import 'package:flutter/material.dart';
+import '../../services/order_service.dart';
 import 'order_detail_page.dart';
 
-
 class MyOrdersPage extends StatefulWidget {
-
-  const MyOrdersPage({super.key});
-
+  const MyOrdersPage({
+    super.key,
+  });
 
   @override
-  State<MyOrdersPage> createState() => _MyOrdersPageState();
-
+  State<MyOrdersPage> createState() =>
+      _MyOrdersPageState();
 }
 
-
-
-class _MyOrdersPageState extends State<MyOrdersPage>
+class _MyOrdersPageState
+    extends State<MyOrdersPage>
     with SingleTickerProviderStateMixin {
-
-
 
   late TabController tabController;
 
+  final OrderService orderService =
+  OrderService();
 
+  List<dynamic> orders = [];
+
+  bool loading = true;
+
+  String? error;
+
+  final List<String> statuses = [
+    "Pending",
+    "Shipping",
+    "Delivered",
+    "Cancelled",
+  ];
 
   @override
   void initState() {
-
     super.initState();
 
     tabController =
@@ -34,670 +44,476 @@ class _MyOrdersPageState extends State<MyOrdersPage>
           vsync: this,
         );
 
+    loadOrders();
   }
 
-
-
   @override
-  void dispose(){
-
+  void dispose() {
     tabController.dispose();
-
     super.dispose();
-
   }
 
+  Future<void> loadOrders() async {
+    try {
+      setState(() {
+        loading = true;
+        error = null;
+      });
 
+      final data =
+      await orderService
+          .getMyOrders();
 
+      setState(() {
+        orders = data;
+        loading = false;
+      });
 
+    } catch (e) {
+      setState(() {
+        loading = false;
+        error = e.toString();
+      });
+    }
+  }
 
+  List<dynamic> filteredOrders(
+      String status) {
 
+    return orders.where((order) {
+      final orderStatus =
+          order['status']
+              ?.toString() ??
+              '';
 
-  final List<String> statuses = [
-
-    "Pending",
-    "Shipping",
-    "Delivered",
-    "Cancelled"
-
-  ];
-
-
-
-
-
-
+      return orderStatus ==
+          status;
+    }).toList();
+  }
 
   @override
-  Widget build(BuildContext context) {
-
+  Widget build(
+      BuildContext context) {
 
     return Scaffold(
-
-
       backgroundColor:
       const Color(0xffF7F7F7),
 
-
-
-
-
       appBar: AppBar(
-
-
-        title:
-        const Text(
-
+        title: const Text(
           "My Orders",
-
-          style:
-          TextStyle(
-
-            color:Colors.black,
-
+          style: TextStyle(
+            color: Colors.black,
             fontWeight:
             FontWeight.bold,
-
           ),
-
         ),
 
-
-
-        centerTitle:true,
-
-
+        centerTitle: true,
 
         backgroundColor:
         Colors.white,
 
-
-
-        elevation:0,
-
-
+        elevation: 0,
 
         iconTheme:
         const IconThemeData(
-
-          color:Colors.black,
-
+          color: Colors.black,
         ),
 
-
-
-
-        bottom:
-        TabBar(
-
-
+        bottom: TabBar(
           controller:
           tabController,
 
-
-          isScrollable:true,
-
+          isScrollable: true,
 
           labelColor:
           Colors.orange,
 
-
           unselectedLabelColor:
           Colors.grey,
-
 
           indicatorColor:
           Colors.orange,
 
-
-
-          tabs:
-          statuses.map(
-
-                  (e)=>
-
-                  Tab(
-
-                    text:e,
-
-                  )
-
+          tabs: statuses.map(
+                (e) {
+              return Tab(
+                text: e,
+              );
+            },
           ).toList(),
-
-
         ),
-
-
-
       ),
 
+      body: loading
+          ? const Center(
+        child:
+        CircularProgressIndicator(),
+      )
 
+          : error != null
+          ? Center(
+        child: Column(
+          mainAxisSize:
+          MainAxisSize.min,
+          children: [
+            Text(error!),
 
+            const SizedBox(
+              height: 15,
+            ),
 
+            ElevatedButton(
+              onPressed:
+              loadOrders,
+              child:
+              const Text(
+                "Retry",
+              ),
+            ),
+          ],
+        ),
+      )
 
-
-      body:
-
-      TabBarView(
-
-
+          : TabBarView(
         controller:
         tabController,
 
-
         children:
-
         statuses.map(
-
-                (status)=>
-
-                orderList(status)
-
+              (status) {
+            return orderList(
+              status,
+            );
+          },
         ).toList(),
-
-
       ),
-
-
-
-
     );
-
-
   }
 
+  Widget orderList(
+      String status) {
 
+    final filtered =
+    filteredOrders(status);
 
+    if (filtered.isEmpty) {
+      return const Center(
+        child: Text(
+          "No orders found",
+        ),
+      );
+    }
 
+    return RefreshIndicator(
+      onRefresh:
+      loadOrders,
 
+      child: ListView.builder(
+        padding:
+        const EdgeInsets.all(16),
 
+        itemCount:
+        filtered.length,
 
+        itemBuilder:
+            (context, index) {
 
-
-  Widget orderList(String status){
-
-
-
-    return ListView(
-
-      padding:
-      const EdgeInsets.all(16),
-
-
-
-      children:[
-
-
-        orderCard(status),
-
-
-        orderCard(status),
-
-
-
-      ],
-
-
+          return orderCard(
+            filtered[index],
+          );
+        },
+      ),
     );
-
-
   }
 
+  Widget orderCard(
+      Map<String, dynamic> order) {
 
+    final items =
+        order['items']
+        as List? ??
+            [];
 
+    final firstItem =
+    items.isNotEmpty
+        ? items.first
+        : {};
 
+    final image =
+        firstItem['image']
+            ?.toString() ??
+            '';
 
+    final name =
+        firstItem['name']
+            ?.toString() ??
+            'Product';
 
+    final quantity =
+        firstItem['quantity']
+            ?.toString() ??
+            '1';
 
+    final total =
+        order['totalAmount']
+            ?.toString() ??
+            '0';
 
+    final orderNumber =
+        order['orderNumber']
+            ?.toString() ??
+            '';
 
-  Widget orderCard(String status){
+    final status =
+        order['status']
+            ?.toString() ??
+            'Pending';
 
-
+    final orderId =
+        order['_id']
+            ?.toString() ??
+            '';
 
     return Container(
-
-
       margin:
       const EdgeInsets.only(
-
-        bottom:15,
-
+        bottom: 15,
       ),
-
-
 
       padding:
       const EdgeInsets.all(15),
 
-
-
       decoration:
       BoxDecoration(
-
-        color:
-        Colors.white,
-
+        color: Colors.white,
 
         borderRadius:
-        BorderRadius.circular(20),
-
-
+        BorderRadius.circular(
+          20,
+        ),
       ),
 
-
-
-
-      child:
-      Column(
-
-
+      child: Column(
         crossAxisAlignment:
         CrossAxisAlignment.start,
 
-
-
-        children:[
-
-
-
-
+        children: [
 
           Row(
-
-
             mainAxisAlignment:
-            MainAxisAlignment.spaceBetween,
+            MainAxisAlignment
+                .spaceBetween,
 
+            children: [
 
-
-            children:[
-
-
-
-              const Text(
-
-                "Order #BP20260001",
+              Text(
+                "Order #$orderNumber",
 
                 style:
-                TextStyle(
-
+                const TextStyle(
                   fontWeight:
                   FontWeight.bold,
 
-                  fontSize:16,
-
+                  fontSize: 16,
                 ),
-
               ),
 
-
-
-
-
-              statusBadge(status),
-
-
-
-
+              statusBadge(
+                status,
+              ),
             ],
-
-
           ),
 
-
-
-
-
-
-          const SizedBox(height:15),
-
-
-
-
-
+          const SizedBox(
+            height: 15,
+          ),
 
           Row(
-
-            children:[
-
-
+            children: [
 
               ClipRRect(
-
                 borderRadius:
-                BorderRadius.circular(12),
-
+                BorderRadius.circular(
+                  12,
+                ),
 
                 child:
-                Image.network(
+                image.isNotEmpty
+                    ? Image.network(
+                  image,
 
-                  "https://images.unsplash.com/photo-1589924691995-400dc9ecc119",
+                  height: 70,
 
-
-                  height:70,
-
-                  width:70,
-
+                  width: 70,
 
                   fit:
                   BoxFit.cover,
 
-
                   errorBuilder:
-                      (_,__,___){
-
+                      (_, __, ___) {
                     return const Icon(
                       Icons.pets,
-                      size:50,
+                      size: 50,
                     );
-
                   },
-
-
+                )
+                    : const Icon(
+                  Icons.pets,
+                  size: 50,
                 ),
-
               ),
 
+              const SizedBox(
+                width: 15,
+              ),
 
-
-
-
-              const SizedBox(width:15),
-
-
-
-
-
-              const Expanded(
-
-                child:
-                Column(
-
-
+              Expanded(
+                child: Column(
                   crossAxisAlignment:
-                  CrossAxisAlignment.start,
+                  CrossAxisAlignment
+                      .start,
 
-
-
-                  children:[
-
-
+                  children: [
 
                     Text(
-
-                      "Royal Canin Puppy Food",
+                      name,
 
                       style:
-                      TextStyle(
-
+                      const TextStyle(
                         fontWeight:
                         FontWeight.bold,
-
                       ),
-
                     ),
 
-
-
-
-                    SizedBox(height:8),
-
-
-
-
-                    Text(
-
-                      "Quantity: 2",
-
+                    const SizedBox(
+                      height: 8,
                     ),
 
+                    Text(
+                      "Quantity: $quantity",
+                    ),
 
-
-
-                    SizedBox(height:5),
-
-
-
-
+                    const SizedBox(
+                      height: 5,
+                    ),
 
                     Text(
-
-                      "93,000 MMK",
+                      "$total MMK",
 
                       style:
-                      TextStyle(
-
+                      const TextStyle(
                         color:
                         Colors.green,
 
-
                         fontWeight:
                         FontWeight.bold,
-
                       ),
-
-                    )
-
-
-
-
+                    ),
                   ],
-
-
-
                 ),
-
-
-
-              )
-
-
-
+              ),
             ],
-
-
-
           ),
 
-
-
-
-
-
-
-          const SizedBox(height:15),
-
-
-
-
+          const SizedBox(
+            height: 15,
+          ),
 
           SizedBox(
-
             width:
             double.infinity,
 
-
-            height:
-            45,
-
-
+            height: 45,
 
             child:
             OutlinedButton(
+              onPressed: () async {
 
-
-              onPressed:(){
-
-
-                Navigator.push(
-
+                final result =
+                await Navigator.push(
                   context,
-
                   MaterialPageRoute(
-
-                    builder:
-                        (context)=>
-
-                    const OrderDetailPage(),
-
+                    builder: (_) => OrderDetailPage(orderId: order['_id']),
                   ),
-
                 );
 
-
+                if (result == true) {
+                  loadOrders();
+                }
               },
-
-
 
               style:
               OutlinedButton.styleFrom(
-
-
                 shape:
                 RoundedRectangleBorder(
-
                   borderRadius:
-                  BorderRadius.circular(12),
-
+                  BorderRadius.circular(
+                    12,
+                  ),
                 ),
-
-
               ),
-
-
 
               child:
               const Text(
-
                 "View Details",
-
               ),
-
-
-
             ),
-
-
-          )
-
-
-
-
+          ),
         ],
-
-
-
       ),
-
-
     );
-
-
   }
 
-
-
-
-
-
-
-
-
-  Widget statusBadge(String status){
-
+  Widget statusBadge(
+      String status) {
 
     Color color;
 
-
-
-    if(status=="Delivered"){
-
-      color=Colors.green;
-
+    if (status ==
+        "Delivered") {
+      color = Colors.green;
+    } else if (status ==
+        "Shipping") {
+      color = Colors.blue;
+    } else if (status ==
+        "Cancelled") {
+      color = Colors.red;
+    } else {
+      color = Colors.orange;
     }
-
-    else if(status=="Shipping"){
-
-      color=Colors.blue;
-
-    }
-
-    else if(status=="Cancelled"){
-
-      color=Colors.red;
-
-    }
-
-    else{
-
-      color=Colors.orange;
-
-    }
-
-
-
 
     return Container(
-
-
       padding:
       const EdgeInsets.symmetric(
-
-        horizontal:10,
-
-        vertical:5,
-
+        horizontal: 10,
+        vertical: 5,
       ),
-
-
 
       decoration:
       BoxDecoration(
-
-
         color:
-        color.withOpacity(0.15),
-
+        color.withOpacity(
+          0.15,
+        ),
 
         borderRadius:
-        BorderRadius.circular(20),
-
-
+        BorderRadius.circular(
+          20,
+        ),
       ),
 
-
-
-      child:
-      Text(
-
-
+      child: Text(
         status,
 
-
-        style:
-        TextStyle(
-
-
-          color:
-          color,
-
+        style: TextStyle(
+          color: color,
 
           fontWeight:
           FontWeight.bold,
-
         ),
-
-
       ),
-
-
     );
-
-
   }
-
-
-
-
 }

@@ -1,118 +1,300 @@
-require("dotenv").config();
-
 const API_KEY = process.env.GEMINI_API_KEY;
-console.log("GEMINI KEY EXISTS:", !!API_KEY);
 
-//json extract
+console.log(
+  "GEMINI KEY EXISTS:",
+  !!API_KEY
+);
+
+
+// =====================================================
+// JSON PARSER
+// =====================================================
+
 function safeParseAI(text) {
+
   try {
-    console.log("🔥 RAW AI:", text);
 
-    // remove markdown
-    let cleaned = text
-      .replace(/```json/g, "")
-      .replace(/```/g, "")
-      .trim();
+    console.log(
+      "🔥 RAW GEMINI TEXT:",
+      text
+    );
 
-    // extract JSON only
-    const start = cleaned.indexOf("{");
-    const end = cleaned.lastIndexOf("}");
+    let cleaned =
+      text
+        .replace(/```json/gi, "")
+        .replace(/```/g, "")
+        .trim();
 
-    if (start === -1 || end === -1) {
-      throw new Error("No JSON found");
+    const start =
+      cleaned.indexOf("{");
+
+    const end =
+      cleaned.lastIndexOf("}");
+
+    if (
+      start === -1 ||
+      end === -1
+    ) {
+
+      throw new Error(
+        "No JSON found"
+      );
+
     }
 
-    const jsonString = cleaned.substring(start, end + 1);
+    const jsonString =
+      cleaned.substring(
+        start,
+        end + 1
+      );
 
-    return JSON.parse(jsonString);
+    const result =
+      JSON.parse(
+        jsonString
+      );
+
+    console.log(
+      "✅ AI RESULT:",
+      result
+    );
+
+    return result;
+
   } catch (err) {
-    console.log("PARSE ERROR:", err.message);
+
+    console.log(
+      "❌ PARSE ERROR:",
+      err.message
+    );
 
     return {
-      allowed: true,
-      petRelated: true,
-      category: "general",
-      reason: "fallback safe mode"
+
+      allowed: false,
+
+      petRelated: false,
+
+      category: "error",
+
+      reason:
+        "AI moderation failed. Please try again."
+
     };
+
   }
+
 }
 
-//ai function
+
+// =====================================================
+// GEMINI ANALYZE POST
+// =====================================================
+
 async function analyzePost(text) {
+
   try {
-    const response = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${API_KEY}`,
-      {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          contents: [
-            {
-              parts: [
+
+    // API KEY မရှိရင် error
+    if (!API_KEY) {
+
+      throw new Error(
+        "GEMINI_API_KEY is missing"
+      );
+
+    }
+
+
+    console.log(
+      "🤖 Gemini analyzing post..."
+    );
+
+    console.log(
+      "POST TEXT:",
+      text
+    );
+
+
+    // Gemini API
+    const response =
+      await fetch(
+
+        `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${API_KEY}`,
+
+        {
+
+          method:
+            "POST",
+
+          headers: {
+
+            "Content-Type":
+              "application/json",
+
+          },
+
+          body:
+            JSON.stringify({
+
+              contents: [
+
                 {
-                  text: `
-You are a strict moderator for a PET social app.
+
+                  parts: [
+
+                    {
+
+                      text: `
+
+You are an AI moderator for a PET social media application.
 
 RULES:
-- Allow ONLY pet-related posts
-- Block spam, ads, scams, hate
 
-Return ONLY JSON (NO markdown, NO explanation):
+1. Only allow pet-related posts.
+
+2. Allow:
+- Dogs
+- Cats
+- Pet health
+- Pet food
+- Pet care
+- Pet adoption
+- Animal rescue
+- Pet training
+- Veterinary topics
+
+3. Block:
+- Spam
+- Scam
+- Hate speech
+- Illegal content
+- Advertising
+- Unrelated content
+
+Return ONLY valid JSON.
+
+Do not use markdown.
+
+Return exactly:
 
 {
   "allowed": true,
   "petRelated": true,
-  "category": "health | adoption | food | spam | general",
-  "reason": "short reason"
+  "category": "health",
+  "reason": "Short reason"
 }
 
-POST:
-"${text}"
-                  `,
-                },
-              ],
-            },
-          ],
-        }),
-      }
-    );
+Possible categories:
 
-    const data = await response.json();
-    console.log("STATUS:", response.status);
+health
+adoption
+food
+care
+training
+spam
+scam
+hate
+general
+unrelated
+
+POST:
+
+"${text}"
+
+                      `,
+
+                    },
+
+                  ],
+
+                },
+
+              ],
+
+            }),
+
+        }
+
+      );
+
 
     console.log(
-      "FULL GEMINI RESPONSE:",
-      JSON.stringify(data, null, 2)
+      "GEMINI STATUS:",
+      response.status
     );
 
-    const raw =
-      data?.candidates?.[0]?.content?.parts?.[0]?.text;
 
-    if (!raw) {
-      console.log("NO AI TEXT RESPONSE");
-      return {
-        allowed: true,
-        petRelated: true,
-        category: "general",
-        reason: "No Gemini response"
-      };
+    const data =
+      await response.json();
+
+
+    console.log(
+      "GEMINI RESPONSE:",
+      JSON.stringify(
+        data,
+        null,
+        2
+      )
+    );
+
+
+    // Gemini Error
+    if (!response.ok) {
+
+      throw new Error(
+        data?.error?.message ||
+        `Gemini API error: ${response.status}`
+      );
+
     }
 
-    return safeParseAI(raw);
+
+    // AI Text
+    const raw =
+      data
+        ?.candidates?.[0]
+        ?.content?.parts?.[0]
+        ?.text;
+
+
+    if (!raw) {
+
+      throw new Error(
+        "Gemini returned empty response"
+      );
+
+    }
+
+
+    // JSON Parse
+    return safeParseAI(
+      raw
+    );
 
 
   } catch (err) {
-    console.log("GEMINI ERROR:", err.message);
+
+    console.error(
+      "❌ GEMINI ERROR:",
+      err.message
+    );
 
     return {
-      allowed: true,
-      petRelated: true,
-      category: "general",
-      reason: "API fallback error"
+
+      allowed: false,
+
+      petRelated: false,
+
+      category: "error",
+
+      reason:
+        "AI moderation service is unavailable. Please try again."
+
     };
+
   }
+
 }
 
-module.exports = { analyzePost };
+
+module.exports = {
+  analyzePost
+};

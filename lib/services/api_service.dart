@@ -49,10 +49,26 @@ class ApiService {
   // USER DATA
   // ─────────────────────────────
 
-  static Future<void> saveUser(String id, String name) async {
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setString('userId', id);
-    await prefs.setString('userName', name);
+  static Future<void> saveUser(
+      String id,
+      String name,
+      ) async {
+
+    final prefs =
+    await SharedPreferences.getInstance();
+
+    await prefs.setString(
+      'userId',
+      id,
+    );
+
+    await prefs.setString(
+      'userName',
+      name,
+    );
+
+    print("SAVED USER ID => $id");
+    print("SAVED USER NAME => $name");
   }
 
   static Future<String?> getUserId() async {
@@ -61,8 +77,16 @@ class ApiService {
   }
 
   static Future<String?> getUserName() async {
-    final prefs = await SharedPreferences.getInstance();
-    return prefs.getString('userName');
+
+    final prefs =
+    await SharedPreferences.getInstance();
+
+    final name =
+    prefs.getString('userName');
+
+    print("GET SAVED USER NAME => $name");
+
+    return name;
   }
 
   static Future<void> clearUser() async {
@@ -162,7 +186,9 @@ class ApiService {
   // ─────────────────────────────
 
   static Future<Map<String, dynamic>> login(
-      String email, String password) async {
+      String email,
+      String password,
+      ) async {
     try {
       final res = await http
           .post(
@@ -181,37 +207,65 @@ class ApiService {
       final data = jsonDecode(res.body);
 
       if (data['success'] == true) {
-        await saveToken(data['token']?.toString() ?? '');
+
+        // =========================
+        // SAVE TOKEN
+        // =========================
+
+        final token = data['token']?.toString() ?? '';
+
+        await saveToken(token);
+
+        // =========================
+        // GET USER
+        // =========================
 
         final user = data['user'];
 
         print("USER => $user");
         print("FULL USER JSON => ${jsonEncode(user)}");
 
-        final id = user?['_id'] ?? user?['id'] ?? '';
-        final name = user?['name'] ?? '';
+        if (user != null) {
 
-        print("EXTRACTED ID => $id");
-        print("EXTRACTED NAME => $name");
+          final id =
+              user['_id'] ??
+                  user['id'] ??
+                  '';
 
-        if (id.toString().isNotEmpty) {
-          await saveUser(
-            id.toString(),
-            name.toString(),
-          );
-        } else {
-          print("❌ USER ID IS EMPTY - NOT SAVED");
+          final name =
+              user['name'] ??
+                  '';
+
+          print("EXTRACTED ID => $id");
+          print("EXTRACTED NAME => $name");
+
+          // =========================
+          // SAVE USER DATA
+          // =========================
+
+          if (id.toString().isNotEmpty) {
+            await saveUser(
+              id.toString(),
+              name.toString(),
+            );
+
+            print("USER SAVED SUCCESSFULLY");
+          }
         }
       }
 
       return data;
+
     } catch (e) {
+
       print("LOGIN ERROR => $e");
-      return {"success": false, "message": e.toString()};
+
+      return {
+        "success": false,
+        "message": e.toString(),
+      };
     }
   }
-
-
 
 // =====================================================
 // CREATE PRODUCT
@@ -608,35 +662,48 @@ class ApiService {
     );
   }
 
-  static Future<Map<String,dynamic>?> getCurrentUser() async {
+  static Future<Map<String, dynamic>?> getCurrentUser() async {
+    try {
+      final token = await getToken();
 
-    final token = await getToken();
+      print("GET CURRENT USER TOKEN => $token");
 
-    if(token == null) return null;
+      if (token == null || token.isEmpty) {
+        print("❌ TOKEN IS NULL OR EMPTY");
+        return null;
+      }
 
+      final url = "$baseUrl/api/auth/me";
 
-    final response = await http.get(
+      print("GET CURRENT USER URL => $url");
 
-        Uri.parse(
-            "$baseUrl/api/auth/me"
-        ),
+      final response = await http.get(
+        Uri.parse(url),
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": "Bearer $token",
+          "ngrok-skip-browser-warning": "true",
+        },
+      );
 
-        headers:{
-          "Authorization":"Bearer $token"
-        }
+      print(
+        "GET CURRENT USER STATUS => ${response.statusCode}",
+      );
 
-    );
+      print(
+        "GET CURRENT USER BODY => ${response.body}",
+      );
 
+      if (response.statusCode == 200) {
+        return jsonDecode(response.body);
+      }
 
-    if(response.statusCode == 200){
+      return null;
 
-      return jsonDecode(response.body);
-
+    } catch (e) {
+      print("GET CURRENT USER ERROR => $e");
+      return null;
     }
-
-
-    return null;
-
   }
 
   // ─────────────────────────────

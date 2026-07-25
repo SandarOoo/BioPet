@@ -1,44 +1,60 @@
+require("dotenv").config();
+
 const express = require("express");
 const mongoose = require("mongoose");
 const cors = require("cors");
 const multer = require("multer");
 
-require("dotenv").config({
-  path: "E:/BioPet/.env",
-});
+console.log(
+  "GEMINI KEY EXISTS:",
+  !!process.env.GEMINI_API_KEY
+);
 
-const {
-  analyzePost,
-} = require("./services/geminiService");
+app.get(
+  "/api/test-gemini",
+  async (req, res) => {
 
+    try {
+
+      const result =
+        await analyzePost(
+          "My dog is sick and needs veterinary care."
+        );
+
+      return res.json({
+
+        success:
+          true,
+
+        ai:
+          result,
+
+      });
+
+    } catch (err) {
+
+      return res.status(500).json({
+
+        success:
+          false,
+
+        error:
+          err.message,
+
+      });
+
+    }
+
+  }
+);
+
+const { analyzePost } = require("./services/geminiService");
 
 // =====================================================
 // APP
 // =====================================================
 
 const app = express();
-
-
-// =====================================================
-// ROUTES
-// =====================================================
-
-const authRoute =
-  require("./routes/auth.js");
-
-const businessRoutes =
-  require("./routes/business");
-
-const adminRoutes =
-  require("./routes/admin");
-
-
-const productRoutes = require("./routes/productRoutes");
-
-app.use(
-  "/api/business",
-  productRoutes
-);
 
 // =====================================================
 // MIDDLEWARE
@@ -59,42 +75,52 @@ app.use(
   })
 );
 
+// =====================================================
+// ROUTES
+// =====================================================
+
+const authRoute = require("./routes/auth");
+const productRoutes = require("./routes/productRoutes");
+const orderRoutes = require("./routes/orderRoutes");
+const adminRoutes = require("./routes/admin");
 
 // =====================================================
 // API ROUTES
 // =====================================================
 
-// Auth
-app.use(
-  "/api/auth",
-  authRoute
-);
+// AUTH
+app.use("/api/auth", authRoute);
 
+// BUSINESS / PRODUCTS
+app.use("/api/business", productRoutes);
 
+// ORDERS
+app.use("/api/orders", orderRoutes);
 
-
-
-// Product
-app.use(
-  "/api/business",
-  productRoutes
-);
-
-
-// Admin
-app.use(
-  "/api/admin",
-  adminRoutes
-);
-
+// ADMIN
+app.use("/api/admin", adminRoutes);
 
 // =====================================================
 // ENV CHECK
 // =====================================================
 
+console.log("=================================");
+console.log("ENVIRONMENT CHECK");
+console.log("=================================");
+
 console.log(
-  "ENV CHECK:",
-  process.env.MONGO_URI
+  "MONGO_URI EXISTS:",
+  !!process.env.MONGO_URI
+);
+
+console.log(
+  "JWT_SECRET EXISTS:",
+  !!process.env.JWT_SECRET
+);
+
+console.log(
+  "JWT_EXPIRE:",
+  process.env.JWT_EXPIRE
 );
 
 console.log(
@@ -102,154 +128,114 @@ console.log(
   !!process.env.GEMINI_API_KEY
 );
 
+console.log(
+  "BREVO KEY EXISTS:",
+  !!process.env.BREVO_API_KEY
+);
 
 // =====================================================
 // MONGODB
 // =====================================================
 
 mongoose
-  .connect(
-    process.env.MONGO_URI
-  )
+  .connect(process.env.MONGO_URI)
   .then(() => {
-
-    console.log(
-      "✅ MongoDB Connected"
-    );
-
+    console.log("✅ MongoDB Connected");
     console.log(
       "Database:",
       mongoose.connection.name
     );
-
   })
   .catch((err) => {
-
     console.error(
       "❌ MongoDB Error:",
-      err
+      err.message
     );
-
   });
-
 
 // =====================================================
 // POST MODEL
 // =====================================================
 
-const commentSchema =
-  new mongoose.Schema({
+const commentSchema = new mongoose.Schema({
+  userId: String,
 
-    userId:
-      String,
+  text: String,
 
-    text:
-      String,
+  createdAt: {
+    type: Date,
+    default: Date.now,
+  },
+});
 
-    createdAt: {
-      type:
-        Date,
+const postSchema = new mongoose.Schema({
+  userId: String,
 
-      default:
-        Date.now,
+  name: {
+    type: String,
+    default: "Anonymous",
+  },
+
+  text: String,
+
+  images: [
+    {
+      data: String,
+
+      contentType: String,
+
+      filename: String,
     },
+  ],
 
-  });
+  likes: [
+    String,
+  ],
 
+  comments: [
+    commentSchema,
+  ],
 
-const postSchema =
-  new mongoose.Schema({
+  createdAt: {
+    type: Date,
+    default: Date.now,
+  },
+});
 
-    userId:
-      String,
-
-    name: {
-      type:
-        String,
-
-      default:
-        "Anonymous",
-    },
-
-    text:
-      String,
-
-    images: [
-      {
-        data:
-          String,
-
-        contentType:
-          String,
-
-        filename:
-          String,
-      },
-    ],
-
-    likes: [
-      String
-    ],
-
-    comments: [
-      commentSchema
-    ],
-
-    createdAt: {
-      type:
-        Date,
-
-      default:
-        Date.now,
-    },
-
-  });
-
-
-const Post =
-  mongoose.model(
-    "Post",
-    postSchema
-  );
-
+const Post = mongoose.model(
+  "Post",
+  postSchema
+);
 
 // =====================================================
 // MULTER
 // =====================================================
 
-const upload =
-  multer({
+const upload = multer({
+  storage: multer.memoryStorage(),
 
-    storage:
-      multer.memoryStorage(),
+  limits: {
+    fileSize: 10 * 1024 * 1024,
+    files: 10,
+  },
 
-    limits: {
+  fileFilter: (req, file, cb) => {
+    const allowed =
+      /jpeg|jpg|png|gif|webp/;
 
-      fileSize:
-        10 * 1024 * 1024,
-
-      files:
-        10,
-
-    },
-
-    fileFilter:
-      (req, file, cb) => {
-
-        const allowed =
-          /jpeg|jpg|png|gif|webp/;
-
-        cb(
-          null,
-          allowed.test(
-            file.mimetype
-          )
-        );
-
-      },
-
-  });
-
+    if (
+      allowed.test(file.mimetype)
+    ) {
+      cb(null, true);
+    } else {
+      cb(
+        new Error(
+          "Only image files are allowed"
+        )
+      );
+    }
+  },
+});
 
 // =====================================================
 // IMAGE TO BASE64
@@ -259,27 +245,20 @@ function bufferToBase64(
   buffer,
   mimetype
 ) {
-
-  return `data:${mimetype};base64,${buffer.toString("base64")}`;
-
+  return `data:${mimetype};base64,${buffer.toString(
+    "base64"
+  )}`;
 }
 
-
 // =====================================================
-// CREATE POST + AI
+// CREATE POST + GEMINI AI MODERATION
 // =====================================================
 
 app.post(
   "/api/posts/create",
-  upload.array(
-    "images",
-    10
-  ),
+  upload.array("images", 10),
 
-  async (
-    req,
-    res
-  ) => {
+  async (req, res) => {
 
     try {
 
@@ -290,37 +269,65 @@ app.post(
       } = req.body;
 
 
-      // AI CHECK
+      // =========================================
+      // VALIDATE POST
+      // =========================================
 
-      const aiResult =
-        await analyzePost(
-          text
-        );
+      if (!text || text.trim().isEmpty) {
 
-
-      if (
-        !aiResult.allowed
-      ) {
-
-        return res
-          .status(400)
-          .json({
-
-            success:
-              false,
-
-            message:
-              "Post blocked by AI",
-
-            ai:
-              aiResult,
-
-          });
+        return res.status(400).json({
+          success: false,
+          message: "Post text is required",
+        });
 
       }
 
 
-      // Images
+      // =========================================
+      // GEMINI AI MODERATION
+      // =========================================
+
+      console.log(
+        "🤖 STARTING AI MODERATION"
+      );
+
+      const aiResult =
+        await analyzePost(
+          text.trim()
+        );
+
+
+      console.log(
+        "🤖 AI RESULT:",
+        aiResult
+      );
+
+
+      // =========================================
+      // BLOCK POST
+      // =========================================
+
+      if (!aiResult.allowed) {
+
+        return res.status(400).json({
+
+          success: false,
+
+          message:
+            aiResult.reason ||
+            "Post blocked by AI moderation",
+
+          ai:
+            aiResult,
+
+        });
+
+      }
+
+
+      // =========================================
+      // IMAGE PROCESSING
+      // =========================================
 
       const images = [];
 
@@ -331,8 +338,7 @@ app.post(
       ) {
 
         for (
-          const file
-          of req.files
+          const file of req.files
         ) {
 
           images.push({
@@ -356,20 +362,25 @@ app.post(
       }
 
 
-      // Create Post
+      // =========================================
+      // CREATE POST
+      // =========================================
 
       const post =
         new Post({
 
-          userId,
+          userId:
+            userId,
 
           name:
             name ||
             "Anonymous",
 
-          text,
+          text:
+            text.trim(),
 
-          images,
+          images:
+            images,
 
           likes:
             [],
@@ -384,49 +395,87 @@ app.post(
         await post.save();
 
 
-      return res
-        .status(201)
-        .json({
+      // =========================================
+      // SUCCESS
+      // =========================================
 
-          success:
-            true,
+      return res.status(201).json({
 
-          post:
-            saved,
+        success:
+          true,
 
-          ai:
-            aiResult,
+        post:
+          saved,
 
-          message:
-            "Post created successfully",
+        ai:
+          aiResult,
 
-        });
+        message:
+          "Post created successfully",
+
+      });
 
 
     } catch (err) {
 
       console.error(
-        "Create Post Error:",
+        "❌ CREATE POST ERROR:",
         err
       );
 
-      return res
-        .status(500)
-        .json({
 
-          success:
-            false,
+      return res.status(500).json({
 
-          error:
-            err.message,
+        success:
+          false,
 
-        });
+        message:
+          err.message,
+
+      });
 
     }
 
   }
 );
 
+    app.get(
+      "/api/test-gemini",
+      async (req, res) => {
+
+        try {
+
+          const result =
+            await analyzePost(
+              "My dog is sick and needs veterinary care."
+            );
+
+          return res.json({
+
+            success:
+              true,
+
+            ai:
+              result,
+
+          });
+
+        } catch (err) {
+
+          return res.status(500).json({
+
+            success:
+              false,
+
+            error:
+              err.message,
+
+          });
+
+        }
+
+      }
+    );
 
 // =====================================================
 // GET POSTS
@@ -434,44 +483,28 @@ app.post(
 
 app.get(
   "/api/posts",
-  async (
-    req,
-    res
-  ) => {
-
+  async (req, res) => {
     try {
-
       const posts =
-        await Post
-          .find()
+        await Post.find()
           .sort({
-            createdAt:
-              -1,
+            createdAt: -1,
           });
 
-      return res.json(
-        posts
-      );
+      return res.json({
+        success: true,
+        posts,
+      });
 
     } catch (err) {
-
-      return res
-        .status(500)
-        .json({
-
-          success:
-            false,
-
-          message:
-            err.message,
-
-        });
-
+      return res.status(500).json({
+        success: false,
+        message:
+          err.message,
+      });
     }
-
   }
 );
-
 
 // =====================================================
 // LIKE POST
@@ -479,182 +512,109 @@ app.get(
 
 app.post(
   "/api/posts/like",
-  async (
-    req,
-    res
-  ) => {
-
+  async (req, res) => {
     try {
-
       const {
         postId,
         userId,
       } = req.body;
-
 
       const post =
         await Post.findById(
           postId
         );
 
-
       if (!post) {
-
-        return res
-          .status(404)
-          .json({
-
-            success:
-              false,
-
-            error:
-              "Post not found",
-
-          });
-
+        return res.status(404).json({
+          success: false,
+          message:
+            "Post not found",
+        });
       }
 
-
       if (
-        post.likes.includes(
-          userId
-        )
+        post.likes.includes(userId)
       ) {
-
         post.likes =
           post.likes.filter(
             (id) =>
               id !== userId
           );
-
       } else {
-
         post.likes.push(
           userId
         );
-
       }
-
 
       await post.save();
 
-
       return res.json({
-
-        success:
-          true,
+        success: true,
 
         likes:
           post.likes.length,
-
       });
 
-
     } catch (err) {
-
-      return res
-        .status(500)
-        .json({
-
-          success:
-            false,
-
-          message:
-            err.message,
-
-        });
-
+      return res.status(500).json({
+        success: false,
+        message:
+          err.message,
+      });
     }
-
   }
 );
 
-
 // =====================================================
-// COMMENTS
+// COMMENT
 // =====================================================
 
 app.post(
   "/api/posts/comment",
-  async (
-    req,
-    res
-  ) => {
-
+  async (req, res) => {
     try {
-
       const {
         postId,
         userId,
         text,
       } = req.body;
 
-
       const post =
         await Post.findById(
           postId
         );
 
-
       if (!post) {
-
-        return res
-          .status(404)
-          .json({
-
-            success:
-              false,
-
-            message:
-              "Post not found",
-
-          });
-
+        return res.status(404).json({
+          success: false,
+          message:
+            "Post not found",
+        });
       }
 
-
       post.comments.push({
-
         userId,
-
         text,
-
       });
-
 
       await post.save();
 
-
       return res.json({
-
-        success:
-          true,
+        success: true,
 
         comments:
           post.comments,
-
       });
 
-
     } catch (err) {
-
-      return res
-        .status(500)
-        .json({
-
-          success:
-            false,
-
-          message:
-            err.message,
-
-        });
-
+      return res.status(500).json({
+        success: false,
+        message:
+          err.message,
+      });
     }
-
   }
 );
-
 
 // =====================================================
 // HEALTH CHECK
@@ -662,21 +622,34 @@ app.post(
 
 app.get(
   "/",
-  (
-    req,
-    res
-  ) => {
-
+  (req, res) => {
     res.json({
-
+      success: true,
       message:
         "BioPet API Running",
-
     });
-
   }
 );
 
+// =====================================================
+// ERROR HANDLER
+// =====================================================
+
+app.use(
+  (err, req, res, next) => {
+    console.error(
+      "GLOBAL ERROR:",
+      err
+    );
+
+    res.status(500).json({
+      success: false,
+      message:
+        err.message ||
+        "Server error",
+    });
+  }
+);
 
 // =====================================================
 // SERVER
@@ -686,19 +659,12 @@ const PORT =
   process.env.PORT ||
   3000;
 
-
 app.listen(
   PORT,
+  "0.0.0.0",
   () => {
-
     console.log(
-      `Server running on port ${PORT}`
+      `🚀 Server running on port ${PORT}`
     );
-
-    console.log(
-      "BREVO KEY:",
-      !!process.env.BREVO_API_KEY
-    );
-
   }
 );

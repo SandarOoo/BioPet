@@ -7,6 +7,171 @@ import '../models/product.dart';
 class BusinessService {
   final String baseUrl =dotenv.env['BASE_URL'] ?? "";
 
+  // =========================================================
+// CREATE ORDER
+// =========================================================
+
+  Future<Map<String, dynamic>> createOrder({
+    required String productId,
+    required int quantity,
+    required String phone,
+    required String address,
+    String paymentMethod = "COD",
+  }) async {
+
+    final token =
+    await ApiService.getToken();
+
+    final response =
+    await http.post(
+
+      Uri.parse(
+        '${ApiService.baseUrl}/api/orders',
+      ),
+
+      headers: {
+        'Content-Type':
+        'application/json',
+
+        'Authorization':
+        'Bearer $token',
+      },
+
+      body: jsonEncode({
+
+        'productId':
+        productId,
+
+        'quantity':
+        quantity,
+
+        'phone':
+        phone,
+
+        'address':
+        address,
+
+        'paymentMethod':
+        paymentMethod,
+      }),
+    );
+
+    print(
+      "CREATE ORDER STATUS => "
+          "${response.statusCode}",
+    );
+
+    print(
+      "CREATE ORDER RESPONSE => "
+          "${response.body}",
+    );
+
+    final data =
+    jsonDecode(response.body);
+
+    if (
+    response.statusCode == 201 &&
+        data['success'] == true
+    ) {
+
+      return data;
+
+    }
+
+    throw Exception(
+      data['message'] ??
+          'Failed to create order',
+    );
+  }
+
+
+// =========================================================
+// GET MY ORDERS
+// =========================================================
+
+  Future<List<dynamic>> getMyOrders() async {
+
+    final token =
+    await ApiService.getToken();
+
+    final response =
+    await http.get(
+
+      Uri.parse(
+        '${ApiService.baseUrl}/api/orders/my',
+      ),
+
+      headers: {
+        'Authorization':
+        'Bearer $token',
+
+        'Content-Type':
+        'application/json',
+      },
+    );
+
+    final data =
+    jsonDecode(response.body);
+
+    if (
+    response.statusCode == 200 &&
+        data['success'] == true
+    ) {
+
+      return data['orders'] ?? [];
+
+    }
+
+    throw Exception(
+      data['message'] ??
+          'Failed to load orders',
+    );
+  }
+
+
+// =========================================================
+// GET SINGLE ORDER
+// =========================================================
+
+  Future<Map<String, dynamic>>
+  getOrderById(
+      String orderId,
+      ) async {
+
+    final token =
+    await ApiService.getToken();
+
+    final response =
+    await http.get(
+
+      Uri.parse(
+        '${ApiService.baseUrl}/api/orders/$orderId',
+      ),
+
+      headers: {
+        'Authorization':
+        'Bearer $token',
+      },
+    );
+
+    final data =
+    jsonDecode(response.body);
+
+    if (
+    response.statusCode == 200 &&
+        data['success'] == true
+    ) {
+
+      return data['order'];
+
+    }
+
+    throw Exception(
+      data['message'] ??
+          'Failed to load order',
+    );
+  }
+
   /// =========================================================
   // GET ALL PRODUCTS
   // CUSTOMER SHOP

@@ -271,13 +271,20 @@ router.post('/resend-otp', async (req, res) => {
 // ==========================
 // GET CURRENT USER
 // ==========================
-router.get('/me', protect, (req, res) => {
+router.get("/me", protect, async (req, res) => {
+  try {
+    res.json({
+      success: true,
+      user: req.user,
+    });
+  } catch (err) {
+    console.error("GET ME ERROR:", err);
 
-  return res.json({
-    success: true,
-    user: req.user,
-  });
-
+    res.status(500).json({
+      success: false,
+      message: err.message,
+    });
+  }
 });
 
 module.exports = router;

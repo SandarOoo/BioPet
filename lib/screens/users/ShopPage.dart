@@ -1,8 +1,12 @@
+import 'package:biopet/screens/users/product_detail_page.dart';
 import 'package:flutter/material.dart';
 
 import '../../models/product.dart';
 import 'package:biopet/models/product.dart';
 import 'package:biopet/services/business_service.dart';
+import '../../services/cart_service.dart';
+import 'cart_page.dart';
+import 'order_detail_page.dart';
 
 
 class ShopPage extends StatefulWidget {
@@ -288,19 +292,51 @@ class _ShopPageState
           ),
 
 
-          IconButton(
+          AnimatedBuilder(
+            builder: (context, _) {
+              final count = CartService().itemCount;
 
-            onPressed: () {},
-
-            icon: const Icon(
-
-              Icons
-                  .shopping_cart_outlined,
-
-              color: Colors.black,
-
-            ),
-
+              return Stack(
+                clipBehavior: Clip.none,
+                children: [
+                  IconButton(
+                    onPressed: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(builder: (_) => const CartPage()),
+                      );
+                    },
+                    icon: const Icon(Icons.shopping_cart_outlined, color: Colors.black),
+                  ),
+                  if (count > 0)
+                    Positioned(
+                      right: 6,
+                      top: 6,
+                      child: Container(
+                        padding: const EdgeInsets.all(4),
+                        decoration: const BoxDecoration(
+                          color: Colors.red,
+                          shape: BoxShape.circle,
+                        ),
+                        constraints: const BoxConstraints(
+                          minWidth: 18,
+                          minHeight: 18,
+                        ),
+                        child: Text(
+                          count > 99 ? '99+' : count.toString(),
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 11,
+                            fontWeight: FontWeight.bold,
+                          ),
+                          textAlign: TextAlign.center,
+                        ),
+                      ),
+                    ),
+                ],
+              );
+            },
+            animation: CartService(),
           ),
 
         ],
@@ -1384,17 +1420,17 @@ class _ShopPageState
                   child:
                   ElevatedButton(
 
-                    onPressed:
-
-                    product.stock > 0
-
+                    onPressed: product.stock > 0
                         ? () {
 
-                      // TODO:
-                      // Add cart logic
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => ProductDetailPage(product: product),
+                        ),
+                      );
 
                     }
-
                         : null,
 
 
