@@ -10,6 +10,19 @@ console.log(
   !!process.env.GEMINI_API_KEY
 );
 
+
+const { analyzePost } = require("./services/geminiService");
+
+// =====================================================
+// APP
+// =====================================================
+
+const app = express();
+
+// =====================================================
+// MIDDLEWARE
+// =====================================================
+
 app.get(
   "/api/test-gemini",
   async (req, res) => {
@@ -48,17 +61,6 @@ app.get(
   }
 );
 
-const { analyzePost } = require("./services/geminiService");
-
-// =====================================================
-// APP
-// =====================================================
-
-const app = express();
-
-// =====================================================
-// MIDDLEWARE
-// =====================================================
 
 app.use(cors());
 
@@ -273,7 +275,7 @@ app.post(
       // VALIDATE POST
       // =========================================
 
-      if (!text || text.trim().isEmpty) {
+      if (!text || text.trim().length === 0) {
 
         return res.status(400).json({
           success: false,

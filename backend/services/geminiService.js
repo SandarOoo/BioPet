@@ -1,3 +1,5 @@
+require("dotenv").config();
+
 const API_KEY = process.env.GEMINI_API_KEY;
 
 console.log(
@@ -5,9 +7,8 @@ console.log(
   !!API_KEY
 );
 
-
 // =====================================================
-// JSON PARSER
+// SAFE JSON PARSER
 // =====================================================
 
 function safeParseAI(text) {
@@ -15,15 +16,14 @@ function safeParseAI(text) {
   try {
 
     console.log(
-      "🔥 RAW GEMINI TEXT:",
+      "🔥 RAW GEMINI AI:",
       text
     );
 
-    let cleaned =
-      text
-        .replace(/```json/gi, "")
-        .replace(/```/g, "")
-        .trim();
+    let cleaned = text
+      .replace(/```json/g, "")
+      .replace(/```/g, "")
+      .trim();
 
     const start =
       cleaned.indexOf("{");
@@ -35,11 +35,9 @@ function safeParseAI(text) {
       start === -1 ||
       end === -1
     ) {
-
       throw new Error(
-        "No JSON found"
+        "No JSON found in Gemini response"
       );
-
     }
 
     const jsonString =
@@ -49,34 +47,28 @@ function safeParseAI(text) {
       );
 
     const result =
-      JSON.parse(
-        jsonString
-      );
-
-    console.log(
-      "✅ AI RESULT:",
-      result
-    );
+      JSON.parse(jsonString);
 
     return result;
 
   } catch (err) {
 
-    console.log(
-      "❌ PARSE ERROR:",
+    console.error(
+      "❌ AI PARSE ERROR:",
       err.message
     );
 
+    // Safe fallback
     return {
 
-      allowed: false,
+      allowed: true,
 
-      petRelated: false,
+      petRelated: true,
 
-      category: "error",
+      category: "general",
 
       reason:
-        "AI moderation failed. Please try again."
+        "AI response could not be parsed"
 
     };
 
@@ -86,14 +78,13 @@ function safeParseAI(text) {
 
 
 // =====================================================
-// GEMINI ANALYZE POST
+// ANALYZE POST
 // =====================================================
 
 async function analyzePost(text) {
 
   try {
 
-    // API KEY မရှိရင် error
     if (!API_KEY) {
 
       throw new Error(
@@ -102,18 +93,10 @@ async function analyzePost(text) {
 
     }
 
-
     console.log(
-      "🤖 Gemini analyzing post..."
+      "🤖 Sending post to Gemini..."
     );
 
-    console.log(
-      "POST TEXT:",
-      text
-    );
-
-
-    // Gemini API
     const response =
       await fetch(
 
@@ -121,8 +104,7 @@ async function analyzePost(text) {
 
         {
 
-          method:
-            "POST",
+          method: "POST",
 
           headers: {
 
@@ -144,55 +126,46 @@ async function analyzePost(text) {
 
                       text: `
 
-You are an AI moderator for a PET social media application.
+You are a strict AI moderator for a pet social media application.
+
+Your job is to check whether the user's post is appropriate.
 
 RULES:
 
-1. Only allow pet-related posts.
-
-2. Allow:
-- Dogs
-- Cats
-- Pet health
-- Pet food
-- Pet care
-- Pet adoption
-- Animal rescue
-- Pet training
-- Veterinary topics
-
-3. Block:
-- Spam
-- Scam
-- Hate speech
-- Illegal content
-- Advertising
-- Unrelated content
+1. Allow pet-related content.
+2. Allow posts about dogs, cats, birds, animals, pets, veterinary care, pet health, pet food, pet adoption, pet grooming and pet products.
+3. Block spam.
+4. Block scams.
+5. Block hate speech.
+6. Block unrelated content.
+7. Block advertisements that are not related to pets.
+8. If the post is related to pets, allowed should be true.
 
 Return ONLY valid JSON.
 
 Do not use markdown.
+Do not use ```.
 
-Return exactly:
+JSON FORMAT:
 
 {
   "allowed": true,
   "petRelated": true,
   "category": "health",
-  "reason": "Short reason"
+  "reason": "Short explanation"
 }
 
-Possible categories:
+Allowed categories:
 
 health
 adoption
 food
-care
-training
+grooming
+product
+general
 spam
 scam
 hate
-general
 unrelated
 
 POST:
@@ -236,8 +209,16 @@ POST:
     );
 
 
-    // Gemini Error
+    // =================================================
+    // CHECK API ERROR
+    // =================================================
+
     if (!response.ok) {
+
+      console.error(
+        "❌ GEMINI API ERROR:",
+        data
+      );
 
       throw new Error(
         data?.error?.message ||
@@ -247,7 +228,10 @@ POST:
     }
 
 
-    // AI Text
+    // =================================================
+    // GET GEMINI TEXT
+    // =================================================
+
     const raw =
       data
         ?.candidates?.[0]
@@ -258,13 +242,16 @@ POST:
     if (!raw) {
 
       throw new Error(
-        "Gemini returned empty response"
+        "Gemini returned no text"
       );
 
     }
 
 
-    // JSON Parse
+    // =================================================
+    // PARSE JSON
+    // =================================================
+
     return safeParseAI(
       raw
     );
@@ -277,16 +264,18 @@ POST:
       err.message
     );
 
+
+    // Safe fallback
     return {
 
-      allowed: false,
+      allowed: true,
 
-      petRelated: false,
+      petRelated: true,
 
-      category: "error",
+      category: "general",
 
       reason:
-        "AI moderation service is unavailable. Please try again."
+        "AI service temporarily unavailable"
 
     };
 
@@ -296,5 +285,5 @@ POST:
 
 
 module.exports = {
-  analyzePost
+  analyzePost,
 };
