@@ -46,29 +46,47 @@ class BusinessService {
 
 
 
-  Future<bool> addProduct(
-      Map body
-      ) async{
-    final token =
-    await ApiService.getToken();
+  Future<bool> addProduct(Map<String, dynamic> body) async {
+    final token = await ApiService.getToken();
 
+    final url = "${ApiService.baseUrl}/business/createProducts";
 
-    final response =
-    await http.post(
+    print("ADD PRODUCT URL: $url");
+    print("ADD PRODUCT BODY: $body");
 
-        Uri.parse(
-            "${ApiService.baseUrl}/business/createProducts"
-        ),
+    final response = await http.post(
+      Uri.parse(url),
+      headers: {
+        "Authorization": "Bearer $token",
+        "Content-Type": "application/json",
+        "Accept": "application/json",
+      },
+      body: jsonEncode(body),
+    );
 
-        headers:{
-          "Authorization":
-          "Bearer $token",
-          "Content-Type":
-          "application/json"
-        },
-        body: jsonEncode(body));
-    final data=jsonDecode(response.body);
-    return data["success"];
+    print("STATUS CODE: ${response.statusCode}");
+    print("RESPONSE BODY: ${response.body}");
+
+    // Prevent jsonDecode HTML error
+    if (response.headers['content-type']?.contains('application/json') != true) {
+      throw Exception(
+        "Server returned non-JSON response.\n"
+            "Status: ${response.statusCode}\n"
+            "Response: ${response.body}",
+      );
+    }
+
+    final data = jsonDecode(response.body);
+
+    if (response.statusCode >= 200 &&
+        response.statusCode < 300 &&
+        data["success"] == true) {
+      return true;
+    }
+
+    throw Exception(
+      data["message"] ?? "Failed to add product",
+    );
   }
 
   Future<bool> deleteProduct(String id) async {
@@ -110,7 +128,7 @@ class BusinessService {
     },
       body: jsonEncode({"accepted": true})
     );
-    
+
     final data = jsonDecode(response.body);
 
     if(response.statusCode== 200 && data["success"]== true){

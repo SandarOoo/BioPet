@@ -14,9 +14,6 @@ exports.updateProduct = async (req, res) => {
       stock,
       image,
     } = req.body;
-
-
-
     const product = await Product.findOne({
       _id: id,
       owner: req.user._id,
