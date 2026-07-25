@@ -210,6 +210,389 @@ class ApiService {
       return {"success": false, "message": e.toString()};
     }
   }
+
+
+
+// =====================================================
+// CREATE PRODUCT
+// BUSINESS OWNER
+// =====================================================
+
+  static Future<Map<String, dynamic>>
+  createProduct({
+    required String name,
+    required String category,
+    required double price,
+    required int stock,
+    String description = '',
+    String image = '',
+  }) async {
+
+    final token =
+    await getToken();
+
+    final response =
+    await http.post(
+
+      Uri.parse(
+        '$baseUrl/api/business/createProducts',
+      ),
+
+      headers: {
+        'Content-Type':
+        'application/json',
+
+        'ngrok-skip-browser-warning':
+        'true',
+
+        if (token != null)
+          'Authorization':
+          'Bearer $token',
+      },
+
+      body:
+      jsonEncode({
+
+        'name':
+        name,
+
+        'category':
+        category,
+
+        'price':
+        price,
+
+        'stock':
+        stock,
+
+        'description':
+        description,
+
+        'image':
+        image,
+
+      }),
+
+    );
+
+
+    print(
+      'CREATE PRODUCT STATUS => '
+          '${response.statusCode}',
+    );
+
+    print(
+      'CREATE PRODUCT BODY => '
+          '${response.body}',
+    );
+
+
+    final data =
+    jsonDecode(
+      response.body,
+    );
+
+
+    if (
+    response.statusCode ==
+        201
+    ) {
+
+      return data;
+
+    }
+
+
+    throw Exception(
+      data['message'] ??
+          'Failed to create product',
+    );
+  }
+
+
+// =====================================================
+// MY PRODUCTS
+// BUSINESS OWNER
+// =====================================================
+
+  static Future<List<dynamic>>
+  getMyProducts() async {
+
+    final token =
+    await getToken();
+
+
+    final response =
+    await http.get(
+
+      Uri.parse(
+        '$baseUrl/api/business/products',
+      ),
+
+      headers: {
+
+        'Content-Type':
+        'application/json',
+
+        'ngrok-skip-browser-warning':
+        'true',
+
+        if (token != null)
+          'Authorization':
+          'Bearer $token',
+
+      },
+
+    );
+
+
+    print(
+      'MY PRODUCTS STATUS => '
+          '${response.statusCode}',
+    );
+
+
+    print(
+      'MY PRODUCTS BODY => '
+          '${response.body}',
+    );
+
+
+    if (
+    response.statusCode ==
+        200
+    ) {
+
+      final data =
+      jsonDecode(
+        response.body,
+      );
+
+      return data['products'] ??
+          [];
+
+    }
+
+
+    throw Exception(
+      'Failed to load my products',
+    );
+  }
+
+
+// =====================================================
+// UPDATE PRODUCT
+// BUSINESS OWNER
+// =====================================================
+
+  static Future<Map<String, dynamic>>
+  updateProduct({
+
+    required String id,
+
+    required String name,
+
+    required String category,
+
+    required double price,
+
+    required int stock,
+
+    String description = '',
+
+    String image = '',
+
+  }) async {
+
+    final token =
+    await getToken();
+
+
+    final response =
+    await http.put(
+
+      Uri.parse(
+        '$baseUrl/api/business/products/$id',
+      ),
+
+      headers: {
+
+        'Content-Type':
+        'application/json',
+
+        'ngrok-skip-browser-warning':
+        'true',
+
+        if (token != null)
+          'Authorization':
+          'Bearer $token',
+
+      },
+
+      body:
+      jsonEncode({
+
+        'name':
+        name,
+
+        'category':
+        category,
+
+        'price':
+        price,
+
+        'stock':
+        stock,
+
+        'description':
+        description,
+
+        'image':
+        image,
+
+      }),
+
+    );
+
+
+    final data =
+    jsonDecode(
+      response.body,
+    );
+
+
+    if (
+    response.statusCode ==
+        200
+    ) {
+
+      return data;
+
+    }
+
+
+    throw Exception(
+      data['message'] ??
+          'Failed to update product',
+    );
+  }
+
+
+// =====================================================
+// DELETE PRODUCT
+// BUSINESS OWNER
+// =====================================================
+
+  static Future<bool>
+  deleteProduct(
+      String id,
+      ) async {
+
+    final token =
+    await getToken();
+
+
+    final response =
+    await http.delete(
+
+      Uri.parse(
+        '$baseUrl/api/business/products/$id',
+      ),
+
+      headers: {
+
+        'Content-Type':
+        'application/json',
+
+        'ngrok-skip-browser-warning':
+        'true',
+
+        if (token != null)
+          'Authorization':
+          'Bearer $token',
+
+      },
+
+    );
+
+
+    print(
+      'DELETE PRODUCT STATUS => '
+          '${response.statusCode}',
+    );
+
+
+    if (
+    response.statusCode ==
+        200
+    ) {
+
+      return true;
+
+    }
+
+
+    return false;
+  }
+
+  // ─────────────────────────────
+// SELLER ORDERS
+// ─────────────────────────────
+
+  static Future<List<dynamic>> getSellerOrders() async {
+    final headers = await _authHeaders();
+
+    final response = await http.get(
+      Uri.parse('$baseUrl/api/orders/seller'),
+      headers: headers,
+    );
+
+    print("GET ORDERS STATUS => ${response.statusCode}");
+    print("GET ORDERS BODY => ${response.body}");
+
+    if (response.statusCode == 200) {
+      final data = jsonDecode(response.body);
+
+      return data['orders'] ?? [];
+    }
+
+    throw Exception(
+      'Failed to load orders: ${response.body}',
+    );
+  }
+
+
+// ─────────────────────────────
+// UPDATE ORDER STATUS
+// ─────────────────────────────
+
+  static Future<Map<String, dynamic>> updateOrderStatus(
+      String orderId,
+      String status,
+      ) async {
+    final headers = await _authHeaders();
+
+    final response = await http.put(
+      Uri.parse(
+        '$baseUrl/api/orders/$orderId/status',
+      ),
+      headers: headers,
+      body: jsonEncode({
+        'status': status,
+      }),
+    );
+
+    print("UPDATE ORDER STATUS => ${response.statusCode}");
+    print("UPDATE ORDER BODY => ${response.body}");
+
+    if (response.statusCode == 200) {
+      return jsonDecode(response.body);
+    }
+
+    throw Exception(
+      'Failed to update order: ${response.body}',
+    );
+  }
   // save classification
   static Future<void> saveClassification(
       String userId,

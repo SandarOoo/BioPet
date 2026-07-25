@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'dart:io';
 import 'package:biopet/Login_Screen.dart';
+import 'package:biopet/screens/users/ShopPage.dart';
 import 'package:biopet/time_ago.dart';
 import 'package:http_parser/http_parser.dart';
 import 'package:biopet/services/api_service.dart';
@@ -427,7 +428,7 @@ class _HomeScreenState extends State<HomeScreen> {
             
             if(!mounted) return;
             
-            Navigator.pushReplacement(context, MaterialPageRoute(builder: (_) => const LoginScreen()));
+            Navigator.pushReplacement(context, MaterialPageRoute(builder: (_) => const ShopPage()));
           },
         ),
         const SizedBox(width: 4),

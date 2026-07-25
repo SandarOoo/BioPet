@@ -3,45 +3,58 @@ const express = require("express");
 const router = express.Router();
 
 const {
-createProduct,
-getMyProducts,
-deleteProduct,
-updateProduct
-}=require("../controllers/productController");
+  createProduct,
+  getMyProducts,
+  deleteProduct,
+  updateProduct,
+  getAllProducts,
+} = require("../controllers/productController");
 
+const { protect } = require("../middleware/auth");
 
-const {
-protect
-}=require("../middleware/auth");
-
-
-
-router.post(
-"/createProducts",
-protect,
-createProduct
-);
-
+// =====================================================
+// CUSTOMER SHOP
+// GET /api/business/shop/products
+// =====================================================
 router.get(
-"/products",
-protect,
-getMyProducts
+  "/shop/products",
+  getAllProducts
 );
 
+// =====================================================
+// BUSINESS OWNER PRODUCTS
+// =====================================================
+
+// Create product
+// POST /api/business/createProducts
+router.post(
+  "/createProducts",
+  protect,
+  createProduct
+);
+
+// Get my products
+// GET /api/business/products
+router.get(
+  "/products",
+  protect,
+  getMyProducts
+);
+
+// Update product
+// PUT /api/business/products/:id
 router.put(
-"/products/:id",
-protect,
-updateProduct
+  "/products/:id",
+  protect,
+  updateProduct
 );
 
-
-
+// Delete product
+// DELETE /api/business/products/:id
 router.delete(
-"/products/:id",
-protect,
-deleteProduct
+  "/products/:id",
+  protect,
+  deleteProduct
 );
 
-
-
-module.exports=router;
+module.exports = router;

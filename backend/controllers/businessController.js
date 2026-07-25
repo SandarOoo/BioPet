@@ -39,7 +39,6 @@ exports.acceptAgreement = async (req, res) => {
 
     user.businessProfile.agreementAccepted = true;
 
-    // Status ကို မပြောင်းသေး
     if (!user.businessProfile.verificationStatus) {
       user.businessProfile.verificationStatus = "draft";
     }
@@ -53,7 +52,7 @@ exports.acceptAgreement = async (req, res) => {
     });
 
   } catch (err) {
-    console.error(err);
+    console.error("Accept Agreement Error:", err);
 
     return res.status(500).json({
       success: false,
@@ -61,6 +60,7 @@ exports.acceptAgreement = async (req, res) => {
     });
   }
 };
+
 
 // =============================
 // UPDATE BUSINESS LOCATION
@@ -111,7 +111,7 @@ exports.updateLocation = async (req, res) => {
     });
 
   } catch (err) {
-    console.error(err);
+    console.error("Update Location Error:", err);
 
     return res.status(500).json({
       success: false,
@@ -119,6 +119,7 @@ exports.updateLocation = async (req, res) => {
     });
   }
 };
+
 
 // =============================
 // SUBMIT BUSINESS APPLICATION
@@ -177,7 +178,7 @@ exports.submitBusiness = async (req, res) => {
     });
 
   } catch (err) {
-    console.error(err);
+    console.error("Submit Business Error:", err);
 
     return res.status(500).json({
       success: false,

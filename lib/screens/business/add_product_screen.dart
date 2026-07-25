@@ -1,400 +1,481 @@
 import 'package:flutter/material.dart';
 import '../../services/business_service.dart';
 
+
 class AddProductScreen extends StatefulWidget {
+
   const AddProductScreen({
     super.key,
   });
 
+
   @override
-  State<AddProductScreen> createState() => _AddProductScreenState();
+  State<AddProductScreen> createState()
+  => _AddProductScreenState();
+
 }
 
-class _AddProductScreenState extends State<AddProductScreen> {
-  final _formKey = GlobalKey<FormState>();
 
+
+class _AddProductScreenState
+    extends State<AddProductScreen>{
   final nameController = TextEditingController();
   final priceController = TextEditingController();
   final stockController = TextEditingController();
   final descriptionController = TextEditingController();
-
-  // IMPORTANT:
-  // Backend enum uses lowercase values
-  String category = "food";
-
+  String category = "Food";
   bool loading = false;
-
   final BusinessService service = BusinessService();
 
-  // =========================
-  // ADD PRODUCT
-  // =========================
+  Future<void> addProduct() async{
+    if(
+    nameController.text.isEmpty ||
+        priceController.text.isEmpty
+    ){
+      ScaffoldMessenger.of(context)
+          .showSnackBar(
 
-  Future<void> addProduct() async {
-    if (!_formKey.currentState!.validate()) {
+          const SnackBar(
+              content:
+              Text(
+                  "Please fill required fields"
+              )
+          )
+
+      );
+
       return;
+
     }
+
+
 
     setState(() {
-      loading = true;
+
+      loading=true;
+
     });
 
-    try {
-      final body = {
-        "name": nameController.text.trim(),
-        "category": category,
-        "price": double.parse(
-          priceController.text.trim(),
-        ),
-        "stock": int.parse(
-          stockController.text.trim(),
-        ),
-        "description": descriptionController.text.trim(),
-        "image": "",
-      };
 
-      print("================================");
-      print("ADD PRODUCT");
-      print("BODY: $body");
-      print("================================");
 
-      final success = await service.addProduct(body);
+    final success =
+    await service.addProduct({
 
-      if (!mounted) return;
+      "name":
+      nameController.text,
 
-      if (success) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text(
-              "Product added successfully",
-            ),
-            backgroundColor: Colors.green,
-          ),
-        );
 
-        // Go back to Products screen
-        Navigator.pop(context, true);
-      }
-    } catch (e) {
-      print("ADD PRODUCT ERROR: $e");
+      "category":
+      category,
 
-      if (!mounted) return;
 
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            "Failed to add product: $e",
-          ),
-          backgroundColor: Colors.red,
-        ),
-      );
-    } finally {
-      if (mounted) {
-        setState(() {
-          loading = false;
-        });
-      }
-    }
-  }
-
-  @override
-  void dispose() {
-    nameController.dispose();
-    priceController.dispose();
-    stockController.dispose();
-    descriptionController.dispose();
-
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text(
-          "Add Product",
-        ),
+      "price":
+      double.parse(
+          priceController.text
       ),
 
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(20),
 
-        child: Form(
-          key: _formKey,
+      "stock":
+      int.tryParse(
+          stockController.text
+      ) ?? 0,
 
-          child: Column(
-            children: [
-              // =========================
-              // IMAGE PLACEHOLDER
-              // =========================
 
-              Container(
-                height: 150,
-                width: double.infinity,
+      "description":
+      descriptionController.text,
 
-                decoration: BoxDecoration(
+
+    });
+
+
+
+    setState(() {
+
+      loading=false;
+
+    });
+
+
+
+    if(success){
+
+
+      ScaffoldMessenger.of(context)
+          .showSnackBar(
+
+          const SnackBar(
+              content:
+              Text(
+                  "Product Added Successfully"
+              )
+          )
+
+      );
+
+
+      Navigator.pop(context);
+
+
+    }
+
+
+  }
+
+
+
+
+  @override
+  Widget build(BuildContext context){
+
+
+    return Scaffold(
+
+      appBar:
+      AppBar(
+
+        title:
+        const Text(
+            "Add Product"
+        ),
+
+      ),
+
+
+      body:
+
+      SingleChildScrollView(
+
+        padding:
+        const EdgeInsets.all(20),
+
+
+        child:
+
+        Column(
+
+          children:[
+
+
+
+            Container(
+
+              height:150,
+
+              width:double.infinity,
+
+
+              decoration:
+
+              BoxDecoration(
+
+                borderRadius:
+                BorderRadius.circular(20),
+
+                color:
+                Colors.green.shade50,
+
+              ),
+
+
+              child:
+
+              const Icon(
+
+                Icons.add_photo_alternate,
+
+                size:60,
+
+                color:
+                Colors.green,
+
+              ),
+
+            ),
+
+
+
+            const SizedBox(
+                height:20
+            ),
+
+
+
+            TextField(
+
+              controller:
+              nameController,
+
+
+              decoration:
+              InputDecoration(
+
+                labelText:
+                "Product Name",
+
+                prefixIcon:
+                const Icon(
+                    Icons.shopping_bag
+                ),
+
+                border:
+                OutlineInputBorder(
+
                   borderRadius:
-                  BorderRadius.circular(20),
+                  BorderRadius.circular(15),
 
-                  color:
-                  Colors.green.shade50,
                 ),
 
-                child: const Icon(
-                  Icons.add_photo_alternate,
-                  size: 60,
-                  color: Colors.green,
-                ),
               ),
 
-              const SizedBox(
-                height: 20,
-              ),
+            ),
 
-              // =========================
-              // PRODUCT NAME
-              // =========================
 
-              TextFormField(
-                controller: nameController,
 
-                validator: (value) {
-                  if (value == null ||
-                      value.trim().isEmpty) {
-                    return "Please enter product name";
-                  }
+            const SizedBox(
+                height:15
+            ),
 
-                  return null;
-                },
 
-                decoration: InputDecoration(
-                  labelText: "Product Name",
 
-                  prefixIcon: const Icon(
-                    Icons.shopping_bag,
-                  ),
+            DropdownButtonFormField(
 
-                  border: OutlineInputBorder(
-                    borderRadius:
-                    BorderRadius.circular(15),
-                  ),
-                ),
-              ),
+              value:
+              category,
 
-              const SizedBox(
-                height: 15,
-              ),
 
-              // =========================
-              // CATEGORY
-              // =========================
+              items:
+              [
 
-              DropdownButtonFormField<String>(
-                value: category,
+                "Food",
+                "Medicine",
+                "Toy",
+                "Accessory"
 
-                items: const [
-                  DropdownMenuItem(
-                    value: "food",
-                    child: Text("Food"),
-                  ),
+              ]
 
-                  DropdownMenuItem(
-                    value: "medicine",
-                    child: Text("Medicine"),
-                  ),
+                  .map(
 
-                  DropdownMenuItem(
-                    value: "toy",
-                    child: Text("Toy"),
-                  ),
+                      (e)=>
 
-                  DropdownMenuItem(
-                    value: "accessory",
-                    child: Text("Accessory"),
-                  ),
+                      DropdownMenuItem(
 
-                  DropdownMenuItem(
-                    value: "grooming",
-                    child: Text("Grooming"),
-                  ),
+                        value:e,
 
-                  DropdownMenuItem(
-                    value: "other",
-                    child: Text("Other"),
-                  ),
-                ],
+                        child:
+                        Text(e),
 
-                onChanged: loading
-                    ? null
-                    : (value) {
-                  if (value == null) return;
+                      )
 
-                  setState(() {
-                    category = value;
-                  });
-                },
+              )
 
-                decoration: InputDecoration(
-                  labelText: "Category",
+                  .toList(),
 
-                  border: OutlineInputBorder(
-                    borderRadius:
-                    BorderRadius.circular(15),
-                  ),
-                ),
-              ),
 
-              const SizedBox(
-                height: 15,
-              ),
+              onChanged:(value){
 
-              // =========================
-              // PRICE
-              // =========================
+                setState(() {
 
-              TextFormField(
-                controller: priceController,
+                  category=value.toString();
 
-                keyboardType:
-                const TextInputType.numberWithOptions(
-                  decimal: true,
+                });
+
+              },
+
+
+              decoration:
+              InputDecoration(
+
+                labelText:
+                "Category",
+
+                border:
+                OutlineInputBorder(
+
+                  borderRadius:
+                  BorderRadius.circular(15),
+
                 ),
 
-                validator: (value) {
-                  if (value == null ||
-                      value.trim().isEmpty) {
-                    return "Please enter price";
-                  }
+              ),
 
-                  if (double.tryParse(
-                      value.trim()) ==
-                      null) {
-                    return "Please enter a valid price";
-                  }
+            ),
 
-                  return null;
-                },
 
-                decoration: InputDecoration(
-                  labelText: "Price",
 
-                  prefixText: "MMK ",
+            const SizedBox(
+                height:15
+            ),
 
-                  border: OutlineInputBorder(
-                    borderRadius:
-                    BorderRadius.circular(15),
-                  ),
+
+
+            TextField(
+
+              controller:
+              priceController,
+
+
+              keyboardType:
+              TextInputType.number,
+
+
+              decoration:
+              InputDecoration(
+
+                labelText:
+                "Price",
+
+                prefixText:
+                "MMK ",
+
+                border:
+                OutlineInputBorder(
+
+                  borderRadius:
+                  BorderRadius.circular(15),
+
                 ),
+
               ),
 
-              const SizedBox(
-                height: 15,
-              ),
+            ),
 
-              // =========================
-              // STOCK
-              // =========================
 
-              TextFormField(
-                controller: stockController,
 
-                keyboardType:
-                TextInputType.number,
+            const SizedBox(
+                height:15
+            ),
 
-                validator: (value) {
-                  if (value == null ||
-                      value.trim().isEmpty) {
-                    return "Please enter stock";
-                  }
 
-                  if (int.tryParse(
-                      value.trim()) ==
-                      null) {
-                    return "Please enter a valid stock";
-                  }
 
-                  return null;
-                },
+            TextField(
 
-                decoration: InputDecoration(
-                  labelText: "Stock",
+              controller:
+              stockController,
 
-                  border: OutlineInputBorder(
-                    borderRadius:
-                    BorderRadius.circular(15),
-                  ),
+
+              keyboardType:
+              TextInputType.number,
+
+
+              decoration:
+              InputDecoration(
+
+                labelText:
+                "Stock",
+
+                border:
+                OutlineInputBorder(
+
+                  borderRadius:
+                  BorderRadius.circular(15),
+
                 ),
+
               ),
 
-              const SizedBox(
-                height: 15,
-              ),
+            ),
 
-              // =========================
-              // DESCRIPTION
-              // =========================
 
-              TextFormField(
-                controller:
-                descriptionController,
 
-                maxLines: 4,
+            const SizedBox(
+                height:15
+            ),
 
-                decoration: InputDecoration(
-                  labelText: "Description",
 
-                  border: OutlineInputBorder(
-                    borderRadius:
-                    BorderRadius.circular(15),
-                  ),
+
+            TextField(
+
+              controller:
+              descriptionController,
+
+
+              maxLines:4,
+
+
+              decoration:
+              InputDecoration(
+
+                labelText:
+                "Description",
+
+                border:
+                OutlineInputBorder(
+
+                  borderRadius:
+                  BorderRadius.circular(15),
+
                 ),
+
               ),
 
-              const SizedBox(
-                height: 25,
-              ),
+            ),
 
-              // =========================
-              // ADD BUTTON
-              // =========================
 
-              SizedBox(
-                width: double.infinity,
 
-                height: 55,
+            const SizedBox(
+                height:25
+            ),
 
-                child: ElevatedButton(
-                  onPressed:
-                  loading
-                      ? null
-                      : addProduct,
 
-                  child: loading
-                      ? const SizedBox(
-                    width: 25,
-                    height: 25,
 
-                    child:
-                    CircularProgressIndicator(
-                      strokeWidth: 3,
-                      color: Colors.white,
-                    ),
-                  )
-                      : const Text(
+
+            SizedBox(
+
+              width:
+              double.infinity,
+
+
+              height:
+              55,
+
+
+              child:
+
+              ElevatedButton(
+
+
+                onPressed:
+                loading
+                    ?
+                null
+                    :
+                addProduct,
+
+
+                child:
+
+                loading
+
+                    ?
+
+                const CircularProgressIndicator()
+
+                    :
+
+                const Text(
+
                     "Add Product",
 
-                    style: TextStyle(
-                      fontSize: 17,
-                      fontWeight:
-                      FontWeight.bold,
-                    ),
-                  ),
+                    style:
+                    TextStyle(
+                        fontSize:17
+                    )
+
                 ),
+
               ),
-            ],
-          ),
+
+            )
+
+
+          ],
+
         ),
+
       ),
+
     );
+
   }
+
 }

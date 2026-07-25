@@ -5,6 +5,7 @@ import 'package:biopet/providers/classification_provider.dart';
 import 'package:biopet/providers/history_provider.dart';
 import 'package:biopet/screens/admin/admin_dashboard_screen.dart';
 import 'package:biopet/screens/business/seller_products_screen.dart';
+import 'package:biopet/screens/users/ShopPage.dart';
 import 'package:biopet/seller_center_page.dart';
 import 'package:biopet/services/classification_service.dart';
 import 'package:biopet/services/history_service.dart';
@@ -158,7 +159,7 @@ class MyApp extends StatelessWidget {
         ),
       ),
       // Start with Login
-      home: const LoginScreen(),
+      home:  AuthCheck(),
       onGenerateRoute: (settings) {
         if(settings.name == "/business-location"){
           return MaterialPageRoute(
