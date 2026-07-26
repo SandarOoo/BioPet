@@ -12,38 +12,28 @@ const createPost = async (req, res) => {
   try {
     const { userId, name, text } = req.body;
 
-    // Get uploaded images
-    const images = req.files
-      ? req.files.map((file) => ({
-          data: file.buffer.toString("base64"),
-          contentType: file.mimetype,
-          filename: file.originalname,
-        }))
-      : [];
-
-    // Optional validation
-    if ((!text || text.trim() === "") && images.length === 0) {
+    if (!userId) {
       return res.status(400).json({
         success: false,
-        message: "Post must contain text or at least one image",
+        message: "userId is required",
       });
     }
 
-    // Create post directly
-    // NO GEMINI CHECK
+    if (!text || text.trim() === "") {
+      return res.status(400).json({
+        success: false,
+        message: "Post text is required",
+      });
+    }
+
     const post = await Post.create({
       userId,
       name: name || "Anonymous",
-      text: text ? text.trim() : "",
-      images,
+      text: text.trim(),
+      images: [],
       likes: [],
       comments: [],
     });
-
-    console.log("=================================");
-    console.log("✅ POST CREATED SUCCESSFULLY");
-    console.log("POST ID:", post._id);
-    console.log("=================================");
 
     return res.status(201).json({
       success: true,
@@ -51,10 +41,7 @@ const createPost = async (req, res) => {
       post,
     });
   } catch (error) {
-    console.error("=================================");
-    console.error("❌ CREATE POST ERROR");
-    console.error(error);
-    console.error("=================================");
+    console.error("CREATE POST ERROR:", error);
 
     return res.status(500).json({
       success: false,
@@ -63,7 +50,6 @@ const createPost = async (req, res) => {
     });
   }
 };
-
 // =====================================================
 // GET POSTS
 // =====================================================
