@@ -1,1345 +1,3061 @@
+
 import 'dart:convert';
+
 import 'dart:io';
+import 'dart:typed_data';
 import 'package:biopet/Login_Screen.dart';
-import 'package:biopet/time_ago.dart';
-import 'package:http_parser/http_parser.dart';
+import 'package:biopet/models/post.dart';
 import 'package:biopet/services/api_service.dart';
+import 'package:biopet/services/post_api_service.dart';
+import 'package:biopet/time_ago.dart';
 import 'package:flutter/material.dart';
-import 'package:http/http.dart' as http;
 import 'package:image_picker/image_picker.dart';
-import 'package:mime/mime.dart';
 
-// models comment + post + imageData
-class Comment {
-  final String userId;
-  final String text;
 
-  Comment({required this.userId, required this.text});
-
-  factory Comment.fromJson(Map<String, dynamic> json) => Comment(
-    userId: json['userId'] ?? '',
-    text: json['text'] ?? '',
-  );
-}
-
-class ImageData {
-  final String data;
-  final String contentType;
-  final String filename;
-
-  ImageData({
-    required this.data,
-    required this.contentType,
-    required this.filename,
-  });
-
-  factory ImageData.fromJson(Map<String, dynamic> json) => ImageData(
-    data: json['data'] ?? '',
-    contentType: json['contentType'] ?? '',
-    filename: json['filename'] ?? '',
-  );
-}
-
-class Post {
-  final String id;
-  final String name;
-  final String text;
-  final DateTime createAt;
-  List<String> likes;
-  List<Comment> comments;
-  final List<ImageData> images;
-
-  Post({
-    required this.id,
-    required this.name,
-    required this.text,
-    required this.createAt,
-    required this.likes,
-    required this.comments,
-    required this.images,
-  });
-
-  factory Post.fromJson(Map<String, dynamic> json) => Post(
-    id: json['_id'] ?? json['id'] ?? '',
-    name: json['name'] ?? 'Anonymous',
-    text: json['text'] ?? '',
-    createAt: json['createdAt'] != null
-        ? DateTime.parse(json['createdAt'])
-        : DateTime.now(),
-
-    likes: List<String>.from(json['likes'] ?? []),
-
-    comments: (json['comments'] as List<dynamic>? ?? [])
-        .map((c) => Comment.fromJson(c))
-        .toList(),
-
-    images: (json['images'] as List<dynamic>? ?? [])
-        .map((i) => ImageData.fromJson(i))
-        .toList(),
-  );
-}
-
-// ─────────────────────────────────────────────
-// API SERVICE
-// ─────────────────────────────────────────────
-
-class PostApiService {
-  static String get _baseUrl => ApiService.baseUrl;
-  // FIX #1: Cached sync fields so they can be used without await everywhere
-  static String currentUserId = '';
-  static String currentUserName = '';
-
-  /// Call this once at startup (e.g. in HomeScreen.initState)
-  static Future<void> init() async {
-    currentUserId = await ApiService.getUserId() ?? '';
-    currentUserName = await ApiService.getUserName() ?? '';
-  }
-
-  static Future<List<Post>> fetchPosts(int page) async {
-    final uri = Uri.parse(
-      '$_baseUrl/api/posts?page=$page&limit=10',
-    );
-
-    try {
-      final response = await http.get(
-        uri,
-        headers: {
-          'Accept': 'application/json',
-        },
-      );
-
-      print('GET POSTS => ${response.statusCode}');
-      print('GET POSTS BODY => ${response.body}');
-
-      if (response.statusCode != 200) {
-        throw Exception(
-          'Failed to load posts: '
-              '${response.statusCode} ${response.body}',
-        );
-      }
-
-      final decoded = jsonDecode(response.body);
-
-      // Backend response:
-      // {
-      //   "success": true,
-      //   "posts": [...]
-      // }
-
-      if (decoded is Map<String, dynamic>) {
-        final postsData = decoded['posts'];
-
-        if (postsData is List) {
-          return postsData
-              .map(
-                (e) => Post.fromJson(
-              Map<String, dynamic>.from(e),
-            ),
-          )
-              .toList();
-        }
-      }
-
-      throw Exception(
-        'Invalid posts response format',
-      );
-    } catch (e) {
-      print('❌ FETCH POSTS ERROR => $e');
-      rethrow;
-    }
-  }
-  static Future<Map<String, dynamic>> createPostWithImages({
-    required String text,
-    required List<File> imageFiles,
-  }) async {
-    final userId = await ApiService.getUserId();
-    final userName = await ApiService.getUserName();
-
-    if (userId == null || userId.isEmpty) {
-      throw Exception('Not logged in');
-    }
-
-    final uri = Uri.parse('$_baseUrl/api/posts/create');
-    var request = http.MultipartRequest('POST', uri);
-
-    request.fields['userId'] = userId;
-    request.fields['name'] = userName ?? 'Unknown';
-    request.fields['text'] = text;
-
-    for (final file in imageFiles) {
-      final stream = http.ByteStream(file.openRead());
-      final length = await file.length();
-
-      final mimeType = lookupMimeType(file.path) ?? 'image/jpeg';
-      final parts = mimeType.split('/');
-
-      request.files.add(
-        http.MultipartFile(
-          'images',
-          stream,
-          length,
-          filename: file.path.split('/').last,
-          contentType: MediaType(parts[0], parts[1]),
-        ),
-      );
-    }
-
-    final response = await request.send();
-    final body = await response.stream.bytesToString();
-
-    final json = jsonDecode(body);
-
-    if (response.statusCode == 201) {
-      return json; // ✅ RETURN FULL MAP
-    }
-
-    throw Exception(json['message'] ?? 'Create post failed');
-  }
-
-  static Future<void> toggleLike(String postId) async {
-    final response = await http.post(
-      Uri.parse('$_baseUrl/api/posts/like'),
-      headers: {'Content-Type': 'application/json'},
-      body: jsonEncode({
-        'postId': postId,
-        'userId': currentUserId,
-      }),
-    );
-
-    if (response.statusCode != 200) {
-      throw Exception(response.body);
-    }
-  }
-
-  static Future<void> addComment(String postId, String text) async {
-    final response = await http.post(
-      Uri.parse('$_baseUrl/api/posts/comment'),
-      headers: {'Content-Type': 'application/json'},
-      body: jsonEncode({
-        'postId': postId,
-        'userId': currentUserId,
-        'text': text,
-      }),
-    );
-
-    if (response.statusCode != 200) {
-      throw Exception(response.body);
-    }
-  }
-}
-
-// ─────────────────────────────────────────────
+// =====================================================
 // DESIGN TOKENS
-// ─────────────────────────────────────────────
+// =====================================================
 
 class _T {
-  static const Color bg = Color(0xFFF4FAF5);
-  static const Color surface = Color(0xFFFFFFFF);
-  static const Color primary = Color(0xFF3A8C5C);
-  static const Color primaryLight = Color(0xFFD6EDDF);
-  static const Color accent = Color(0xFFFF6B6B);
-  static const Color textPrimary = Color(0xFF1A1A2E);
-  static const Color textSecondary = Color(0xFF6B7280);
-  static const Color divider = Color(0xFFE8F0EA);
-  static const double cardRadius = 16;
-  static const double chipRadius = 24;
-  static const double pagePad = 16;
+static const Color bg = Color(0xFFF4FAF5);
+static const Color surface = Color(0xFFFFFFFF);
+
+static const Color primary = Color(0xFF3A8C5C);
+static const Color primaryLight = Color(0xFFD6EDDF);
+
+static const Color accent = Color(0xFFFF6B6B);
+
+static const Color textPrimary = Color(0xFF1A1A2E);
+static const Color textSecondary = Color(0xFF6B7280);
+
+static const Color divider = Color(0xFFE8F0EA);
+
+static const double cardRadius = 16;
+static const double chipRadius = 24;
+static const double pagePad = 16;
 }
 
-// ─────────────────────────────────────────────
-// HOME SCREEN
-// ─────────────────────────────────────────────
+
+// =====================================================
+// HOME / NEWS FEED SCREEN
+// =====================================================
 
 class HomeScreen extends StatefulWidget {
-  const HomeScreen({super.key});
+const HomeScreen({
+super.key,
+});
 
-  @override
-  State<HomeScreen> createState() => _HomeScreenState();
+@override
+State<HomeScreen> createState() => _HomeScreenState();
 }
 
+
 class _HomeScreenState extends State<HomeScreen> {
-  final List<Post> _posts = [];
-  final ScrollController _scrollController = ScrollController();
+final List<Post> _posts = [];
 
-  int _currentPage = 1;
-  bool _isLoading = false;
-  bool _hasMore = true;
-  String? _errorMessage;
+final ScrollController _scrollController =
+ScrollController();
 
-  @override
-  void initState() {
-    super.initState();
-    // FIX #1: Init cached userId/userName first, then load posts
-    PostApiService.init().then((_) => _loadPosts());
-    _scrollController.addListener(_onScroll);
-  }
+int _currentPage = 1;
 
-  @override
-  void dispose() {
-    _scrollController.dispose();
-    super.dispose();
-  }
+bool _isLoading = false;
+bool _isRefreshing = false;
+bool _hasMore = true;
 
-  void _onScroll() {
-    if (_scrollController.position.pixels >=
-        _scrollController.position.maxScrollExtent - 200 &&
-        !_isLoading &&
-        _hasMore) {
-      _loadPosts();
+String? _errorMessage;
+
+
+// =====================================================
+// INIT
+// =====================================================
+
+@override
+void initState() {
+super.initState();
+
+_scrollController.addListener(
+_onScroll,
+);
+
+_initialize();
+}
+
+
+Future<void> _initialize() async {
+try {
+await PostApiService.init();
+} catch (e) {
+debugPrint(
+'PostApiService init error: $e',
+);
+}
+
+if (!mounted) return;
+
+await _loadPosts(
+refresh: true,
+);
+}
+
+
+// =====================================================
+// SCROLL PAGINATION
+// =====================================================
+
+void _onScroll() {
+if (!_scrollController.hasClients) {
+return;
+}
+
+final position =
+_scrollController.position;
+
+if (position.pixels >=
+position.maxScrollExtent - 300 &&
+!_isLoading &&
+!_isRefreshing &&
+_hasMore) {
+_loadPosts();
+}
+}
+
+
+// =====================================================
+// LOAD POSTS
+// =====================================================
+
+  Future<void> _loadPosts({
+    bool refresh = false,
+  }) async {
+    if (_isLoading) {
+      return;
     }
-  }
 
-  Future<void> _loadPosts({bool refresh = false}) async {
-    if (_isLoading) return;
+    if (refresh) {
+      _isRefreshing = true;
+      _currentPage = 1;
+      _hasMore = true;
+    }
+
     setState(() {
       _isLoading = true;
       _errorMessage = null;
     });
 
-    if (refresh) {
-      _currentPage = 1;
-      _hasMore = true;
-    }
-
     try {
-      final newPosts = await PostApiService.fetchPosts(_currentPage);
-      setState(() {
-        if (refresh) _posts.clear();
-        _posts.addAll(newPosts);
-        _currentPage++;
-        _hasMore = newPosts.length >= 10;
-      });
-    } catch (e) {
-      setState(() => _errorMessage = 'Could not load posts. Pull to refresh.');
-    } finally {
-      setState(() => _isLoading = false);
-    }
-  }
+      final List<Post> newPosts =
+      await PostApiService.fetchPosts(
+        _currentPage,
+      );
 
-  Future<void> _handleLike(int index) async {
-    final post = _posts[index];
-    // FIX #2: Use sync cached field directly — no await needed
-    final userId = PostApiService.currentUserId;
-    final alreadyLiked = post.likes.contains(userId);
-
-    setState(() {
-      if (alreadyLiked) {
-        post.likes.remove(userId);
-      } else {
-        post.likes.add(userId);
+      if (!mounted) {
+        return;
       }
-    });
 
-    try {
-      await PostApiService.toggleLike(post.id);
-    } catch (_) {
-      // Rollback optimistic update on failure
       setState(() {
-        if (alreadyLiked) {
-          post.likes.add(userId);
+        if (refresh) {
+          _posts.clear();
+        }
+
+        _posts.addAll(newPosts);
+
+        if (newPosts.isEmpty) {
+          _hasMore = false;
         } else {
-          post.likes.remove(userId);
+          _currentPage++;
+
+          _hasMore = newPosts.length >= 10;
         }
       });
-      _showSnack('Could not update like. Try again.');
-    }
-  }
-
-  void _showSnack(String msg) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(msg), duration: const Duration(seconds: 2)),
-    );
-  }
-
-  void _openCreatePost() {
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder: (_) => _CreatePostSheet(
-        onPostCreated: (post) {
-          setState(() => _posts.insert(0, post));
-          Navigator.pop(context);
-          _showSnack('Post shared! 🐾');
-        },
-      ),
-    );
-  }
-
-  void _openComments(int index) {
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder: (_) => _CommentsSheet(
-        post: _posts[index],
-        onCommentAdded: (comment) {
-          setState(() => _posts[index].comments.add(comment));
-        },
-      ),
-    );
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: _T.bg,
-      appBar: _buildAppBar(),
-      body: RefreshIndicator(
-        color: _T.primary,
-        onRefresh: () => _loadPosts(refresh: true),
-        child: ListView.builder(
-          controller: _scrollController,
-          padding: const EdgeInsets.only(bottom: 100),
-          itemCount: _itemCount,
-          itemBuilder: _buildItem,
-        ),
-      ),
-      floatingActionButton: _buildFAB(),
-    );
-  }
-
-  int get _itemCount {
-    int count = 1 + _posts.length;
-    if (_isLoading || _errorMessage != null || !_hasMore) count++;
-    return count;
-  }
-
-  Widget _buildItem(BuildContext context, int index) {
-    if (index == 0) return _CreatePostBanner(onTap: _openCreatePost);
-
-    final postIndex = index - 1;
-    if (postIndex < _posts.length) {
-      return _PostCard(
-        post: _posts[postIndex],
-        // FIX #3: currentUserId is now a sync String — no type mismatch
-        currentUserId: PostApiService.currentUserId,
-        onLike: () => _handleLike(postIndex),
-        onComment: () => _openComments(postIndex),
-      );
-    }
-
-    if (_isLoading) return const _LoadingFooter();
-    if (_errorMessage != null) {
-      return _ErrorFooter(message: _errorMessage!, onRetry: _loadPosts);
-    }
-    return const _EndFooter();
-  }
-
-  PreferredSizeWidget _buildAppBar() {
-    return AppBar(
-      backgroundColor: _T.surface,
-      elevation: 0,
-      centerTitle: false,
-      title: Row(
-        children: [
-          Container(
-            width: 34,
-            height: 34,
-            decoration: BoxDecoration(
-              color: _T.primary,
-              borderRadius: BorderRadius.circular(10),
-            ),
-            child: const Icon(Icons.pets, color: Colors.white, size: 20),
-          ),
-          const SizedBox(width: 10),
-          Text(
-            'Bio Pet Feed',
-            style: TextStyle(
-              color: _T.textPrimary,
-              fontSize: 20,
-              fontWeight: FontWeight.w700,
-              letterSpacing: -0.5,
-            ),
-          ),
-        ],
-      ),
-      actions: [
-        IconButton(
-          icon: Badge(
-            backgroundColor: _T.accent,
-            child: const Icon(Icons.logout, color: _T.textPrimary),
-          ),
-          onPressed: () async {
-            await ApiService.logout();
-
-            if (!context.mounted) return;
-
-            Navigator.pushReplacement(
-              context,
-              MaterialPageRoute(
-                builder: (context) => const LoginScreen(),
-              ),
-            );
-          },
-        ),
-        const SizedBox(width: 4),
-      ],
-      bottom: PreferredSize(
-        preferredSize: const Size.fromHeight(1),
-        child: Container(height: 1, color: _T.divider),
-      ),
-    );
-  }
-
-  Widget _buildFAB() {
-    return FloatingActionButton.extended(
-      onPressed: _openCreatePost,
-      backgroundColor: _T.primary,
-      icon: const Icon(Icons.add_photo_alternate_outlined, color: Colors.white),
-      label: const Text(
-        'Post',
-        style: TextStyle(color: Colors.white, fontWeight: FontWeight.w600),
-      ),
-      elevation: 4,
-    );
-  }
-}
-
-// ─────────────────────────────────────────────
-// CREATE POST BANNER
-// ─────────────────────────────────────────────
-
-class _CreatePostBanner extends StatelessWidget {
-  final VoidCallback onTap;
-  const _CreatePostBanner({required this.onTap});
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(_T.pagePad, 14, _T.pagePad, 6),
-      child: GestureDetector(
-        onTap: onTap,
-        child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-          decoration: BoxDecoration(
-            color: _T.surface,
-            borderRadius: BorderRadius.circular(_T.cardRadius),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withOpacity(0.05),
-                blurRadius: 8,
-                offset: const Offset(0, 2),
-              ),
-            ],
-          ),
-          child: Row(
-            children: [
-              CircleAvatar(
-                radius: 20,
-                backgroundColor: _T.primaryLight,
-                child: const Text('🐾', style: TextStyle(fontSize: 18)),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-                  decoration: BoxDecoration(
-                    color: _T.bg,
-                    borderRadius: BorderRadius.circular(_T.chipRadius),
-                    border: Border.all(color: _T.divider),
-                  ),
-                  child: Text(
-                    "What's your pet doing? 🐶",
-                    style: TextStyle(color: _T.textSecondary, fontSize: 14),
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-// ─────────────────────────────────────────────
-// POST CARD
-// ─────────────────────────────────────────────
-
-class _PostCard extends StatelessWidget {
-  final Post post;
-  final String currentUserId;
-  final VoidCallback onLike;
-  final VoidCallback onComment;
-
-  const _PostCard({
-    required this.post,
-    required this.currentUserId,
-    required this.onLike,
-    required this.onComment,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final liked = post.likes.contains(currentUserId);
-    final initials = post.name.isNotEmpty ? post.name[0].toUpperCase() : '?';
-
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(_T.pagePad, 6, _T.pagePad, 6),
-      child: Container(
-        decoration: BoxDecoration(
-          color: _T.surface,
-          borderRadius: BorderRadius.circular(_T.cardRadius),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withOpacity(0.05),
-              blurRadius: 8,
-              offset: const Offset(0, 2),
-            ),
-          ],
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // Header
-            Padding(
-              padding: const EdgeInsets.fromLTRB(14, 14, 14, 0),
-              child: Row(
-                children: [
-                  CircleAvatar(
-                    radius: 22,
-                    backgroundColor: _T.primaryLight,
-                    child: Text(
-                      initials,
-                      style: TextStyle(
-                        color: _T.primary,
-                        fontWeight: FontWeight.w700,
-                        fontSize: 16,
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: 10),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          post.name,
-                          style: const TextStyle(
-                            fontWeight: FontWeight.w700,
-                            fontSize: 15,
-                            color: _T.textPrimary,
-                          ),
-                        ),
-                        const SizedBox(height: 1),
-                        Text(
-                          TimeAgo.format(post.createAt),
-                          style: TextStyle(fontSize: 12, color: _T.textSecondary),
-                        ),
-                      ],
-                    ),
-                  ),
-                  Icon(Icons.more_horiz, color: _T.textSecondary),
-                ],
-              ),
-            ),
-            // Post text
-            Padding(
-              padding: const EdgeInsets.fromLTRB(14, 12, 14, 12),
-              child: Text(
-                post.text,
-                style: const TextStyle(
-                  fontSize: 15,
-                  color: _T.textPrimary,
-                  height: 1.45,
-                ),
-              ),
-            ),
-            // Images gallery
-            if (post.images.isNotEmpty)
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-                child: SizedBox(
-                  height: 200,
-                  child: ListView.separated(
-                    scrollDirection: Axis.horizontal,
-                    itemCount: post.images.length,
-                    separatorBuilder: (_, __) => const SizedBox(width: 8),
-                    itemBuilder: (_, index) {
-                      final image = post.images[index];
-                      return ClipRRect(
-                        borderRadius: BorderRadius.circular(12),
-                        child: Image.memory(
-                          base64Decode(image.data.split(',').last),
-                          width: 200,
-                          height: 200,
-                          fit: BoxFit.cover,
-                        ),
-                      );
-                    },
-                  ),
-                ),
-              ),
-            // Likes & comments count
-            if (post.likes.isNotEmpty || post.comments.isNotEmpty)
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 14),
-                child: Row(
-                  children: [
-                    if (post.likes.isNotEmpty)
-                      Row(
-                        children: [
-                          const Text('❤️', style: TextStyle(fontSize: 13)),
-                          const SizedBox(width: 3),
-                          Text(
-                            '${post.likes.length}',
-                            style: TextStyle(
-                              fontSize: 12,
-                              color: _T.textSecondary,
-                              fontWeight: FontWeight.w500,
-                            ),
-                          ),
-                        ],
-                      ),
-                    const Spacer(),
-                    if (post.comments.isNotEmpty)
-                      Text(
-                        '${post.comments.length} comment${post.comments.length == 1 ? '' : 's'}',
-                        style: TextStyle(fontSize: 12, color: _T.textSecondary),
-                      ),
-                  ],
-                ),
-              ),
-            const Padding(
-              padding: EdgeInsets.symmetric(vertical: 6),
-              child: Divider(height: 1, color: _T.divider),
-            ),
-            // Action buttons
-            Padding(
-              padding: const EdgeInsets.fromLTRB(4, 2, 4, 10),
-              child: Row(
-                children: [
-                  Expanded(
-                    child: _ActionButton(
-                      icon: liked ? Icons.favorite : Icons.favorite_border,
-                      label: liked ? 'Liked' : 'Like',
-                      color: liked ? _T.accent : _T.textSecondary,
-                      onTap: onLike,
-                    ),
-                  ),
-                  Expanded(
-                    child: _ActionButton(
-                      icon: Icons.chat_bubble_outline,
-                      label: 'Comment',
-                      color: _T.textSecondary,
-                      onTap: onComment,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class _ActionButton extends StatelessWidget {
-  final IconData icon;
-  final String label;
-  final Color color;
-  final VoidCallback onTap;
-
-  const _ActionButton({
-    required this.icon,
-    required this.label,
-    required this.color,
-    required this.onTap,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(8),
-      child: Padding(
-        padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 12),
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(icon, size: 20, color: color),
-            const SizedBox(width: 6),
-            Text(
-              label,
-              style: TextStyle(
-                color: color,
-                fontWeight: FontWeight.w600,
-                fontSize: 13,
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-// ─────────────────────────────────────────────
-// CREATE POST SHEET (WITH IMAGE PICKER)
-// ─────────────────────────────────────────────
-
-class _CreatePostSheet extends StatefulWidget {
-  final void Function(Post post) onPostCreated;
-  const _CreatePostSheet({required this.onPostCreated});
-
-  @override
-  State<_CreatePostSheet> createState() => _CreatePostSheetState();
-}
-
-class _CreatePostSheetState extends State<_CreatePostSheet> {
-  final TextEditingController _controller = TextEditingController();
-  final ImagePicker _picker = ImagePicker();
-  List<File> _selectedImages = [];
-  bool _isPosting = false;
-  String? _error;
-
-  Future<void> _pickImages() async {
-    final List<XFile>? pickedImages = await _picker.pickMultiImage(limit: 10);
-    if (pickedImages != null && pickedImages.isNotEmpty) {
-      setState(() {
-        _selectedImages = pickedImages.map((x) => File(x.path)).toList();
-      });
-    }
-  }
-
-  void _removeImage(int index) {
-    setState(() => _selectedImages.removeAt(index));
-  }
-
-  Future<void> _submit() async {
-    final text = _controller.text.trim();
-
-    if (text.isEmpty && _selectedImages.isEmpty) return;
-
-    setState(() {
-      _isPosting = true;
-      _error = null;
-    });
-
-    try {
-      final res = await PostApiService.createPostWithImages(
-        text: text,
-        imageFiles: _selectedImages,
-      );
-
-      final Map<String, dynamic> data = res;
-
-      // final postJson = data['post'];
-      // final ai = data['ai'];
-      //
-      // if (ai != null && ai['allowed'] == false) {
-      //   setState(() {
-      //     _error = "Post blocked by AI 🚫 (${ai['category']})";
-      //     _isPosting = false;
-      //   });
-      //   return;
-      // }
-
-      final postJson = data['post'];
-
-      final post = Post.fromJson(postJson);
-
-
-      if (mounted) widget.onPostCreated(post);
-
-      _controller.clear();
-      _selectedImages.clear();
-
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("Post created successfully 🐾")),
-      );
     } catch (e) {
-      setState(() {
-        _error = e.toString();
-      });
-    } finally {
-      if (mounted) {
-        setState(() => _isPosting = false);
-      }
-    }
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final bottomPad = MediaQuery.of(context).viewInsets.bottom;
-
-    return Container(
-      padding: EdgeInsets.fromLTRB(20, 20, 20, 20 + bottomPad),
-      decoration: const BoxDecoration(
-        color: _T.surface,
-        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-      ),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Center(
-            child: Container(
-              width: 40,
-              height: 4,
-              decoration: BoxDecoration(
-                color: _T.divider,
-                borderRadius: BorderRadius.circular(4),
-              ),
-            ),
-          ),
-          const SizedBox(height: 16),
-          Row(
-            children: [
-              const Text('🐾', style: TextStyle(fontSize: 20)),
-              const SizedBox(width: 8),
-              Text(
-                'Share a pet moment',
-                style: TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.w700,
-                  color: _T.textPrimary,
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 4),
-          Text(
-            'You can select up to 10 images',
-            style: TextStyle(fontSize: 12, color: _T.textSecondary),
-          ),
-          const SizedBox(height: 16),
-          TextField(
-            controller: _controller,
-            maxLines: 4,
-            autofocus: true,
-            style: const TextStyle(fontSize: 15, color: _T.textPrimary),
-            decoration: InputDecoration(
-              hintText: "What's your pet up to today? 🐶🐱",
-              hintStyle: TextStyle(color: _T.textSecondary),
-              filled: true,
-              fillColor: _T.bg,
-              border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(14),
-                borderSide: BorderSide.none,
-              ),
-              contentPadding: const EdgeInsets.all(14),
-            ),
-          ),
-          const SizedBox(height: 12),
-          ElevatedButton.icon(
-            onPressed: _pickImages,
-            icon: const Icon(Icons.add_photo_alternate),
-            label: Text('Pick Images (${_selectedImages.length}/10)'),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: _T.primaryLight,
-              foregroundColor: _T.primary,
-            ),
-          ),
-          if (_selectedImages.isNotEmpty) ...[
-            const SizedBox(height: 8),
-            SizedBox(
-              height: 100,
-              child: ListView.separated(
-                scrollDirection: Axis.horizontal,
-                itemCount: _selectedImages.length,
-                separatorBuilder: (_, __) => const SizedBox(width: 8),
-                itemBuilder: (_, index) {
-                  return Stack(
-                    children: [
-                      ClipRRect(
-                        borderRadius: BorderRadius.circular(12),
-                        child: Image.file(
-                          _selectedImages[index],
-                          width: 100,
-                          height: 100,
-                          fit: BoxFit.cover,
-                        ),
-                      ),
-                      Positioned(
-                        top: 4,
-                        right: 4,
-                        child: GestureDetector(
-                          onTap: () => _removeImage(index),
-                          child: Container(
-                            decoration: BoxDecoration(
-                              color: Colors.black.withOpacity(0.6),
-                              shape: BoxShape.circle,
-                            ),
-                            child: const Icon(
-                              Icons.close,
-                              size: 20,
-                              color: Colors.white,
-                            ),
-                          ),
-                        ),
-                      ),
-                    ],
-                  );
-                },
-              ),
-            ),
-          ],
-          if (_error != null) ...[
-            const SizedBox(height: 10),
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-              decoration: BoxDecoration(
-                color: const Color(0xFFFFEEEE),
-                borderRadius: BorderRadius.circular(10),
-              ),
-              child: Row(
-                children: [
-                  const Icon(Icons.error_outline, color: _T.accent, size: 18),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: Text(
-                      _error!,
-                      style: const TextStyle(color: _T.accent, fontSize: 13),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ],
-          const SizedBox(height: 16),
-          SizedBox(
-            width: double.infinity,
-            child: FilledButton(
-              onPressed:
-              (_isPosting || (_controller.text.trim().isEmpty && _selectedImages.isEmpty))
-                  ? null
-                  : _submit,
-              style: FilledButton.styleFrom(
-                backgroundColor: _T.primary,
-                padding: const EdgeInsets.symmetric(vertical: 14),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(_T.chipRadius),
-                ),
-              ),
-              child: _isPosting
-                  ? const SizedBox(
-                width: 20,
-                height: 20,
-                child: CircularProgressIndicator(
-                  color: Colors.white,
-                  strokeWidth: 2,
-                ),
-              )
-                  : const Text(
-                'Post',
-                style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-// ─────────────────────────────────────────────
-// COMMENTS SHEET
-// ─────────────────────────────────────────────
-
-class _CommentsSheet extends StatefulWidget {
-  final Post post;
-  final void Function(Comment comment) onCommentAdded;
-
-  const _CommentsSheet({required this.post, required this.onCommentAdded});
-
-  @override
-  State<_CommentsSheet> createState() => _CommentsSheetState();
-}
-
-class _CommentsSheetState extends State<_CommentsSheet> {
-  final TextEditingController _controller = TextEditingController();
-  bool _isSending = false;
-
-  Future<void> _sendComment() async {
-    final text = _controller.text.trim();
-    if (text.isEmpty) return;
-
-    setState(() => _isSending = true);
-    try {
-      await PostApiService.addComment(widget.post.id, text);
-
-      final comment = Comment(
-        userId: PostApiService.currentUserId,
-        text: text,
+      debugPrint(
+        'LOAD POSTS ERROR: $e',
       );
 
-      // FIX #4: Only add comment once via the callback — removed duplicate setState add
-      widget.onCommentAdded(comment);
-      _controller.clear();
-    } catch (_) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Could not send comment.')),
-        );
+      if (!mounted) {
+        return;
       }
+
+      setState(() {
+        _errorMessage =
+        'Could not load posts. Please try again.';
+      });
     } finally {
-      if (mounted) setState(() => _isSending = false);
+      if (!mounted) {
+        return;
+      }
+
+      setState(() {
+        _isLoading = false;
+        _isRefreshing = false;
+      });
     }
   }
+// =====================================================
+// LIKE POST
+// =====================================================
 
-  @override
-  Widget build(BuildContext context) {
-    final bottomPad = MediaQuery.of(context).viewInsets.bottom;
-
-    return Container(
-      padding: EdgeInsets.only(bottom: bottomPad),
-      decoration: const BoxDecoration(
-        color: _T.surface,
-        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-      ),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          const SizedBox(height: 12),
-          Center(
-            child: Container(
-              width: 40,
-              height: 4,
-              decoration: BoxDecoration(
-                color: _T.divider,
-                borderRadius: BorderRadius.circular(4),
-              ),
-            ),
-          ),
-          const SizedBox(height: 12),
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 20),
-            child: Row(
-              children: [
-                const Text('💬', style: TextStyle(fontSize: 18)),
-                const SizedBox(width: 8),
-                Text(
-                  'Comments',
-                  style: TextStyle(
-                    fontSize: 17,
-                    fontWeight: FontWeight.w700,
-                    color: _T.textPrimary,
-                  ),
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(height: 8),
-          const Divider(height: 1, color: _T.divider),
-          ConstrainedBox(
-            constraints: BoxConstraints(
-              maxHeight: MediaQuery.of(context).size.height * 0.4,
-            ),
-            child: widget.post.comments.isEmpty
-                ? const Padding(
-              padding: EdgeInsets.symmetric(vertical: 32),
-              child: Center(
-                child: Text(
-                  'No comments yet. Be the first! 🐾',
-                  style: TextStyle(color: _T.textSecondary, fontSize: 14),
-                ),
-              ),
-            )
-                : ListView.separated(
-              padding: const EdgeInsets.symmetric(
-                horizontal: 16,
-                vertical: 12,
-              ),
-              itemCount: widget.post.comments.length,
-              separatorBuilder: (_, __) => const SizedBox(height: 10),
-              itemBuilder: (_, i) {
-                return _CommentTile(comment: widget.post.comments[i]);
-              },
-            ),
-          ),
-          const Divider(height: 1, color: _T.divider),
-          Padding(
-            padding: const EdgeInsets.fromLTRB(12, 10, 12, 14),
-            child: Row(
-              children: [
-                const CircleAvatar(
-                  radius: 18,
-                  backgroundColor: _T.primaryLight,
-                  child: Text('🐾', style: TextStyle(fontSize: 14)),
-                ),
-                const SizedBox(width: 10),
-                Expanded(
-                  child: TextField(
-                    controller: _controller,
-                    textInputAction: TextInputAction.send,
-                    onSubmitted: (_) => _sendComment(),
-                    style: const TextStyle(fontSize: 14, color: _T.textPrimary),
-                    decoration: InputDecoration(
-                      hintText: 'Add a comment…',
-                      hintStyle: TextStyle(
-                        color: _T.textSecondary,
-                        fontSize: 14,
-                      ),
-                      filled: true,
-                      fillColor: _T.bg,
-                      contentPadding: const EdgeInsets.symmetric(
-                        horizontal: 14,
-                        vertical: 10,
-                      ),
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(_T.chipRadius),
-                        borderSide: BorderSide.none,
-                      ),
-                    ),
-                  ),
-                ),
-                const SizedBox(width: 8),
-                _isSending
-                    ? const SizedBox(
-                  width: 36,
-                  height: 36,
-                  child: CircularProgressIndicator(
-                    color: _T.primary,
-                    strokeWidth: 2,
-                  ),
-                )
-                    : IconButton(
-                  onPressed: _sendComment,
-                  icon: const Icon(Icons.send_rounded),
-                  color: _T.primary,
-                  iconSize: 26,
-                  padding: EdgeInsets.zero,
-                  constraints: const BoxConstraints(
-                    minWidth: 36,
-                    minHeight: 36,
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
+Future<void> _handleLike(
+int index,
+) async {
+if (index < 0 ||
+index >= _posts.length) {
+return;
 }
 
-class _CommentTile extends StatelessWidget {
-  final Comment comment;
-  const _CommentTile({required this.comment});
+final Post post =
+_posts[index];
 
-  @override
-  Widget build(BuildContext context) {
-    final initials =
-    comment.userId.isNotEmpty ? comment.userId[0].toUpperCase() : '?';
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        CircleAvatar(
-          radius: 16,
-          backgroundColor: _T.primaryLight,
-          child: Text(
-            initials,
-            style: TextStyle(
-              color: _T.primary,
-              fontWeight: FontWeight.w700,
-              fontSize: 12,
-            ),
-          ),
-        ),
-        const SizedBox(width: 10),
-        Expanded(
-          child: Container(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-            decoration: BoxDecoration(
-              color: _T.bg,
-              borderRadius: BorderRadius.circular(14),
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  comment.userId,
-                  style: const TextStyle(
-                    fontWeight: FontWeight.w700,
-                    fontSize: 12,
-                    color: _T.textPrimary,
-                  ),
-                ),
-                const SizedBox(height: 2),
-                Text(
-                  comment.text,
-                  style: const TextStyle(
-                    fontSize: 13,
-                    color: _T.textPrimary,
-                    height: 1.4,
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ),
-      ],
-    );
-  }
+final String userId =
+PostApiService.currentUserId;
+
+if (userId.isEmpty) {
+_showSnack(
+'Please login again to like posts.',
+);
+return;
 }
 
-// ─────────────────────────────────────────────
-// FOOTER WIDGETS
-// ─────────────────────────────────────────────
+final bool alreadyLiked =
+post.likes.contains(
+userId,
+);
 
-class _LoadingFooter extends StatelessWidget {
-  const _LoadingFooter();
+// Optimistic update
+setState(() {
+if (alreadyLiked) {
+post.likes.remove(
+userId,
+);
+} else {
+post.likes.add(
+userId,
+);
+}
+});
 
-  @override
-  Widget build(BuildContext context) {
-    return const Padding(
-      padding: EdgeInsets.symmetric(vertical: 24),
-      child: Center(
-        child: CircularProgressIndicator(color: _T.primary, strokeWidth: 2.5),
-      ),
-    );
-  }
+try {
+await PostApiService.toggleLike(
+post.id,
+);
+} catch (e) {
+debugPrint(
+'LIKE ERROR: $e',
+);
+
+// Rollback
+if (!mounted) {
+return;
 }
 
-class _ErrorFooter extends StatelessWidget {
-  final String message;
-  final VoidCallback onRetry;
-  const _ErrorFooter({required this.message, required this.onRetry});
+setState(() {
+if (alreadyLiked) {
+if (!post.likes.contains(
+userId,
+)) {
+post.likes.add(
+userId,
+);
+}
+} else {
+post.likes.remove(
+userId,
+);
+}
+});
 
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 24, horizontal: _T.pagePad),
-      child: Column(
-        children: [
-          Text(
-            message,
-            style: TextStyle(color: _T.textSecondary, fontSize: 14),
-          ),
-          const SizedBox(height: 10),
-          OutlinedButton(
-            onPressed: onRetry,
-            style: OutlinedButton.styleFrom(
-              foregroundColor: _T.primary,
-              side: const BorderSide(color: _T.primary),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(_T.chipRadius),
-              ),
-            ),
-            child: const Text('Retry'),
-          ),
-        ],
-      ),
-    );
-  }
+_showSnack(
+'Could not update like. Try again.',
+);
+}
 }
 
-class _EndFooter extends StatelessWidget {
-  const _EndFooter();
 
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 24),
-      child: Center(
-        child: Text(
-          '🐾  You\'ve seen all posts',
-          style: TextStyle(color: _T.textSecondary, fontSize: 13),
-        ),
-      ),
-    );
-  }
+// =====================================================
+// ADD COMMENT
+// =====================================================
+
+void _openComments(
+int index,
+) {
+if (index < 0 ||
+index >= _posts.length) {
+return;
+}
+
+showModalBottomSheet(
+context: context,
+isScrollControlled: true,
+backgroundColor:
+Colors.transparent,
+builder: (_) {
+return _CommentsSheet(
+post: _posts[index],
+onCommentAdded: (
+Comment comment,
+) {
+if (!mounted) {
+return;
+}
+
+setState(() {
+_posts[index]
+    .comments
+    .add(
+comment,
+);
+});
+},
+);
+},
+);
+}
+
+
+// =====================================================
+// CREATE POST
+// =====================================================
+
+void _openCreatePost() {
+showModalBottomSheet(
+context: context,
+isScrollControlled: true,
+backgroundColor:
+Colors.transparent,
+builder: (_) {
+return _CreatePostSheet(
+onPostCreated: (
+Post post,
+) {
+if (!mounted) {
+return;
+}
+
+setState(() {
+_posts.insert(
+0,
+post,
+);
+});
+
+Navigator.of(context).pop();
+
+_showSnack(
+'Post shared successfully! 🐾',
+);
+},
+);
+},
+);
+}
+
+
+// =====================================================
+// SNACKBAR
+// =====================================================
+
+void _showSnack(
+String message,
+) {
+if (!mounted) {
+return;
+}
+
+ScaffoldMessenger.of(
+context,
+).hideCurrentSnackBar();
+
+ScaffoldMessenger.of(
+context,
+).showSnackBar(
+SnackBar(
+content: Text(
+message,
+),
+duration:
+const Duration(
+seconds: 2,
+),
+),
+);
+}
+
+
+// =====================================================
+// LOGOUT
+// =====================================================
+
+Future<void> _logout() async {
+try {
+await ApiService.logout();
+
+if (!mounted) {
+return;
+}
+
+Navigator.pushAndRemoveUntil(
+context,
+MaterialPageRoute(
+builder: (_) =>
+const LoginScreen(),
+),
+(route) => false,
+);
+} catch (e) {
+debugPrint(
+'LOGOUT ERROR: $e',
+);
+}
+}
+
+
+// =====================================================
+// DISPOSE
+// =====================================================
+
+@override
+void dispose() {
+_scrollController.dispose();
+
+super.dispose();
+}
+
+
+// =====================================================
+// ITEM COUNT
+// =====================================================
+
+int get _itemCount {
+int count =
+1 + _posts.length;
+
+if (_isLoading &&
+_posts.isNotEmpty) {
+count++;
+}
+
+if (_errorMessage != null) {
+count++;
+}
+
+if (!_hasMore &&
+_posts.isNotEmpty &&
+!_isLoading) {
+count++;
+}
+
+if (!_isLoading &&
+_posts.isEmpty &&
+_errorMessage == null) {
+count++;
+}
+
+return count;
+}
+
+
+// =====================================================
+// BUILD ITEM
+// =====================================================
+
+Widget _buildItem(
+BuildContext context,
+int index,
+) {
+// Create post banner
+if (index == 0) {
+return _CreatePostBanner(
+onTap: _openCreatePost,
+);
+}
+
+final int postIndex =
+index - 1;
+
+// Post
+if (postIndex <
+_posts.length) {
+return _PostCard(
+post: _posts[postIndex],
+currentUserId:
+PostApiService.currentUserId,
+onLike: () {
+_handleLike(
+postIndex,
+);
+},
+onComment: () {
+_openComments(
+postIndex,
+);
+},
+);
+}
+
+// Loading
+if (_isLoading &&
+_posts.isNotEmpty) {
+return const _LoadingFooter();
+}
+
+// Error
+if (_errorMessage != null) {
+return _ErrorFooter(
+message:
+_errorMessage!,
+onRetry: () {
+_loadPosts();
+},
+);
+}
+
+// Empty
+if (_posts.isEmpty) {
+return const _EmptyFeed();
+}
+
+// End
+return const _EndFooter();
+}
+
+
+// =====================================================
+// BUILD
+// =====================================================
+
+@override
+Widget build(
+BuildContext context,
+) {
+return Scaffold(
+backgroundColor:
+_T.bg,
+
+appBar:
+_buildAppBar(),
+
+body:
+RefreshIndicator(
+color:
+_T.primary,
+
+onRefresh: () {
+return _loadPosts(
+refresh: true,
+);
+},
+
+child:
+ListView.builder(
+controller:
+_scrollController,
+
+physics:
+const AlwaysScrollableScrollPhysics(),
+
+padding:
+const EdgeInsets.only(
+bottom: 100,
+),
+
+itemCount:
+_itemCount,
+
+itemBuilder:
+_buildItem,
+),
+),
+
+floatingActionButton:
+_buildFAB(),
+);
+}
+
+
+// =====================================================
+// APP BAR
+// =====================================================
+
+PreferredSizeWidget _buildAppBar() {
+return AppBar(
+backgroundColor:
+_T.surface,
+
+elevation: 0,
+
+centerTitle: false,
+
+title:
+Row(
+children: [
+Container(
+width: 34,
+height: 34,
+decoration:
+BoxDecoration(
+color:
+_T.primary,
+borderRadius:
+BorderRadius.circular(
+10,
+),
+),
+child:
+const Icon(
+Icons.pets,
+color:
+Colors.white,
+size: 20,
+),
+),
+
+const SizedBox(
+width: 10,
+),
+
+const Text(
+'Bio Pet Feed',
+style:
+TextStyle(
+color:
+_T.textPrimary,
+fontSize:
+20,
+fontWeight:
+FontWeight.w700,
+letterSpacing:
+-0.5,
+),
+),
+],
+),
+
+actions: [
+IconButton(
+tooltip:
+'Logout',
+
+icon:
+const Icon(
+Icons.logout,
+color:
+_T.textPrimary,
+),
+
+onPressed:
+_logout,
+),
+
+const SizedBox(
+width: 4,
+),
+],
+
+bottom:
+PreferredSize(
+preferredSize:
+const Size.fromHeight(
+1,
+),
+
+child:
+Container(
+height: 1,
+color:
+_T.divider,
+),
+),
+);
+}
+
+
+// =====================================================
+// FLOATING ACTION BUTTON
+// =====================================================
+
+Widget _buildFAB() {
+return FloatingActionButton.extended(
+onPressed:
+_openCreatePost,
+
+backgroundColor:
+_T.primary,
+
+icon:
+const Icon(
+Icons.add_photo_alternate_outlined,
+color:
+Colors.white,
+),
+
+label:
+const Text(
+'Post',
+style:
+TextStyle(
+color:
+Colors.white,
+fontWeight:
+FontWeight.w600,
+),
+),
+
+elevation:
+4,
+);
+}
+}
+
+
+// =====================================================
+// CREATE POST BANNER
+// =====================================================
+
+class _CreatePostBanner
+extends StatelessWidget {
+final VoidCallback onTap;
+
+const _CreatePostBanner({
+required this.onTap,
+});
+
+@override
+Widget build(
+BuildContext context,
+) {
+return Padding(
+padding:
+const EdgeInsets.fromLTRB(
+_T.pagePad,
+14,
+_T.pagePad,
+6,
+),
+
+child:
+GestureDetector(
+onTap:
+onTap,
+
+child:
+Container(
+padding:
+const EdgeInsets.symmetric(
+horizontal: 16,
+vertical: 14,
+),
+
+decoration:
+BoxDecoration(
+color:
+_T.surface,
+
+borderRadius:
+BorderRadius.circular(
+_T.cardRadius,
+),
+
+boxShadow: [
+BoxShadow(
+color:
+Colors.black.withOpacity(
+0.05,
+),
+blurRadius:
+8,
+offset:
+const Offset(
+0,
+2,
+),
+),
+],
+),
+
+child:
+Row(
+children: [
+const CircleAvatar(
+radius: 20,
+backgroundColor:
+_T.primaryLight,
+child:
+Text(
+'🐾',
+style:
+TextStyle(
+fontSize:
+18,
+),
+),
+),
+
+const SizedBox(
+width: 12,
+),
+
+Expanded(
+child:
+Container(
+padding:
+const EdgeInsets.symmetric(
+horizontal: 16,
+vertical: 10,
+),
+
+decoration:
+BoxDecoration(
+color:
+_T.bg,
+
+borderRadius:
+BorderRadius.circular(
+_T.chipRadius,
+),
+
+border:
+Border.all(
+color:
+_T.divider,
+),
+),
+
+child:
+const Text(
+"What's your pet doing? 🐶",
+style:
+TextStyle(
+color:
+_T.textSecondary,
+fontSize:
+14,
+),
+),
+),
+),
+],
+),
+),
+),
+);
+}
+}
+
+
+// =====================================================
+// POST CARD
+// =====================================================
+
+class _PostCard
+extends StatelessWidget {
+final Post post;
+final String currentUserId;
+
+final VoidCallback onLike;
+final VoidCallback onComment;
+
+const _PostCard({
+required this.post,
+required this.currentUserId,
+required this.onLike,
+required this.onComment,
+});
+
+
+// =====================================================
+// SAFE IMAGE DECODER
+// =====================================================
+
+Uint8List? _decodeImage(
+String data,
+) {
+try {
+String base64String =
+data.trim();
+
+if (base64String
+    .contains(',')) {
+base64String =
+base64String
+    .split(',')
+    .last;
+}
+
+base64String =
+base64String
+    .replaceAll(
+'\n',
+'',
+)
+    .replaceAll(
+'\r',
+'',
+)
+    .trim();
+
+return base64Decode(
+base64String,
+);
+} catch (e) {
+debugPrint(
+'IMAGE DECODE ERROR: $e',
+);
+
+return null;
+}
+}
+
+
+@override
+Widget build(
+BuildContext context,
+) {
+final bool liked =
+currentUserId.isNotEmpty &&
+post.likes.contains(
+currentUserId,
+);
+
+final String initials =
+post.name.isNotEmpty
+? post.name[0]
+    .toUpperCase()
+    : '?';
+
+
+return Padding(
+padding:
+const EdgeInsets.fromLTRB(
+_T.pagePad,
+6,
+_T.pagePad,
+6,
+),
+
+child:
+Container(
+decoration:
+BoxDecoration(
+color:
+_T.surface,
+
+borderRadius:
+BorderRadius.circular(
+_T.cardRadius,
+),
+
+boxShadow: [
+BoxShadow(
+color:
+Colors.black.withOpacity(
+0.05,
+),
+blurRadius:
+8,
+offset:
+const Offset(
+0,
+2,
+),
+),
+],
+),
+
+child:
+Column(
+crossAxisAlignment:
+CrossAxisAlignment.start,
+
+children: [
+// =========================================
+// HEADER
+// =========================================
+
+Padding(
+padding:
+const EdgeInsets.fromLTRB(
+14,
+14,
+14,
+0,
+),
+
+child:
+Row(
+children: [
+CircleAvatar(
+radius: 22,
+backgroundColor:
+_T.primaryLight,
+
+child:
+Text(
+initials,
+style:
+const TextStyle(
+color:
+_T.primary,
+fontWeight:
+FontWeight.w700,
+fontSize:
+16,
+),
+),
+),
+
+const SizedBox(
+width: 10,
+),
+
+Expanded(
+child:
+Column(
+crossAxisAlignment:
+CrossAxisAlignment.start,
+
+children: [
+Text(
+post.name,
+
+style:
+const TextStyle(
+fontWeight:
+FontWeight.w700,
+fontSize:
+15,
+color:
+_T.textPrimary,
+),
+),
+
+const SizedBox(
+height: 1,
+),
+
+Text(
+TimeAgo.format(
+post.createdAt,
+),
+
+style:
+const TextStyle(
+fontSize:
+12,
+color:
+_T.textSecondary,
+),
+),
+],
+),
+),
+
+const Icon(
+Icons.more_horiz,
+color:
+_T.textSecondary,
+),
+],
+),
+),
+
+
+// =========================================
+// TEXT
+// =========================================
+
+if (post.text
+    .trim()
+    .isNotEmpty)
+Padding(
+padding:
+const EdgeInsets.fromLTRB(
+14,
+12,
+14,
+12,
+),
+
+child:
+Text(
+post.text,
+
+style:
+const TextStyle(
+fontSize:
+15,
+color:
+_T.textPrimary,
+height:
+1.45,
+),
+),
+),
+
+
+// =========================================
+// IMAGES
+// =========================================
+
+if (post.images.isNotEmpty)
+Padding(
+padding:
+const EdgeInsets.symmetric(
+horizontal: 14,
+vertical: 8,
+),
+
+child:
+SizedBox(
+height: 200,
+
+child:
+ListView.separated(
+scrollDirection:
+Axis.horizontal,
+
+itemCount:
+post.images.length,
+
+separatorBuilder:
+(_, __) =>
+const SizedBox(
+width: 8,
+),
+
+itemBuilder:
+(_, index) {
+final ImageData image =
+post.images[index];
+
+final Uint8List?
+bytes =
+_decodeImage(
+image.data,
+);
+
+if (bytes == null) {
+return Container(
+width: 200,
+height: 200,
+decoration:
+BoxDecoration(
+color:
+_T.bg,
+borderRadius:
+BorderRadius.circular(
+12,
+),
+),
+child:
+const Icon(
+Icons.broken_image_outlined,
+color:
+_T.textSecondary,
+size:
+40,
+),
+);
+}
+
+return ClipRRect(
+borderRadius:
+BorderRadius.circular(
+12,
+),
+
+child:
+Image.memory(
+bytes,
+
+width:
+200,
+
+height:
+200,
+
+fit:
+BoxFit.cover,
+
+errorBuilder:
+(
+context,
+error,
+stackTrace,
+) {
+return Container(
+width:
+200,
+height:
+200,
+color:
+_T.bg,
+child:
+const Icon(
+Icons.broken_image,
+color:
+_T.textSecondary,
+),
+);
+},
+),
+);
+},
+),
+),
+),
+
+
+// =========================================
+// LIKE / COMMENT COUNTS
+// =========================================
+
+if (post.likes.isNotEmpty ||
+post.comments.isNotEmpty)
+Padding(
+padding:
+const EdgeInsets.symmetric(
+horizontal: 14,
+),
+
+child:
+Row(
+children: [
+if (post.likes.isNotEmpty)
+Row(
+children: [
+const Text(
+'❤️',
+style:
+TextStyle(
+fontSize:
+13,
+),
+),
+
+const SizedBox(
+width: 3,
+),
+
+Text(
+'${post.likes.length}',
+
+style:
+const TextStyle(
+fontSize:
+12,
+color:
+_T.textSecondary,
+fontWeight:
+FontWeight.w500,
+),
+),
+],
+),
+
+const Spacer(),
+
+if (post.comments.isNotEmpty)
+Text(
+'${post.comments.length} comment${post.comments.length == 1 ? '' : 's'}',
+
+style:
+const TextStyle(
+fontSize:
+12,
+color:
+_T.textSecondary,
+),
+),
+],
+),
+),
+
+
+// =========================================
+// DIVIDER
+// =========================================
+
+const Padding(
+padding:
+EdgeInsets.symmetric(
+vertical: 6,
+),
+
+child:
+Divider(
+height:
+1,
+color:
+_T.divider,
+),
+),
+
+
+// =========================================
+// ACTION BUTTONS
+// =========================================
+
+Padding(
+padding:
+const EdgeInsets.fromLTRB(
+4,
+2,
+4,
+10,
+),
+
+child:
+Row(
+children: [
+Expanded(
+child:
+_ActionButton(
+icon:
+liked
+? Icons.favorite
+    : Icons.favorite_border,
+
+label:
+liked
+? 'Liked'
+    : 'Like',
+
+color:
+liked
+? _T.accent
+    : _T.textSecondary,
+
+onTap:
+onLike,
+),
+),
+
+Expanded(
+child:
+_ActionButton(
+icon:
+Icons.chat_bubble_outline,
+
+label:
+'Comment',
+
+color:
+_T.textSecondary,
+
+onTap:
+onComment,
+),
+),
+],
+),
+),
+],
+),
+),
+);
+}
+}
+
+
+// =====================================================
+// ACTION BUTTON
+// =====================================================
+
+class _ActionButton
+extends StatelessWidget {
+final IconData icon;
+final String label;
+final Color color;
+
+final VoidCallback onTap;
+
+const _ActionButton({
+required this.icon,
+required this.label,
+required this.color,
+required this.onTap,
+});
+
+
+@override
+Widget build(
+BuildContext context,
+) {
+return InkWell(
+onTap:
+onTap,
+
+borderRadius:
+BorderRadius.circular(
+8,
+),
+
+child:
+Padding(
+padding:
+const EdgeInsets.symmetric(
+vertical: 8,
+horizontal: 12,
+),
+
+child:
+Row(
+mainAxisAlignment:
+MainAxisAlignment.center,
+
+children: [
+Icon(
+icon,
+size:
+20,
+color:
+color,
+),
+
+const SizedBox(
+width: 6,
+),
+
+Text(
+label,
+
+style:
+TextStyle(
+color:
+color,
+fontWeight:
+FontWeight.w600,
+fontSize:
+13,
+),
+),
+],
+),
+),
+);
+}
+}
+
+
+// =====================================================
+// CREATE POST SHEET
+// =====================================================
+
+class _CreatePostSheet
+extends StatefulWidget {
+final void Function(Post post)
+onPostCreated;
+
+const _CreatePostSheet({
+required this.onPostCreated,
+});
+
+
+@override
+State<_CreatePostSheet> createState() =>
+_CreatePostSheetState();
+}
+
+
+class _CreatePostSheetState
+extends State<_CreatePostSheet> {
+final TextEditingController
+_controller =
+TextEditingController();
+
+final ImagePicker _picker =
+ImagePicker();
+
+List<File> _selectedImages = [];
+
+bool _isPosting = false;
+
+String? _error;
+
+
+// =====================================================
+// INIT
+// =====================================================
+
+@override
+void initState() {
+super.initState();
+
+_controller.addListener(
+_onTextChanged,
+);
+}
+
+
+void _onTextChanged() {
+if (mounted) {
+setState(() {});
+}
+}
+
+
+// =====================================================
+// PICK IMAGES
+// =====================================================
+
+Future<void> _pickImages() async {
+if (_isPosting) {
+return;
+}
+
+try {
+final List<XFile> pickedImages =
+await _picker.pickMultiImage(
+limit: 10,
+);
+
+if (!mounted) {
+return;
+}
+
+if (pickedImages.isEmpty) {
+return;
+}
+
+setState(() {
+_selectedImages =
+pickedImages
+    .take(10)
+    .map(
+(image) =>
+File(
+image.path,
+),
+)
+    .toList();
+});
+} catch (e) {
+debugPrint(
+'PICK IMAGE ERROR: $e',
+);
+
+if (!mounted) {
+return;
+}
+
+setState(() {
+_error =
+'Could not select images.';
+});
+}
+}
+
+
+// =====================================================
+// REMOVE IMAGE
+// =====================================================
+
+void _removeImage(
+int index,
+) {
+if (index < 0 ||
+index >=
+_selectedImages.length) {
+return;
+}
+
+setState(() {
+_selectedImages.removeAt(
+index,
+);
+});
+}
+
+
+// =====================================================
+// SUBMIT POST
+// =====================================================
+
+Future<void> _submit() async {
+if (_isPosting) {
+return;
+}
+
+final String text =
+_controller.text.trim();
+
+if (text.isEmpty &&
+_selectedImages.isEmpty) {
+return;
+}
+
+setState(() {
+_isPosting = true;
+_error = null;
+});
+
+try {
+final Map<String, dynamic> response =
+await PostApiService
+    .createPostWithImages(
+text: text,
+imageFiles:
+_selectedImages,
+);
+
+debugPrint(
+'CREATE POST RESPONSE => $response',
+);
+
+// ================================================
+// BACKEND RESPONSE
+//
+// Expected:
+// {
+//   success: true,
+//   post: {...}
+// }
+// ================================================
+
+final dynamic postJson =
+response['post'];
+
+if (postJson == null ||
+postJson is! Map) {
+throw Exception(
+'Post data not found in server response.',
+);
+}
+
+final Post post =
+Post.fromJson(
+Map<String, dynamic>.from(
+postJson,
+),
+);
+
+if (!mounted) {
+return;
+}
+
+// Parent handles:
+// - Insert post
+// - Close bottom sheet
+// - Show success message
+widget.onPostCreated(
+post,
+);
+} catch (e) {
+debugPrint(
+'CREATE POST ERROR: $e',
+);
+
+if (!mounted) {
+return;
+}
+
+setState(() {
+_error =
+e.toString()
+    .replaceFirst(
+'Exception: ',
+'',
+);
+});
+} finally {
+if (mounted) {
+setState(() {
+_isPosting = false;
+});
+}
+}
+}
+
+
+// =====================================================
+// DISPOSE
+// =====================================================
+
+@override
+void dispose() {
+_controller.removeListener(
+_onTextChanged,
+);
+
+_controller.dispose();
+
+super.dispose();
+}
+
+
+// =====================================================
+// BUILD
+// =====================================================
+
+@override
+Widget build(
+BuildContext context,
+) {
+final double bottomPad =
+MediaQuery.of(
+context,
+).viewInsets.bottom;
+
+final bool canPost =
+!_isPosting &&
+(
+_controller.text
+    .trim()
+    .isNotEmpty ||
+_selectedImages.isNotEmpty
+);
+
+return SafeArea(
+child:
+Container(
+padding:
+EdgeInsets.fromLTRB(
+20,
+20,
+20,
+20 + bottomPad,
+),
+
+decoration:
+const BoxDecoration(
+color:
+_T.surface,
+
+borderRadius:
+BorderRadius.vertical(
+top:
+Radius.circular(
+24,
+),
+),
+),
+
+child:
+SingleChildScrollView(
+child:
+Column(
+mainAxisSize:
+MainAxisSize.min,
+
+crossAxisAlignment:
+CrossAxisAlignment.start,
+
+children: [
+// ========================================
+// HANDLE
+// ========================================
+
+Center(
+child:
+Container(
+width:
+40,
+height:
+4,
+
+decoration:
+BoxDecoration(
+color:
+_T.divider,
+borderRadius:
+BorderRadius.circular(
+4,
+),
+),
+),
+),
+
+const SizedBox(
+height: 16,
+),
+
+
+// ========================================
+// TITLE
+// ========================================
+
+Row(
+children: [
+const Text(
+'🐾',
+style:
+TextStyle(
+fontSize:
+20,
+),
+),
+
+const SizedBox(
+width: 8,
+),
+
+const Text(
+'Share a pet moment',
+
+style:
+TextStyle(
+fontSize:
+18,
+fontWeight:
+FontWeight.w700,
+color:
+_T.textPrimary,
+),
+),
+],
+),
+
+const SizedBox(
+height: 4,
+),
+
+const Text(
+'You can select up to 10 images',
+
+style:
+TextStyle(
+fontSize:
+12,
+color:
+_T.textSecondary,
+),
+),
+
+const SizedBox(
+height: 16,
+),
+
+
+// ========================================
+// TEXT FIELD
+// ========================================
+
+TextField(
+controller:
+_controller,
+
+maxLines:
+4,
+
+autofocus:
+true,
+
+style:
+const TextStyle(
+fontSize:
+15,
+color:
+_T.textPrimary,
+),
+
+decoration:
+InputDecoration(
+hintText:
+"What's your pet up to today? 🐶🐱",
+
+hintStyle:
+const TextStyle(
+color:
+_T.textSecondary,
+),
+
+filled:
+true,
+
+fillColor:
+_T.bg,
+
+border:
+OutlineInputBorder(
+borderRadius:
+BorderRadius.circular(
+14,
+),
+
+borderSide:
+BorderSide.none,
+),
+
+contentPadding:
+const EdgeInsets.all(
+14,
+),
+),
+),
+
+const SizedBox(
+height: 12,
+),
+
+
+// ========================================
+// PICK IMAGE BUTTON
+// ========================================
+
+SizedBox(
+width:
+double.infinity,
+
+child:
+OutlinedButton.icon(
+onPressed:
+_isPosting
+? null
+    : _pickImages,
+
+icon:
+const Icon(
+Icons.add_photo_alternate,
+),
+
+label:
+Text(
+'Pick Images (${_selectedImages.length}/10)',
+),
+
+style:
+OutlinedButton.styleFrom(
+foregroundColor:
+_T.primary,
+
+side:
+const BorderSide(
+color:
+_T.primary,
+),
+
+padding:
+const EdgeInsets.symmetric(
+vertical:
+12,
+),
+
+shape:
+RoundedRectangleBorder(
+borderRadius:
+BorderRadius.circular(
+12,
+),
+),
+),
+),
+),
+
+
+// ========================================
+// IMAGE PREVIEW
+// ========================================
+
+if (_selectedImages
+    .isNotEmpty) ...[
+const SizedBox(
+height: 10,
+),
+
+SizedBox(
+height:
+100,
+
+child:
+ListView.separated(
+scrollDirection:
+Axis.horizontal,
+
+itemCount:
+_selectedImages.length,
+
+separatorBuilder:
+(_, __) =>
+const SizedBox(
+width:
+8,
+),
+
+itemBuilder:
+(_, index) {
+return Stack(
+children: [
+ClipRRect(
+borderRadius:
+BorderRadius.circular(
+12,
+),
+
+child:
+Image.file(
+_selectedImages[
+index],
+
+width:
+100,
+
+height:
+100,
+
+fit:
+BoxFit.cover,
+),
+),
+
+Positioned(
+top:
+4,
+
+right:
+4,
+
+child:
+GestureDetector(
+onTap:
+_isPosting
+? null
+    : () {
+_removeImage(
+index,
+);
+},
+
+child:
+Container(
+decoration:
+const BoxDecoration(
+color:
+Colors.black54,
+
+shape:
+BoxShape.circle,
+),
+
+padding:
+const EdgeInsets.all(
+2,
+),
+
+child:
+const Icon(
+Icons.close,
+size:
+18,
+color:
+Colors.white,
+),
+),
+),
+),
+],
+);
+},
+),
+),
+],
+
+
+// ========================================
+// ERROR
+// ========================================
+
+if (_error != null) ...[
+const SizedBox(
+height: 10,
+),
+
+Container(
+padding:
+const EdgeInsets.symmetric(
+horizontal:
+12,
+vertical:
+10,
+),
+
+decoration:
+BoxDecoration(
+color:
+const Color(
+0xFFFFEEEE,
+),
+
+borderRadius:
+BorderRadius.circular(
+10,
+),
+),
+
+child:
+Row(
+crossAxisAlignment:
+CrossAxisAlignment.start,
+
+children: [
+const Icon(
+Icons.error_outline,
+color:
+_T.accent,
+size:
+18,
+),
+
+const SizedBox(
+width:
+8,
+),
+
+Expanded(
+child:
+Text(
+_error!,
+
+style:
+const TextStyle(
+color:
+_T.accent,
+fontSize:
+13,
+),
+),
+),
+],
+),
+),
+],
+
+
+const SizedBox(
+height: 16,
+),
+
+
+// ========================================
+// POST BUTTON
+// ========================================
+
+SizedBox(
+width:
+double.infinity,
+
+child:
+FilledButton(
+onPressed:
+canPost
+? _submit
+    : null,
+
+style:
+FilledButton.styleFrom(
+backgroundColor:
+_T.primary,
+
+disabledBackgroundColor:
+_T.divider,
+
+padding:
+const EdgeInsets.symmetric(
+vertical:
+14,
+),
+
+shape:
+RoundedRectangleBorder(
+borderRadius:
+BorderRadius.circular(
+_T.chipRadius,
+),
+),
+),
+
+child:
+_isPosting
+? const SizedBox(
+width:
+20,
+height:
+20,
+
+child:
+CircularProgressIndicator(
+color:
+Colors.white,
+strokeWidth:
+2,
+),
+)
+    : const Text(
+'Post',
+
+style:
+TextStyle(
+fontSize:
+16,
+fontWeight:
+FontWeight.w700,
+),
+),
+),
+),
+],
+),
+),
+),
+);
+}
+}
+
+
+// =====================================================
+// COMMENTS SHEET
+// =====================================================
+
+class _CommentsSheet
+extends StatefulWidget {
+final Post post;
+
+final void Function(
+Comment comment,
+) onCommentAdded;
+
+const _CommentsSheet({
+required this.post,
+required this.onCommentAdded,
+});
+
+
+@override
+State<_CommentsSheet> createState() =>
+_CommentsSheetState();
+}
+
+
+class _CommentsSheetState
+extends State<_CommentsSheet> {
+final TextEditingController
+_controller =
+TextEditingController();
+
+bool _isSending = false;
+
+
+// =====================================================
+// SEND COMMENT
+// =====================================================
+
+Future<void> _sendComment() async {
+final String text =
+_controller.text.trim();
+
+if (text.isEmpty ||
+_isSending) {
+return;
+}
+
+final String userId =
+PostApiService.currentUserId;
+
+if (userId.isEmpty) {
+ScaffoldMessenger.of(
+context,
+).showSnackBar(
+const SnackBar(
+content: Text(
+'Please login again.',
+),
+),
+);
+
+return;
+}
+
+setState(() {
+_isSending = true;
+});
+
+try {
+await PostApiService.addComment(
+widget.post.id,
+text,
+);
+
+final Comment comment =
+Comment(
+userId:
+userId,
+text:
+text,
+);
+
+widget.onCommentAdded(
+comment,
+);
+
+_controller.clear();
+} catch (e) {
+debugPrint(
+'COMMENT ERROR: $e',
+);
+
+if (mounted) {
+ScaffoldMessenger.of(
+context,
+).showSnackBar(
+const SnackBar(
+content: Text(
+'Could not send comment.',
+),
+),
+);
+}
+} finally {
+if (mounted) {
+setState(() {
+_isSending = false;
+});
+}
+}
+}
+
+
+@override
+void dispose() {
+_controller.dispose();
+
+super.dispose();
+}
+
+
+// =====================================================
+// BUILD
+// =====================================================
+
+@override
+Widget build(
+BuildContext context,
+) {
+final double bottomPad =
+MediaQuery.of(
+context,
+).viewInsets.bottom;
+
+return SafeArea(
+child:
+Container(
+padding:
+EdgeInsets.only(
+bottom:
+bottomPad,
+),
+
+decoration:
+const BoxDecoration(
+color:
+_T.surface,
+
+borderRadius:
+BorderRadius.vertical(
+top:
+Radius.circular(
+24,
+),
+),
+),
+
+child:
+Column(
+mainAxisSize:
+MainAxisSize.min,
+
+children: [
+const SizedBox(
+height: 12,
+),
+
+// Handle
+Center(
+child:
+Container(
+width:
+40,
+height:
+4,
+
+decoration:
+BoxDecoration(
+color:
+_T.divider,
+
+borderRadius:
+BorderRadius.circular(
+4,
+),
+),
+),
+),
+
+const SizedBox(
+height: 12,
+),
+
+// Title
+const Padding(
+padding:
+EdgeInsets.symmetric(
+horizontal:
+20,
+),
+
+child:
+Row(
+children: [
+Text(
+'💬',
+style:
+TextStyle(
+fontSize:
+18,
+),
+),
+
+SizedBox(
+width:
+8,
+),
+
+Text(
+'Comments',
+
+style:
+TextStyle(
+fontSize:
+17,
+fontWeight:
+FontWeight.w700,
+color:
+_T.textPrimary,
+),
+),
+],
+),
+),
+
+const SizedBox(
+height: 8,
+),
+
+const Divider(
+height:
+1,
+color:
+_T.divider,
+),
+
+
+// Comments
+ConstrainedBox(
+constraints:
+BoxConstraints(
+maxHeight:
+MediaQuery.of(
+context,
+).size.height *
+0.4,
+),
+
+child:
+widget.post.comments.isEmpty
+? const Padding(
+padding:
+EdgeInsets.symmetric(
+vertical:
+32,
+),
+
+child:
+Center(
+child:
+Text(
+'No comments yet. Be the first! 🐾',
+
+style:
+TextStyle(
+color:
+_T.textSecondary,
+fontSize:
+14,
+),
+),
+),
+)
+    : ListView.separated(
+shrinkWrap:
+true,
+
+padding:
+const EdgeInsets.symmetric(
+horizontal:
+16,
+vertical:
+12,
+),
+
+itemCount:
+widget.post.comments.length,
+
+separatorBuilder:
+(
+_,
+__,
+) =>
+const SizedBox(
+height:
+10,
+),
+
+itemBuilder:
+(
+_,
+index,
+) {
+return _CommentTile(
+comment:
+widget.post.comments[
+index],
+);
+},
+),
+),
+
+
+const Divider(
+height:
+1,
+color:
+_T.divider,
+),
+
+
+// Comment input
+Padding(
+padding:
+const EdgeInsets.fromLTRB(
+12,
+10,
+12,
+14,
+),
+
+child:
+Row(
+children: [
+const CircleAvatar(
+radius:
+18,
+
+backgroundColor:
+_T.primaryLight,
+
+child:
+Text(
+'🐾',
+style:
+TextStyle(
+fontSize:
+14,
+),
+),
+),
+
+const SizedBox(
+width:
+10,
+),
+
+Expanded(
+child:
+TextField(
+controller:
+_controller,
+
+textInputAction:
+TextInputAction.send,
+
+onSubmitted:
+(_) {
+_sendComment();
+},
+
+style:
+const TextStyle(
+fontSize:
+14,
+color:
+_T.textPrimary,
+),
+
+decoration:
+InputDecoration(
+hintText:
+'Add a comment…',
+
+hintStyle:
+const TextStyle(
+color:
+_T.textSecondary,
+fontSize:
+14,
+),
+
+filled:
+true,
+
+fillColor:
+_T.bg,
+
+contentPadding:
+const EdgeInsets.symmetric(
+horizontal:
+14,
+vertical:
+10,
+),
+
+border:
+OutlineInputBorder(
+borderRadius:
+BorderRadius.circular(
+_T.chipRadius,
+),
+
+borderSide:
+BorderSide.none,
+),
+),
+),
+),
+
+const SizedBox(
+width:
+8,
+),
+
+_isSending
+? const SizedBox(
+width:
+36,
+height:
+36,
+
+child:
+CircularProgressIndicator(
+color:
+_T.primary,
+strokeWidth:
+2,
+),
+)
+    : IconButton(
+onPressed:
+_sendComment,
+
+icon:
+const Icon(
+Icons.send_rounded,
+),
+
+color:
+_T.primary,
+
+iconSize:
+26,
+
+padding:
+EdgeInsets.zero,
+
+constraints:
+const BoxConstraints(
+minWidth:
+36,
+minHeight:
+36,
+),
+),
+],
+),
+),
+],
+),
+),
+);
+}
+}
+
+
+// =====================================================
+// COMMENT TILE
+// =====================================================
+
+class _CommentTile
+extends StatelessWidget {
+final Comment comment;
+
+const _CommentTile({
+required this.comment,
+});
+
+
+@override
+Widget build(
+BuildContext context,
+) {
+final String displayName =
+comment.userId.isNotEmpty
+? comment.userId
+    : 'User';
+
+final String initials =
+displayName.isNotEmpty
+? displayName[0]
+    .toUpperCase()
+    : '?';
+
+return Row(
+crossAxisAlignment:
+CrossAxisAlignment.start,
+
+children: [
+CircleAvatar(
+radius:
+16,
+
+backgroundColor:
+_T.primaryLight,
+
+child:
+Text(
+initials,
+
+style:
+const TextStyle(
+color:
+_T.primary,
+fontWeight:
+FontWeight.w700,
+fontSize:
+12,
+),
+),
+),
+
+const SizedBox(
+width:
+10,
+),
+
+Expanded(
+child:
+Container(
+padding:
+const EdgeInsets.symmetric(
+horizontal:
+12,
+vertical:
+8,
+),
+
+decoration:
+BoxDecoration(
+color:
+_T.bg,
+
+borderRadius:
+BorderRadius.circular(
+14,
+),
+),
+
+child:
+Column(
+crossAxisAlignment:
+CrossAxisAlignment.start,
+
+children: [
+Text(
+displayName,
+
+style:
+const TextStyle(
+fontWeight:
+FontWeight.w700,
+fontSize:
+12,
+color:
+_T.textPrimary,
+),
+),
+
+const SizedBox(
+height:
+2,
+),
+
+Text(
+comment.text,
+
+style:
+const TextStyle(
+fontSize:
+13,
+color:
+_T.textPrimary,
+height:
+1.4,
+),
+),
+],
+),
+),
+),
+],
+);
+}
+}
+
+
+// =====================================================
+// LOADING FOOTER
+// =====================================================
+
+class _LoadingFooter
+extends StatelessWidget {
+const _LoadingFooter();
+
+
+@override
+Widget build(
+BuildContext context,
+) {
+return const Padding(
+padding:
+EdgeInsets.symmetric(
+vertical:
+24,
+),
+
+child:
+Center(
+child:
+CircularProgressIndicator(
+color:
+_T.primary,
+strokeWidth:
+2.5,
+),
+),
+);
+}
+}
+
+
+// =====================================================
+// ERROR FOOTER
+// =====================================================
+
+class _ErrorFooter
+extends StatelessWidget {
+final String message;
+
+final VoidCallback onRetry;
+
+const _ErrorFooter({
+required this.message,
+required this.onRetry,
+});
+
+
+@override
+Widget build(
+BuildContext context,
+) {
+return Padding(
+padding:
+const EdgeInsets.symmetric(
+vertical:
+24,
+horizontal:
+_T.pagePad,
+),
+
+child:
+Column(
+children: [
+Text(
+message,
+
+textAlign:
+TextAlign.center,
+
+style:
+const TextStyle(
+color:
+_T.textSecondary,
+fontSize:
+14,
+),
+),
+
+const SizedBox(
+height:
+10,
+),
+
+OutlinedButton(
+onPressed:
+onRetry,
+
+style:
+OutlinedButton.styleFrom(
+foregroundColor:
+_T.primary,
+
+side:
+const BorderSide(
+color:
+_T.primary,
+),
+
+shape:
+RoundedRectangleBorder(
+borderRadius:
+BorderRadius.circular(
+_T.chipRadius,
+),
+),
+),
+
+child:
+const Text(
+'Retry',
+),
+),
+],
+),
+);
+}
+}
+
+
+// =====================================================
+// EMPTY FEED
+// =====================================================
+
+class _EmptyFeed
+extends StatelessWidget {
+const _EmptyFeed();
+
+
+@override
+Widget build(
+BuildContext context,
+) {
+return const Padding(
+padding:
+EdgeInsets.symmetric(
+vertical:
+60,
+),
+
+child:
+Center(
+child:
+Column(
+children: [
+Text(
+'🐾',
+style:
+TextStyle(
+fontSize:
+48,
+),
+),
+
+SizedBox(
+height:
+12,
+),
+
+Text(
+'No posts yet',
+
+style:
+TextStyle(
+fontSize:
+18,
+fontWeight:
+FontWeight.w700,
+color:
+_T.textPrimary,
+),
+),
+
+SizedBox(
+height:
+6,
+),
+
+Text(
+'Be the first to share a pet moment!',
+
+textAlign:
+TextAlign.center,
+
+style:
+TextStyle(
+fontSize:
+14,
+color:
+_T.textSecondary,
+),
+),
+],
+),
+),
+);
+}
+}
+
+
+// =====================================================
+// END FOOTER
+// =====================================================
+
+class _EndFooter
+extends StatelessWidget {
+const _EndFooter();
+
+
+@override
+Widget build(
+BuildContext context,
+) {
+return const Padding(
+padding:
+EdgeInsets.symmetric(
+vertical:
+24,
+),
+
+child:
+Center(
+child:
+Text(
+'🐾  You\'ve seen all posts',
+
+style:
+TextStyle(
+color:
+_T.textSecondary,
+fontSize:
+13,
+),
+),
+),
+);
+}
 }

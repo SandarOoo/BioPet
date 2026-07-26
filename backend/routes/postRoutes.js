@@ -1,28 +1,15 @@
-const express =
-  require("express");
-
-const multer =
-  require("multer");
+const express = require("express");
+const multer = require("multer");
 
 const {
-
   createPost,
-
   getPosts,
-
   toggleLike,
-
   addComment,
-
-} =
-  require(
-    "../controllers/postController"
-  );
-
+} = require("../controllers/postController");
 
 const router =
   express.Router();
-
 
 // =====================================================
 // MULTER MEMORY STORAGE
@@ -31,96 +18,53 @@ const router =
 const storage =
   multer.memoryStorage();
 
-
 // =====================================================
-// MULTER
+// MULTER CONFIGURATION
 // =====================================================
 
 const upload =
   multer({
-
-    storage:
-
-      storage,
+    storage: storage,
 
     limits: {
-
       fileSize:
+        10 * 1024 * 1024,
 
-        10 *
-        1024 *
-        1024,
-
-      files:
-
-        10,
-
+      files: 10,
     },
 
+    fileFilter: (
+      req,
+      file,
+      cb
+    ) => {
 
-    fileFilter:
+      const allowedTypes = [
+        "image/jpeg",
+        "image/jpg",
+        "image/png",
+        "image/gif",
+        "image/webp",
+      ];
 
-      (
-        req,
-
-        file,
-
-        cb
-
-      ) => {
-
-
-        const allowedTypes = [
-
-          "image/jpeg",
-
-          "image/jpg",
-
-          "image/png",
-
-          "image/gif",
-
-          "image/webp",
-
-        ];
-
-
-        if (
-
-          allowedTypes.includes(
-
-            file.mimetype
-
+      if (
+        allowedTypes.includes(
+          file.mimetype
+        )
+      ) {
+        cb(
+          null,
+          true
+        );
+      } else {
+        cb(
+          new Error(
+            "Only image files are allowed"
           )
-
-        ) {
-
-          cb(
-
-            null,
-
-            true
-
-          );
-
-        } else {
-
-          cb(
-
-            new Error(
-
-              "Only image files are allowed"
-
-            )
-
-          );
-
-        }
-
-      },
-
+        );
+      }
+    },
   });
-
 
 // =====================================================
 // CREATE POST
@@ -128,21 +72,15 @@ const upload =
 // =====================================================
 
 router.post(
-
   "/create",
 
   upload.array(
-
     "images",
-
     10
-
   ),
 
   createPost
-
 );
-
 
 // =====================================================
 // GET POSTS
@@ -150,27 +88,19 @@ router.post(
 // =====================================================
 
 router.get(
-
   "/",
-
   getPosts
-
 );
 
-
 // =====================================================
-// LIKE
+// LIKE POST
 // POST /api/posts/like
 // =====================================================
 
 router.post(
-
   "/like",
-
   toggleLike
-
 );
-
 
 // =====================================================
 // COMMENT
@@ -178,13 +108,9 @@ router.post(
 // =====================================================
 
 router.post(
-
   "/comment",
-
   addComment
-
 );
-
 
 // =====================================================
 // EXPORT

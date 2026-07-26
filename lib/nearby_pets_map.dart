@@ -21,7 +21,7 @@ class _NearbyPetsMapState extends State<NearbyPetsMap> {
 
   final Set<Marker> _markers = {};
 
-  // All places from Overpass
+
   final List<NearbyPlace> _places = [];
 
   bool _isLoading = true;
@@ -603,12 +603,8 @@ out center;
     );
   }
 
-  // ============================================================
-  // CREATE MARKERS
-  // ============================================================
-
   void _rebuildMarkers() {
-    // Keep user marker
+
     _markers.removeWhere(
           (marker) =>
       marker.markerId.value !=
