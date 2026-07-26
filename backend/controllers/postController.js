@@ -1,4 +1,4 @@
-const Post = require("../models/post");
+const Post = require("../models/Post");
 const { analyzePost } = require("../lib/services/geminiService.js");
 
 // =====================================================
@@ -15,7 +15,7 @@ exports.getPosts = async (req, res) => {
 };
 
 // =====================================================
-// CREATE POST + GEMINI MODERATION
+// CREATE POST + GEMINI MODERATION (TEXT + IMAGES)
 // =====================================================
 
 exports.createPost = async (req, res) => {
@@ -26,21 +26,27 @@ exports.createPost = async (req, res) => {
       return res.status(400).json({ message: "text required" });
     }
 
-    const aiResult = await analyzePost(text);
-    console.log("AI RESULT:", aiResult);
-
-    if (!aiResult.allowed || !aiResult.petRelated) {
-      return res.status(403).json({
-        message: "Post blocked by AI",
-        ai: aiResult,
-      });
-    }
-
+    // Build images array from uploaded files first,
+    // so we can send them to Gemini for moderation too
     const images = (req.files || []).map((file) => ({
       data: `data:${file.mimetype};base64,${file.buffer.toString("base64")}`,
       contentType: file.mimetype,
       filename: file.originalname,
     }));
+
+    console.log("🖼️ Uploaded images:", images.length);
+
+    // Gemini moderation - now checks TEXT + IMAGES
+    const aiResult = await analyzePost(text, images);
+
+    console.log("AI RESULT:", aiResult);
+
+    if (!aiResult.allowed || !aiResult.petRelated) {
+      return res.status(403).json({
+        message: aiResult.reason || "Post blocked by AI",
+        ai: aiResult,
+      });
+    }
 
     const newPost = new Post({
       userId,
@@ -59,6 +65,7 @@ exports.createPost = async (req, res) => {
       ai: aiResult,
     });
   } catch (error) {
+    console.error("❌ CREATE POST ERROR:", error);
     res.status(500).json({ message: error.message });
   }
 };
