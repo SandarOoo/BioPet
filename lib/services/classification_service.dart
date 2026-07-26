@@ -97,12 +97,14 @@ class ClassificationService {
   }
 
   /// Process image file and return sorted breed list
+  /// Process image file and return sorted breed list
   Future<List<EachBreed>> processImageFile(String imagePath) async {
     // Read image bytes from file
-    final imageData = File(imagePath).readAsBytesSync();
+    final imageData = await File(imagePath).readAsBytes();
 
     // Decode image using package:image
     final image = img.decodeImage(imageData);
+
     if (image == null) {
       throw Exception('Failed to decode image');
     }
@@ -110,12 +112,23 @@ class ClassificationService {
     // Run classification
     final breedMap = await classifyImage(image);
 
-    // Convert to sorted breed list
-    return breedMap.entries
-        .map((e) => EachBreed.fromMap(e as Map<String, dynamic>))
-        .where((b) => b.acc > 0)
-        .toList()
-      ..sort((a, b) => b.acc.compareTo(a.acc));
+    // Convert Map<String, double> to List<EachBreed>
+    final breedList = breedMap.entries
+        .map(
+          (entry) => EachBreed(
+        name: entry.key,
+        acc: (entry.value * 100).round(),
+      ),
+    )
+        .where((breed) => breed.acc > 0)
+        .toList();
+
+    // Sort highest confidence first
+    breedList.sort(
+          (a, b) => b.acc.compareTo(a.acc),
+    );
+
+    return breedList;
   }
 
   /// Clean up resources

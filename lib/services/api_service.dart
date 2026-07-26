@@ -652,14 +652,34 @@ class ApiService {
       String userId,
       Map<String, dynamic> data,
       ) async {
-    await http.post(
-      Uri.parse('$baseUrl/history/save'),
-      headers: {'Content-Type': 'application/json'},
+    final headers = await _authHeaders();
+
+    final url = '$baseUrl/api/classify';
+
+    print('==============================');
+    print('💾 SAVE CLASSIFICATION');
+    print('🌐 URL => $url');
+    print('👤 USER ID => $userId');
+
+    final res = await http.post(
+      Uri.parse(url),
+      headers: headers,
       body: jsonEncode({
         'userId': userId,
         'data': data,
       }),
     );
+
+    print('📡 STATUS => ${res.statusCode}');
+    print('📦 RESPONSE => ${res.body}');
+
+    if (res.statusCode < 200 || res.statusCode >= 300) {
+      throw Exception(
+        'Failed to save classification. '
+            'Status: ${res.statusCode}. '
+            'Response: ${res.body}',
+      );
+    }
   }
 
   static Future<Map<String, dynamic>?> getCurrentUser() async {
@@ -712,14 +732,40 @@ class ApiService {
 
   static Future<List<dynamic>> getHistory(String userId) async {
     final headers = await _authHeaders();
+
+    final url = Uri.parse(
+      '$baseUrl/api/classify/history',
+    );
+
+    print('==============================');
+    print('📥 GET HISTORY');
+    print('🌐 URL => $url');
+    print('👤 USER ID => $userId');
+    print('🔑 HEADERS => $headers');
+
     final res = await http.get(
-      Uri.parse('$baseUrl/api/classify/history'),
+      url,
       headers: headers,
     );
+
+    print('📡 STATUS => ${res.statusCode}');
+    print('📦 RESPONSE => ${res.body}');
+    print('==============================');
+
     if (res.statusCode == 200) {
-      return jsonDecode(res.body)['data'];
+      final decoded = jsonDecode(res.body);
+
+      print('✅ HISTORY API SUCCESS');
+      print('📊 DATA => ${decoded['data']}');
+
+      return decoded['data'] ?? [];
     }
-    throw Exception('Failed to load history');
+
+    throw Exception(
+      'Failed to load history. '
+          'Status: ${res.statusCode}. '
+          'Response: ${res.body}',
+    );
   }
 
   static Future<void> deleteHistory(String id) async {

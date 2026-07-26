@@ -159,7 +159,7 @@ class MyApp extends StatelessWidget {
         ),
       ),
       // Start with Login
-      home:  LoginScreen(),
+      home:  AuthCheck(),
       onGenerateRoute: (settings) {
         if(settings.name == "/business-location"){
           return MaterialPageRoute(

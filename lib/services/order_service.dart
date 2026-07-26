@@ -74,6 +74,46 @@ class OrderService {
     );
   }
 
+  // =====================================================
+// GET BUSINESS OWNER ORDERS
+// =====================================================
+
+  Future<List<dynamic>> getBusinessOrders() async {
+    final token = await ApiService.getToken();
+
+    final response = await http.get(
+      Uri.parse(
+        '${ApiService.baseUrl}/api/orders/business',
+      ),
+      headers: {
+        'Authorization': 'Bearer $token',
+        'ngrok-skip-browser-warning': 'true',
+      },
+    );
+
+    print(
+      'GET BUSINESS ORDERS STATUS: '
+          '${response.statusCode}',
+    );
+
+    print(
+      'GET BUSINESS ORDERS RESPONSE: '
+          '${response.body}',
+    );
+
+    final data = jsonDecode(response.body);
+
+    if (response.statusCode == 200 &&
+        data['success'] == true) {
+      return data['orders'] ?? [];
+    }
+
+    throw Exception(
+      data['message'] ??
+          'Failed to load business orders',
+    );
+  }
+
 
   // =====================================================
   // GET MY ORDERS

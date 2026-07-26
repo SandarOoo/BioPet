@@ -1,5 +1,9 @@
-import 'package:biopet/shop_owner/home_screen.dart';
+import 'package:biopet/pet_chat_screen.dart';
+import 'package:biopet/screens/users/ShopPage.dart';
+import 'package:biopet/shop_owner/home_screen.dart' hide HomeScreen;
+import 'package:biopet/views/home/home_page.dart';
 import 'package:flutter/material.dart';
+
 
 // ============================================================
 // IMPORT YOUR SCREENS
@@ -56,13 +60,13 @@ class _MainNavigationState
     const NearbyPetsMap(),
 
     // 2
-    const AiChatbotPlaceholder(),
+    const PetChatScreen(),
 
     // 3
-    const ClassificationPlaceholder(),
+    const HomePage(),
 
     // 4
-    const ShopPlaceholder(),
+    const ShopPage(),
   ];
 
 

@@ -33,27 +33,31 @@ class PaymentPage extends StatefulWidget {
 class _PaymentPageState extends State<PaymentPage> {
   final OrderService orderService = OrderService();
 
-  String selectedPayment = "KBZPay";
+  String selectedPayment = "KBZ_PAY";
   bool loading = false;
 
   final List<Map<String, dynamic>> paymentMethods = [
     {
       "name": "KBZPay",
+      "value": "KBZ_PAY",
       "icon": Icons.account_balance_wallet,
       "color": Colors.blue,
     },
     {
       "name": "Wave Pay",
+      "value": "WAVE_PAY",
       "icon": Icons.phone_android,
       "color": Colors.orange,
     },
     {
       "name": "AYA Pay",
-      "icon": Icons.account_balance,
+      "value": "AYA_PAY",
+      "icon": Icons.account_balance_wallet,
       "color": Colors.green,
     },
     {
       "name": "Cash On Delivery",
+      "value": "COD",
       "icon": Icons.local_shipping,
       "color": Colors.brown,
     },
@@ -104,27 +108,14 @@ class _PaymentPageState extends State<PaymentPage> {
       // 3. PREPARE ITEMS
       // ==========================================
 
-      final items =
-      widget.items.map((item) {
-
+      final items = widget.items.map((item) {
         return {
-          "productId":
-          item.product.id,
-
-          "name":
-          item.product.name,
-
-          "image":
-          item.product.image,
-
-          "price":
-          item.product.price,
-
-          "quantity":
-          item.quantity,
+          "product": item.product.id,
+          "quantity": item.quantity,
         };
-
       }).toList();
+
+
 
       print("ORDER ITEMS => $items");
 
@@ -290,6 +281,7 @@ class _PaymentPageState extends State<PaymentPage> {
 
                   return paymentCard(
                     payment["name"],
+                    payment["value"],
                     payment["icon"],
                     payment["color"],
                   );
@@ -383,6 +375,7 @@ class _PaymentPageState extends State<PaymentPage> {
 
   Widget paymentCard(
       String name,
+      String value,
       IconData icon,
       Color color,
       ) {
@@ -403,7 +396,7 @@ class _PaymentPageState extends State<PaymentPage> {
         BorderRadius.circular(18),
 
         child: RadioListTile<String>(
-          value: name,
+          value: value,
 
           groupValue:
           selectedPayment,

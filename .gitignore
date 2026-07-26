@@ -20,4 +20,4 @@ node_modules/
 
 # IDE
 .vscode/
-.idea/
+.idea/.env

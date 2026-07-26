@@ -5,14 +5,48 @@ import '../models/history.dart';
 class HistoryService {
 
   /// GET HISTORY
+  /// GET HISTORY
   Future<List<EachClassifying>> getHistory(String userId) async {
-    final data = await ApiService.getHistory(userId);
+    print('==============================');
+    print('📥 HISTORY SERVICE: GET HISTORY');
+    print('👤 USER ID => $userId');
 
-    return data
-        .map<EachClassifying>(
-          (item) => EachClassifying.fromMap(item as Map<String, dynamic>),
-    )
-        .toList();
+    try {
+      final data = await ApiService.getHistory(userId);
+
+      print('📦 RAW DATA => $data');
+      print('📊 RAW COUNT => ${data.length}');
+
+      final result = data
+          .map<EachClassifying>(
+            (item) {
+          print('🔍 HISTORY ITEM => $item');
+
+          return EachClassifying.fromMap(
+            item as Map<String, dynamic>,
+          );
+        },
+      )
+          .toList();
+
+      print('✅ PARSED HISTORY COUNT => ${result.length}');
+
+      for (final item in result) {
+        print('🆔 ID => ${item.id}');
+        print('📁 IMAGE => ${item.imagePath}');
+        print('🐾 BREEDS => ${item.breeds.length}');
+        print('🕐 DATE => ${item.timestamp}');
+      }
+
+      print('==============================');
+
+      return result;
+    } catch (e, stackTrace) {
+      print('❌ HISTORY SERVICE ERROR => $e');
+      print('📍 STACK => $stackTrace');
+
+      rethrow;
+    }
   }
 
   /// REMOVE ENTRY (FIXED)

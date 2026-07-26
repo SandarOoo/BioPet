@@ -1,30 +1,68 @@
 const express = require("express");
-const router = express.Router();
 
-const { testGemini } = require("../services/geminiService");
+const {
+  testGemini,
+} = require("../services/geminiService");
 
-router.get("/test", async (req, res) => {
-  try {
-    const result = await testGemini();
+const router =
+  express.Router();
 
-    console.log("✅ GEMINI RESULT:", result);
+// =====================================================
+// GET /api/gemini/test
+// =====================================================
 
-    res.json({
-      success: true,
-      message: "Gemini connected successfully",
-      result,
-    });
-  } catch (error) {
-    console.error("❌ GEMINI FULL ERROR:", error);
+router.get(
+  "/test",
+  async (req, res) => {
 
-    res.status(500).json({
-      success: false,
-      message: "Gemini test failed",
-      error: error.message,
-      name: error.name,
-      status: error.status,
-    });
+    try {
+
+      console.log(
+        "================================="
+      );
+
+      console.log(
+        "🤖 TESTING GEMINI API"
+      );
+
+      console.log(
+        "================================="
+      );
+
+      const result =
+        await testGemini();
+
+      console.log(
+        "🤖 GEMINI TEST RESULT:",
+        result
+      );
+
+      return res.status(200).json({
+        success: true,
+        message:
+          "Gemini API is working",
+        ai: result,
+      });
+
+    } catch (error) {
+
+      console.error(
+        "❌ GEMINI TEST ERROR:",
+        error
+      );
+
+      return res.status(500).json({
+        success: false,
+        message:
+          "Gemini test failed",
+        error:
+          error.message,
+        name:
+          error.name,
+      });
+    }
   }
-});
+);
 
-module.exports = router;
+module.exports =
+  router;
