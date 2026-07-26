@@ -409,84 +409,85 @@ class _ShopPageState
 
 
 
-      bottomNavigationBar:
+      // bottomNavigationBar:
+      //
+      // BottomNavigationBar(
+      //
+      //   currentIndex: 2,
+      //
+      //   selectedItemColor:
+      //   const Color(0xff6C63FF),
+      //
+      //   unselectedItemColor:
+      //   Colors.grey,
+      //
+      //   type:
+      //   BottomNavigationBarType
+      //       .fixed,
 
-      BottomNavigationBar(
 
-        currentIndex: 2,
+        // items: const [
 
-        selectedItemColor:
-        const Color(0xff6C63FF),
+          // BottomNavigationBarItem(
+          //
+          //   icon:
+          //   Icon(
+          //       Icons.home_outlined),
+          //
+          //   label:
+          //   "Home",
+          //
+          // ),
 
-        unselectedItemColor:
-        Colors.grey,
+          // BottomNavigationBarItem(
+          //
+          //   icon:
+          //   Icon(
+          //       Icons.pets_outlined),
+          //
+          //   label:
+          //   "AI",
+          //
+          // ),
 
-        type:
-        BottomNavigationBarType
-            .fixed,
+          // BottomNavigationBarItem(
+          //
+          //   icon:
+          //   Icon(
+          //       Icons.storefront),
+          //
+          //   label:
+          //   "Shop",
+          //
+          // ),
 
+          // BottomNavigationBarItem(
+          //
+          //   icon:
+          //   Icon(
+          //       Icons.receipt_long_outlined),
+          //
+          //   label:
+          //   "Orders",
+          //
+          // ),
 
-        items: const [
+          // BottomNavigationBarItem(
+          //
+          //   icon:
+          //   Icon(
+          //       Icons.person_outline),
+          //
+          //   label:
+          //   "Profile",
+          //
+          // ),
 
-          BottomNavigationBarItem(
+        // ],
 
-            icon:
-            Icon(
-                Icons.home_outlined),
-
-            label:
-            "Home",
-
-          ),
-
-          BottomNavigationBarItem(
-
-            icon:
-            Icon(
-                Icons.pets_outlined),
-
-            label:
-            "AI",
-
-          ),
-
-          BottomNavigationBarItem(
-
-            icon:
-            Icon(
-                Icons.storefront),
-
-            label:
-            "Shop",
-
-          ),
-
-          BottomNavigationBarItem(
-
-            icon:
-            Icon(
-                Icons.receipt_long_outlined),
-
-            label:
-            "Orders",
-
-          ),
-
-          BottomNavigationBarItem(
-
-            icon:
-            Icon(
-                Icons.person_outline),
-
-            label:
-            "Profile",
-
-          ),
-
-        ],
-
-      ),
-
+    //   ),
+    //
+    // );
     );
 
   }
