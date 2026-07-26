@@ -1,157 +1,72 @@
+// =====================================================
+// ENV
+// =====================================================
+
 require("dotenv").config({
   path: "../.env",
 });
 
-const express = require("express");
-const mongoose = require("mongoose");
-const cors = require("cors");
 
 // =====================================================
-// GEMINI SERVICE
+// IMPORTS
+// =====================================================
+
+const express =
+  require("express");
+
+const mongoose =
+  require("mongoose");
+
+const cors =
+  require("cors");
+
+
+// =====================================================
+// GEMINI
 // =====================================================
 
 const {
   analyzePost,
-} = require("./services/geminiService");
+} =
+  require("./services/geminiService");
 
-console.log(
-  "GEMINI KEY EXISTS:",
-  !!process.env.GEMINI_API_KEY
-);
 
 // =====================================================
 // APP
 // =====================================================
 
-const app = express();
+const app =
+  express();
+
 
 // =====================================================
 // MIDDLEWARE
 // =====================================================
 
-app.use(cors());
+app.use(
+  cors()
+);
 
 app.use(
   express.json({
-    limit: "20mb",
+    limit:
+      "20mb",
   })
 );
 
 app.use(
   express.urlencoded({
-    extended: true,
-    limit: "20mb",
+    extended:
+      true,
+
+    limit:
+      "20mb",
   })
 );
 
-// =====================================================
-// ROUTES
-// =====================================================
-
-const authRoute =
-  require("./routes/auth");
-
-const productRoutes =
-  require("./routes/productRoutes");
-
-const orderRoutes =
-  require("./routes/orderRoutes");
-
-const adminRoutes =
-  require("./routes/admin");
-
-const postRoutes =
-  require("./routes/postRoutes");
 
 // =====================================================
-// API ROUTES
-// =====================================================
-
-// AUTH
-app.use(
-  "/api/auth",
-  authRoute
-);
-
-// BUSINESS / PRODUCTS
-app.use(
-  "/api/business",
-  productRoutes
-);
-
-// ORDERS
-app.use(
-  "/api/orders",
-  orderRoutes
-);
-
-// ADMIN
-app.use(
-  "/api/admin",
-  adminRoutes
-);
-
-// POSTS / NEWS FEED
-app.use(
-  "/api/posts",
-  postRoutes
-);
-
-// =====================================================
-// TEST GEMINI
-// =====================================================
-
-app.get(
-  "/api/test-gemini",
-  async (req, res) => {
-
-    try {
-
-      console.log(
-        "🤖 TESTING GEMINI..."
-      );
-
-      const result =
-        await analyzePost(
-          "My dog is sick and needs veterinary care."
-        );
-
-      console.log(
-        "🤖 GEMINI TEST RESULT:",
-        result
-      );
-
-      return res.json({
-
-        success: true,
-
-        ai: result,
-
-      });
-
-    } catch (err) {
-
-      console.error(
-        "❌ GEMINI TEST ERROR:",
-        err
-      );
-
-      return res.status(500).json({
-
-        success: false,
-
-        error:
-          err.message,
-
-      });
-
-    }
-
-  }
-);
-
-// =====================================================
-// ENVIRONMENT CHECK
+// ENV CHECK
 // =====================================================
 
 console.log(
@@ -191,36 +106,119 @@ console.log(
   !!process.env.BREVO_API_KEY
 );
 
+
 // =====================================================
-// MONGODB
+// ROUTES
 // =====================================================
 
-mongoose
-  .connect(
-    process.env.MONGO_URI
-  )
+const authRoute =
+  require("./routes/auth");
 
-  .then(() => {
+const productRoutes =
+  require("./routes/productRoutes");
 
-    console.log(
-      "✅ MongoDB Connected"
-    );
+const orderRoutes =
+  require("./routes/orderRoutes");
 
-    console.log(
-      "Database:",
-      mongoose.connection.name
-    );
+const adminRoutes =
+  require("./routes/admin");
 
-  })
+const postRoutes =
+  require("./routes/postRoutes");
 
-  .catch((err) => {
 
-    console.error(
-      "❌ MongoDB Error:",
-      err.message
-    );
+// =====================================================
+// REGISTER ROUTES
+// =====================================================
 
-  });
+// AUTH
+app.use(
+  "/api/auth",
+  authRoute
+);
+
+
+// BUSINESS / PRODUCTS
+app.use(
+  "/api/business",
+  productRoutes
+);
+
+
+// ORDERS
+app.use(
+  "/api/orders",
+  orderRoutes
+);
+
+
+// ADMIN
+app.use(
+  "/api/admin",
+  adminRoutes
+);
+
+
+// NEWS FEED
+app.use(
+  "/api/posts",
+  postRoutes
+);
+
+
+// =====================================================
+// TEST GEMINI
+// =====================================================
+
+app.get(
+  "/api/test-gemini",
+  async (
+    req,
+    res
+  ) => {
+
+    try {
+
+      console.log(
+        "🤖 TESTING GEMINI..."
+      );
+
+      const result =
+        await analyzePost(
+          "My dog is sick and needs veterinary care."
+        );
+
+      console.log(
+        "🤖 GEMINI RESULT:",
+        result
+      );
+
+      return res.json({
+        success:
+          true,
+
+        ai:
+          result,
+      });
+
+    } catch (error) {
+
+      console.error(
+        "❌ GEMINI ERROR:",
+        error
+      );
+
+      return res.status(500).json({
+        success:
+          false,
+
+        error:
+          error.message,
+      });
+    }
+  }
+);
+
 
 // =====================================================
 // HEALTH CHECK
@@ -228,22 +226,25 @@ mongoose
 
 app.get(
   "/",
-  (req, res) => {
+  (
+    req,
+    res
+  ) => {
 
     res.json({
-
-      success: true,
+      success:
+        true,
 
       message:
-        "BioPet API Running",
-
+        "🐶 BioPet API Running",
     });
 
   }
 );
 
+
 // =====================================================
-// GLOBAL ERROR HANDLER
+// GLOBAL ERROR
 // =====================================================
 
 app.use(
@@ -260,34 +261,61 @@ app.use(
     );
 
     res.status(500).json({
-
-      success: false,
+      success:
+        false,
 
       message:
         err.message ||
         "Server error",
-
     });
 
   }
 );
 
+
 // =====================================================
-// SERVER
+// MONGODB + SERVER
 // =====================================================
 
 const PORT =
   process.env.PORT ||
   3000;
 
-app.listen(
-  PORT,
-  "0.0.0.0",
-  () => {
+mongoose
+  .connect(
+    process.env.MONGO_URI
+  )
+  .then(() => {
 
     console.log(
-      `🚀 Server running on port ${PORT}`
+      "✅ MongoDB Connected"
     );
 
-  }
-);
+    console.log(
+      "Database:",
+      mongoose.connection.name
+    );
+
+    app.listen(
+      PORT,
+      "0.0.0.0",
+      () => {
+
+        console.log(
+          `🚀 Server running on port ${PORT}`
+        );
+
+      }
+    );
+
+  })
+  .catch(
+    (error) => {
+
+      console.error(
+        "❌ MongoDB Error:",
+        error.message
+      );
+
+    }
+  );

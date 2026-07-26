@@ -1,1292 +1,557 @@
+
 import 'dart:convert';
 import 'dart:io';
-import 'package:biopet/time_ago.dart';
-import 'package:http_parser/http_parser.dart';
+
 import 'package:biopet/services/api_service.dart';
-import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
-import 'package:image_picker/image_picker.dart';
+import 'package:http_parser/http_parser.dart';
 import 'package:mime/mime.dart';
 
-// models comment + post + imageData
-class Comment {
-  final String userId;
-  final String text;
-
-  Comment({required this.userId, required this.text});
-
-  factory Comment.fromJson(Map<String, dynamic> json) => Comment(
-    userId: json['userId'] ?? '',
-    text: json['text'] ?? '',
-  );
-}
-
-class ImageData {
-  final String data;
-  final String contentType;
-  final String filename;
-
-  ImageData({
-    required this.data,
-    required this.contentType,
-    required this.filename,
-  });
-
-  factory ImageData.fromJson(Map<String, dynamic> json) => ImageData(
-    data: json['data'] ?? '',
-    contentType: json['contentType'] ?? '',
-    filename: json['filename'] ?? '',
-  );
-}
-
-class Post {
-  final String id;
-  final String name;
-  final String text;
-  final DateTime createAt;
-  List<String> likes;
-  List<Comment> comments;
-  final List<ImageData> images;
-
-  Post({
-    required this.id,
-    required this.name,
-    required this.text,
-    required this.createAt,
-    required this.likes,
-    required this.comments,
-    required this.images,
-  });
-
-  factory Post.fromJson(Map<String, dynamic> json) => Post(
-    id: json['_id'] ?? json['id'] ?? '',
-    name: json['name'] ?? 'Anonymous',
-    text: json['text'] ?? '',
-    createAt: json['createdAt'] != null
-        ? DateTime.parse(json['createdAt'])
-        : DateTime.now(),
-
-    likes: List<String>.from(json['likes'] ?? []),
-
-    comments: (json['comments'] as List<dynamic>? ?? [])
-        .map((c) => Comment.fromJson(c))
-        .toList(),
-
-    images: (json['images'] as List<dynamic>? ?? [])
-        .map((i) => ImageData.fromJson(i))
-        .toList(),
-  );
-}
-
-// ─────────────────────────────────────────────
-// API SERVICE
-// ─────────────────────────────────────────────
-
 class PostApiService {
-  static String get _baseUrl => ApiService.baseUrl;
-  // FIX #1: Cached sync fields so they can be used without await everywhere
-  static String currentUserId = '';
-  static String currentUserName = '';
+// ============================================================
+// BASE URL
+// ============================================================
 
-  /// Call this once at startup (e.g. in HomeScreen.initState)
-  static Future<void> init() async {
-    currentUserId = await ApiService.getUserId() ?? '';
-    currentUserName = await ApiService.getUserName() ?? '';
-  }
+static String get _baseUrl => ApiService.baseUrl;
 
-  static Future<List<Post>> fetchPosts(int page) async {
-    final uri = Uri.parse('$_baseUrl/api/posts?page=$page&limit=10');
-    final response = await http.get(uri);
+// ============================================================
+// CURRENT USER CACHE
+// ============================================================
 
-    print("GET POSTS => ${response.statusCode}");
-    print(response.body);
+static String currentUserId = '';
+static String currentUserName = '';
 
-    if (response.statusCode == 200) {
-      final List data = jsonDecode(response.body);
-      return data.map((e) => Post.fromJson(e)).toList();
-    }
+// ============================================================
+// INIT USER DATA
+// Call this before loading the feed
+// ============================================================
 
-    throw Exception('Failed to load posts');
-  }
+static Future<void> init() async {
+try {
+currentUserId = await ApiService.getUserId() ?? '';
+currentUserName = await ApiService.getUserName() ?? '';
 
-  static Future<Map<String, dynamic>> createPostWithImages({
-    required String text,
-    required List<File> imageFiles,
-  }) async {
-    final userId = await ApiService.getUserId();
-    final userName = await ApiService.getUserName();
+print('POST API USER ID => $currentUserId');
+print('POST API USER NAME => $currentUserName');
+} catch (e) {
+print('POST API INIT ERROR => $e');
 
-    if (userId == null || userId.isEmpty) {
-      throw Exception('Not logged in');
-    }
-
-    final uri = Uri.parse('$_baseUrl/api/posts/create');
-    var request = http.MultipartRequest('POST', uri);
-
-    request.fields['userId'] = userId;
-    request.fields['name'] = userName ?? 'Unknown';
-    request.fields['text'] = text;
-
-    for (final file in imageFiles) {
-      final stream = http.ByteStream(file.openRead());
-      final length = await file.length();
-
-      final mimeType = lookupMimeType(file.path) ?? 'image/jpeg';
-      final parts = mimeType.split('/');
-
-      request.files.add(
-        http.MultipartFile(
-          'images',
-          stream,
-          length,
-          filename: file.path.split('/').last,
-          contentType: MediaType(parts[0], parts[1]),
-        ),
-      );
-    }
-
-    final response = await request.send();
-    final body = await response.stream.bytesToString();
-
-    final json = jsonDecode(body);
-
-    if (response.statusCode == 201) {
-      return json; // ✅ RETURN FULL MAP
-    }
-
-    throw Exception(json['message'] ?? 'Create post failed');
-  }
-
-  static Future<void> toggleLike(String postId) async {
-    final response = await http.post(
-      Uri.parse('$_baseUrl/api/posts/like'),
-      headers: {'Content-Type': 'application/json'},
-      body: jsonEncode({
-        'postId': postId,
-        'userId': currentUserId,
-      }),
-    );
-
-    if (response.statusCode != 200) {
-      throw Exception(response.body);
-    }
-  }
-
-  static Future<void> addComment(String postId, String text) async {
-    final response = await http.post(
-      Uri.parse('$_baseUrl/api/posts/comment'),
-      headers: {'Content-Type': 'application/json'},
-      body: jsonEncode({
-        'postId': postId,
-        'userId': currentUserId,
-        'text': text,
-      }),
-    );
-
-    if (response.statusCode != 200) {
-      throw Exception(response.body);
-    }
-  }
+currentUserId = '';
+currentUserName = '';
+}
 }
 
-// ─────────────────────────────────────────────
-// DESIGN TOKENS
-// ─────────────────────────────────────────────
+// ============================================================
+// COMMON HEADERS
+// ============================================================
 
-class _T {
-  static const Color bg = Color(0xFFF4FAF5);
-  static const Color surface = Color(0xFFFFFFFF);
-  static const Color primary = Color(0xFF3A8C5C);
-  static const Color primaryLight = Color(0xFFD6EDDF);
-  static const Color accent = Color(0xFFFF6B6B);
-  static const Color textPrimary = Color(0xFF1A1A2E);
-  static const Color textSecondary = Color(0xFF6B7280);
-  static const Color divider = Color(0xFFE8F0EA);
-  static const double cardRadius = 16;
-  static const double chipRadius = 24;
-  static const double pagePad = 16;
+static Future<Map<String, String>> _headers({
+bool jsonContent = false,
+}) async {
+final token = await ApiService.getToken();
+
+final headers = <String, String>{
+'Accept': 'application/json',
+};
+
+if (jsonContent) {
+headers['Content-Type'] = 'application/json';
 }
 
-// ─────────────────────────────────────────────
-// HOME SCREEN
-// ─────────────────────────────────────────────
-
-class HomeScreen extends StatefulWidget {
-  const HomeScreen({super.key});
-
-  @override
-  State<HomeScreen> createState() => _HomeScreenState();
+if (token != null && token.isNotEmpty) {
+headers['Authorization'] = 'Bearer $token';
 }
 
-class _HomeScreenState extends State<HomeScreen> {
-  final List<Post> _posts = [];
-  final ScrollController _scrollController = ScrollController();
-
-  int _currentPage = 1;
-  bool _isLoading = false;
-  bool _hasMore = true;
-  String? _errorMessage;
-
-  @override
-  void initState() {
-    super.initState();
-    // FIX #1: Init cached userId/userName first, then load posts
-    PostApiService.init().then((_) => _loadPosts());
-    _scrollController.addListener(_onScroll);
-  }
-
-  @override
-  void dispose() {
-    _scrollController.dispose();
-    super.dispose();
-  }
-
-  void _onScroll() {
-    if (_scrollController.position.pixels >=
-        _scrollController.position.maxScrollExtent - 200 &&
-        !_isLoading &&
-        _hasMore) {
-      _loadPosts();
-    }
-  }
-
-  Future<void> _loadPosts({bool refresh = false}) async {
-    if (_isLoading) return;
-    setState(() {
-      _isLoading = true;
-      _errorMessage = null;
-    });
-
-    if (refresh) {
-      _currentPage = 1;
-      _hasMore = true;
-    }
-
-    try {
-      final newPosts = await PostApiService.fetchPosts(_currentPage);
-      setState(() {
-        if (refresh) _posts.clear();
-        _posts.addAll(newPosts);
-        _currentPage++;
-        _hasMore = newPosts.length >= 10;
-      });
-    } catch (e) {
-      setState(() => _errorMessage = 'Could not load posts. Pull to refresh.');
-    } finally {
-      setState(() => _isLoading = false);
-    }
-  }
-
-  Future<void> _handleLike(int index) async {
-    final post = _posts[index];
-    // FIX #2: Use sync cached field directly — no await needed
-    final userId = PostApiService.currentUserId;
-    final alreadyLiked = post.likes.contains(userId);
-
-    setState(() {
-      if (alreadyLiked) {
-        post.likes.remove(userId);
-      } else {
-        post.likes.add(userId);
-      }
-    });
-
-    try {
-      await PostApiService.toggleLike(post.id);
-    } catch (_) {
-      // Rollback optimistic update on failure
-      setState(() {
-        if (alreadyLiked) {
-          post.likes.add(userId);
-        } else {
-          post.likes.remove(userId);
-        }
-      });
-      _showSnack('Could not update like. Try again.');
-    }
-  }
-
-  void _showSnack(String msg) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(msg), duration: const Duration(seconds: 2)),
-    );
-  }
-
-  void _openCreatePost() {
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder: (_) => _CreatePostSheet(
-        onPostCreated: (post) {
-          setState(() => _posts.insert(0, post));
-          Navigator.pop(context);
-          _showSnack('Post shared! 🐾');
-        },
-      ),
-    );
-  }
-
-  void _openComments(int index) {
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder: (_) => _CommentsSheet(
-        post: _posts[index],
-        onCommentAdded: (comment) {
-          setState(() => _posts[index].comments.add(comment));
-        },
-      ),
-    );
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: _T.bg,
-      appBar: _buildAppBar(),
-      body: RefreshIndicator(
-        color: _T.primary,
-        onRefresh: () => _loadPosts(refresh: true),
-        child: ListView.builder(
-          controller: _scrollController,
-          padding: const EdgeInsets.only(bottom: 100),
-          itemCount: _itemCount,
-          itemBuilder: _buildItem,
-        ),
-      ),
-      floatingActionButton: _buildFAB(),
-    );
-  }
-
-  int get _itemCount {
-    int count = 1 + _posts.length;
-    if (_isLoading || _errorMessage != null || !_hasMore) count++;
-    return count;
-  }
-
-  Widget _buildItem(BuildContext context, int index) {
-    if (index == 0) return _CreatePostBanner(onTap: _openCreatePost);
-
-    final postIndex = index - 1;
-    if (postIndex < _posts.length) {
-      return _PostCard(
-        post: _posts[postIndex],
-        // FIX #3: currentUserId is now a sync String — no type mismatch
-        currentUserId: PostApiService.currentUserId,
-        onLike: () => _handleLike(postIndex),
-        onComment: () => _openComments(postIndex),
-      );
-    }
-
-    if (_isLoading) return const _LoadingFooter();
-    if (_errorMessage != null) {
-      return _ErrorFooter(message: _errorMessage!, onRetry: _loadPosts);
-    }
-    return const _EndFooter();
-  }
-
-  PreferredSizeWidget _buildAppBar() {
-    return AppBar(
-      backgroundColor: _T.surface,
-      elevation: 0,
-      centerTitle: false,
-      title: Row(
-        children: [
-          Container(
-            width: 34,
-            height: 34,
-            decoration: BoxDecoration(
-              color: _T.primary,
-              borderRadius: BorderRadius.circular(10),
-            ),
-            child: const Icon(Icons.pets, color: Colors.white, size: 20),
-          ),
-          const SizedBox(width: 10),
-          Text(
-            'Bio Pet Feed',
-            style: TextStyle(
-              color: _T.textPrimary,
-              fontSize: 20,
-              fontWeight: FontWeight.w700,
-              letterSpacing: -0.5,
-            ),
-          ),
-        ],
-      ),
-      actions: [
-        IconButton(
-          icon: Badge(
-            backgroundColor: _T.accent,
-            child: const Icon(Icons.notifications_outlined, color: _T.textPrimary),
-          ),
-          onPressed: () {},
-        ),
-        const SizedBox(width: 4),
-      ],
-      bottom: PreferredSize(
-        preferredSize: const Size.fromHeight(1),
-        child: Container(height: 1, color: _T.divider),
-      ),
-    );
-  }
-
-  Widget _buildFAB() {
-    return FloatingActionButton.extended(
-      onPressed: _openCreatePost,
-      backgroundColor: _T.primary,
-      icon: const Icon(Icons.add_photo_alternate_outlined, color: Colors.white),
-      label: const Text(
-        'Post',
-        style: TextStyle(color: Colors.white, fontWeight: FontWeight.w600),
-      ),
-      elevation: 4,
-    );
-  }
+return headers;
 }
 
-// ─────────────────────────────────────────────
-// CREATE POST BANNER
-// ─────────────────────────────────────────────
+// ============================================================
+// FETCH POSTS
+// GET /api/posts?page=1&limit=10
+// ============================================================
 
-class _CreatePostBanner extends StatelessWidget {
-  final VoidCallback onTap;
-  const _CreatePostBanner({required this.onTap});
+static Future<List<Map<String, dynamic>>> fetchPosts(
+int page,
+) async {
+final uri = Uri.parse(
+'$_baseUrl/api/posts?page=$page&limit=10',
+);
 
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(_T.pagePad, 14, _T.pagePad, 6),
-      child: GestureDetector(
-        onTap: onTap,
-        child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-          decoration: BoxDecoration(
-            color: _T.surface,
-            borderRadius: BorderRadius.circular(_T.cardRadius),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withOpacity(0.05),
-                blurRadius: 8,
-                offset: const Offset(0, 2),
-              ),
-            ],
-          ),
-          child: Row(
-            children: [
-              CircleAvatar(
-                radius: 20,
-                backgroundColor: _T.primaryLight,
-                child: const Text('🐾', style: TextStyle(fontSize: 18)),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-                  decoration: BoxDecoration(
-                    color: _T.bg,
-                    borderRadius: BorderRadius.circular(_T.chipRadius),
-                    border: Border.all(color: _T.divider),
-                  ),
-                  child: Text(
-                    "What's your pet doing? 🐶",
-                    style: TextStyle(color: _T.textSecondary, fontSize: 14),
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
+print('======================================');
+print('GET POSTS');
+print('URL => $uri');
+print('======================================');
+
+try {
+final response = await http.get(
+uri,
+headers: await _headers(),
+);
+
+print('GET POSTS STATUS => ${response.statusCode}');
+print('GET POSTS BODY => ${response.body}');
+
+if (response.statusCode != 200) {
+throw Exception(
+'Fetch posts failed: ${response.body}',
+);
 }
 
-// ─────────────────────────────────────────────
-// POST CARD
-// ─────────────────────────────────────────────
-
-class _PostCard extends StatelessWidget {
-  final Post post;
-  final String currentUserId;
-  final VoidCallback onLike;
-  final VoidCallback onComment;
-
-  const _PostCard({
-    required this.post,
-    required this.currentUserId,
-    required this.onLike,
-    required this.onComment,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final liked = post.likes.contains(currentUserId);
-    final initials = post.name.isNotEmpty ? post.name[0].toUpperCase() : '?';
-
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(_T.pagePad, 6, _T.pagePad, 6),
-      child: Container(
-        decoration: BoxDecoration(
-          color: _T.surface,
-          borderRadius: BorderRadius.circular(_T.cardRadius),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withOpacity(0.05),
-              blurRadius: 8,
-              offset: const Offset(0, 2),
-            ),
-          ],
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // Header
-            Padding(
-              padding: const EdgeInsets.fromLTRB(14, 14, 14, 0),
-              child: Row(
-                children: [
-                  CircleAvatar(
-                    radius: 22,
-                    backgroundColor: _T.primaryLight,
-                    child: Text(
-                      initials,
-                      style: TextStyle(
-                        color: _T.primary,
-                        fontWeight: FontWeight.w700,
-                        fontSize: 16,
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: 10),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          post.name,
-                          style: const TextStyle(
-                            fontWeight: FontWeight.w700,
-                            fontSize: 15,
-                            color: _T.textPrimary,
-                          ),
-                        ),
-                        const SizedBox(height: 1),
-                        Text(
-                          TimeAgo.format(post.createAt),
-                          style: TextStyle(fontSize: 12, color: _T.textSecondary),
-                        ),
-                      ],
-                    ),
-                  ),
-                  Icon(Icons.more_horiz, color: _T.textSecondary),
-                ],
-              ),
-            ),
-            // Post text
-            Padding(
-              padding: const EdgeInsets.fromLTRB(14, 12, 14, 12),
-              child: Text(
-                post.text,
-                style: const TextStyle(
-                  fontSize: 15,
-                  color: _T.textPrimary,
-                  height: 1.45,
-                ),
-              ),
-            ),
-            // Images gallery
-            if (post.images.isNotEmpty)
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-                child: SizedBox(
-                  height: 200,
-                  child: ListView.separated(
-                    scrollDirection: Axis.horizontal,
-                    itemCount: post.images.length,
-                    separatorBuilder: (_, __) => const SizedBox(width: 8),
-                    itemBuilder: (_, index) {
-                      final image = post.images[index];
-                      return ClipRRect(
-                        borderRadius: BorderRadius.circular(12),
-                        child: Image.memory(
-                          base64Decode(image.data.split(',').last),
-                          width: 200,
-                          height: 200,
-                          fit: BoxFit.cover,
-                        ),
-                      );
-                    },
-                  ),
-                ),
-              ),
-            // Likes & comments count
-            if (post.likes.isNotEmpty || post.comments.isNotEmpty)
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 14),
-                child: Row(
-                  children: [
-                    if (post.likes.isNotEmpty)
-                      Row(
-                        children: [
-                          const Text('❤️', style: TextStyle(fontSize: 13)),
-                          const SizedBox(width: 3),
-                          Text(
-                            '${post.likes.length}',
-                            style: TextStyle(
-                              fontSize: 12,
-                              color: _T.textSecondary,
-                              fontWeight: FontWeight.w500,
-                            ),
-                          ),
-                        ],
-                      ),
-                    const Spacer(),
-                    if (post.comments.isNotEmpty)
-                      Text(
-                        '${post.comments.length} comment${post.comments.length == 1 ? '' : 's'}',
-                        style: TextStyle(fontSize: 12, color: _T.textSecondary),
-                      ),
-                  ],
-                ),
-              ),
-            const Padding(
-              padding: EdgeInsets.symmetric(vertical: 6),
-              child: Divider(height: 1, color: _T.divider),
-            ),
-            // Action buttons
-            Padding(
-              padding: const EdgeInsets.fromLTRB(4, 2, 4, 10),
-              child: Row(
-                children: [
-                  Expanded(
-                    child: _ActionButton(
-                      icon: liked ? Icons.favorite : Icons.favorite_border,
-                      label: liked ? 'Liked' : 'Like',
-                      color: liked ? _T.accent : _T.textSecondary,
-                      onTap: onLike,
-                    ),
-                  ),
-                  Expanded(
-                    child: _ActionButton(
-                      icon: Icons.chat_bubble_outline,
-                      label: 'Comment',
-                      color: _T.textSecondary,
-                      onTap: onComment,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
+if (response.body.isEmpty) {
+return [];
 }
 
-class _ActionButton extends StatelessWidget {
-  final IconData icon;
-  final String label;
-  final Color color;
-  final VoidCallback onTap;
+final decoded = jsonDecode(response.body);
 
-  const _ActionButton({
-    required this.icon,
-    required this.label,
-    required this.color,
-    required this.onTap,
-  });
+// ========================================================
+// BACKEND RESPONSE
+//
+// {
+//   "success": true,
+//   "posts": [...]
+// }
+// ========================================================
 
-  @override
-  Widget build(BuildContext context) {
-    return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(8),
-      child: Padding(
-        padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 12),
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(icon, size: 20, color: color),
-            const SizedBox(width: 6),
-            Text(
-              label,
-              style: TextStyle(
-                color: color,
-                fontWeight: FontWeight.w600,
-                fontSize: 13,
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
+if (decoded is Map<String, dynamic>) {
+final posts = decoded['posts'];
+
+if (posts is List) {
+return posts
+    .whereType<Map>()
+    .map(
+(post) => Map<String, dynamic>.from(post),
+)
+    .toList();
+}
 }
 
-// ─────────────────────────────────────────────
-// CREATE POST SHEET (WITH IMAGE PICKER)
-// ─────────────────────────────────────────────
+// ========================================================
+// BACKWARD COMPATIBILITY
+//
+// [
+//   {...},
+//   {...}
+// ]
+// ========================================================
 
-class _CreatePostSheet extends StatefulWidget {
-  final void Function(Post post) onPostCreated;
-  const _CreatePostSheet({required this.onPostCreated});
-
-  @override
-  State<_CreatePostSheet> createState() => _CreatePostSheetState();
+if (decoded is List) {
+return decoded
+    .whereType<Map>()
+    .map(
+(post) => Map<String, dynamic>.from(post),
+)
+    .toList();
 }
 
-class _CreatePostSheetState extends State<_CreatePostSheet> {
-  final TextEditingController _controller = TextEditingController();
-  final ImagePicker _picker = ImagePicker();
-  List<File> _selectedImages = [];
-  bool _isPosting = false;
-  String? _error;
-
-  Future<void> _pickImages() async {
-    final List<XFile>? pickedImages = await _picker.pickMultiImage(limit: 10);
-    if (pickedImages != null && pickedImages.isNotEmpty) {
-      setState(() {
-        _selectedImages = pickedImages.map((x) => File(x.path)).toList();
-      });
-    }
-  }
-
-  void _removeImage(int index) {
-    setState(() => _selectedImages.removeAt(index));
-  }
-
-  Future<void> _submit() async {
-    final text = _controller.text.trim();
-
-    if (text.isEmpty && _selectedImages.isEmpty) return;
-
-    setState(() {
-      _isPosting = true;
-      _error = null;
-    });
-
-    try {
-      final res = await PostApiService.createPostWithImages(
-        text: text,
-        imageFiles: _selectedImages,
-      );
-
-      final Map<String, dynamic> data = res;
-
-      final postJson = data['post'];
-      final ai = data['ai'];
-
-      if (ai != null && ai['allowed'] == false) {
-        setState(() {
-          _error = "Post blocked by AI 🚫 (${ai['category']})";
-          _isPosting = false;
-        });
-        return;
-      }
-
-      final post = Post.fromJson(postJson);
-
-      if (mounted) widget.onPostCreated(post);
-
-      _controller.clear();
-      _selectedImages.clear();
-
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("Post created successfully 🐾")),
-      );
-    } catch (e) {
-      setState(() {
-        _error = e.toString();
-      });
-    } finally {
-      if (mounted) {
-        setState(() => _isPosting = false);
-      }
-    }
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final bottomPad = MediaQuery.of(context).viewInsets.bottom;
-
-    return Container(
-      padding: EdgeInsets.fromLTRB(20, 20, 20, 20 + bottomPad),
-      decoration: const BoxDecoration(
-        color: _T.surface,
-        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-      ),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Center(
-            child: Container(
-              width: 40,
-              height: 4,
-              decoration: BoxDecoration(
-                color: _T.divider,
-                borderRadius: BorderRadius.circular(4),
-              ),
-            ),
-          ),
-          const SizedBox(height: 16),
-          Row(
-            children: [
-              const Text('🐾', style: TextStyle(fontSize: 20)),
-              const SizedBox(width: 8),
-              Text(
-                'Share a pet moment',
-                style: TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.w700,
-                  color: _T.textPrimary,
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 4),
-          Text(
-            'You can select up to 10 images',
-            style: TextStyle(fontSize: 12, color: _T.textSecondary),
-          ),
-          const SizedBox(height: 16),
-          TextField(
-            controller: _controller,
-            maxLines: 4,
-            autofocus: true,
-            style: const TextStyle(fontSize: 15, color: _T.textPrimary),
-            decoration: InputDecoration(
-              hintText: "What's your pet up to today? 🐶🐱",
-              hintStyle: TextStyle(color: _T.textSecondary),
-              filled: true,
-              fillColor: _T.bg,
-              border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(14),
-                borderSide: BorderSide.none,
-              ),
-              contentPadding: const EdgeInsets.all(14),
-            ),
-          ),
-          const SizedBox(height: 12),
-          ElevatedButton.icon(
-            onPressed: _pickImages,
-            icon: const Icon(Icons.add_photo_alternate),
-            label: Text('Pick Images (${_selectedImages.length}/10)'),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: _T.primaryLight,
-              foregroundColor: _T.primary,
-            ),
-          ),
-          if (_selectedImages.isNotEmpty) ...[
-            const SizedBox(height: 8),
-            SizedBox(
-              height: 100,
-              child: ListView.separated(
-                scrollDirection: Axis.horizontal,
-                itemCount: _selectedImages.length,
-                separatorBuilder: (_, __) => const SizedBox(width: 8),
-                itemBuilder: (_, index) {
-                  return Stack(
-                    children: [
-                      ClipRRect(
-                        borderRadius: BorderRadius.circular(12),
-                        child: Image.file(
-                          _selectedImages[index],
-                          width: 100,
-                          height: 100,
-                          fit: BoxFit.cover,
-                        ),
-                      ),
-                      Positioned(
-                        top: 4,
-                        right: 4,
-                        child: GestureDetector(
-                          onTap: () => _removeImage(index),
-                          child: Container(
-                            decoration: BoxDecoration(
-                              color: Colors.black.withOpacity(0.6),
-                              shape: BoxShape.circle,
-                            ),
-                            child: const Icon(
-                              Icons.close,
-                              size: 20,
-                              color: Colors.white,
-                            ),
-                          ),
-                        ),
-                      ),
-                    ],
-                  );
-                },
-              ),
-            ),
-          ],
-          if (_error != null) ...[
-            const SizedBox(height: 10),
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-              decoration: BoxDecoration(
-                color: const Color(0xFFFFEEEE),
-                borderRadius: BorderRadius.circular(10),
-              ),
-              child: Row(
-                children: [
-                  const Icon(Icons.error_outline, color: _T.accent, size: 18),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: Text(
-                      _error!,
-                      style: const TextStyle(color: _T.accent, fontSize: 13),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ],
-          const SizedBox(height: 16),
-          SizedBox(
-            width: double.infinity,
-            child: FilledButton(
-              onPressed:
-              (_isPosting || (_controller.text.trim().isEmpty && _selectedImages.isEmpty))
-                  ? null
-                  : _submit,
-              style: FilledButton.styleFrom(
-                backgroundColor: _T.primary,
-                padding: const EdgeInsets.symmetric(vertical: 14),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(_T.chipRadius),
-                ),
-              ),
-              child: _isPosting
-                  ? const SizedBox(
-                width: 20,
-                height: 20,
-                child: CircularProgressIndicator(
-                  color: Colors.white,
-                  strokeWidth: 2,
-                ),
-              )
-                  : const Text(
-                'Post',
-                style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
+return [];
+} catch (e) {
+print('FETCH POSTS ERROR => $e');
+rethrow;
+}
 }
 
-// ─────────────────────────────────────────────
-// COMMENTS SHEET
-// ─────────────────────────────────────────────
+// ============================================================
+// CREATE POST WITH IMAGES
+//
+// POST /api/posts/create
+//
+// Multipart fields:
+// userId
+// name
+// text
+// images[]
+// ============================================================
 
-class _CommentsSheet extends StatefulWidget {
-  final Post post;
-  final void Function(Comment comment) onCommentAdded;
+static Future<Map<String, dynamic>> createPostWithImages({
+required String text,
+required List<File> imageFiles,
+}) async {
+// ==========================================================
+// GET CURRENT USER
+// ==========================================================
 
-  const _CommentsSheet({required this.post, required this.onCommentAdded});
+final userId = await ApiService.getUserId();
+final userName = await ApiService.getUserName();
 
-  @override
-  State<_CommentsSheet> createState() => _CommentsSheetState();
+print('======================================');
+print('CREATE POST');
+print('USER ID => $userId');
+print('USER NAME => $userName');
+print('TEXT => $text');
+print('IMAGE COUNT => ${imageFiles.length}');
+print('======================================');
+
+if (userId == null || userId.isEmpty) {
+throw Exception(
+'Not logged in. Please login again.',
+);
 }
 
-class _CommentsSheetState extends State<_CommentsSheet> {
-  final TextEditingController _controller = TextEditingController();
-  bool _isSending = false;
+// ==========================================================
+// CREATE MULTIPART REQUEST
+// ==========================================================
 
-  Future<void> _sendComment() async {
-    final text = _controller.text.trim();
-    if (text.isEmpty) return;
+final uri = Uri.parse(
+'$_baseUrl/api/posts/create',
+);
 
-    setState(() => _isSending = true);
-    try {
-      await PostApiService.addComment(widget.post.id, text);
+final request = http.MultipartRequest(
+'POST',
+uri,
+);
 
-      final comment = Comment(
-        userId: PostApiService.currentUserId,
-        text: text,
-      );
+// ==========================================================
+// AUTHORIZATION
+// ==========================================================
 
-      // FIX #4: Only add comment once via the callback — removed duplicate setState add
-      widget.onCommentAdded(comment);
-      _controller.clear();
-    } catch (_) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Could not send comment.')),
-        );
-      }
-    } finally {
-      if (mounted) setState(() => _isSending = false);
-    }
-  }
+final token = await ApiService.getToken();
 
-  @override
-  Widget build(BuildContext context) {
-    final bottomPad = MediaQuery.of(context).viewInsets.bottom;
+request.headers['Accept'] = 'application/json';
 
-    return Container(
-      padding: EdgeInsets.only(bottom: bottomPad),
-      decoration: const BoxDecoration(
-        color: _T.surface,
-        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-      ),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          const SizedBox(height: 12),
-          Center(
-            child: Container(
-              width: 40,
-              height: 4,
-              decoration: BoxDecoration(
-                color: _T.divider,
-                borderRadius: BorderRadius.circular(4),
-              ),
-            ),
-          ),
-          const SizedBox(height: 12),
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 20),
-            child: Row(
-              children: [
-                const Text('💬', style: TextStyle(fontSize: 18)),
-                const SizedBox(width: 8),
-                Text(
-                  'Comments',
-                  style: TextStyle(
-                    fontSize: 17,
-                    fontWeight: FontWeight.w700,
-                    color: _T.textPrimary,
-                  ),
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(height: 8),
-          const Divider(height: 1, color: _T.divider),
-          ConstrainedBox(
-            constraints: BoxConstraints(
-              maxHeight: MediaQuery.of(context).size.height * 0.4,
-            ),
-            child: widget.post.comments.isEmpty
-                ? const Padding(
-              padding: EdgeInsets.symmetric(vertical: 32),
-              child: Center(
-                child: Text(
-                  'No comments yet. Be the first! 🐾',
-                  style: TextStyle(color: _T.textSecondary, fontSize: 14),
-                ),
-              ),
-            )
-                : ListView.separated(
-              padding: const EdgeInsets.symmetric(
-                horizontal: 16,
-                vertical: 12,
-              ),
-              itemCount: widget.post.comments.length,
-              separatorBuilder: (_, __) => const SizedBox(height: 10),
-              itemBuilder: (_, i) {
-                return _CommentTile(comment: widget.post.comments[i]);
-              },
-            ),
-          ),
-          const Divider(height: 1, color: _T.divider),
-          Padding(
-            padding: const EdgeInsets.fromLTRB(12, 10, 12, 14),
-            child: Row(
-              children: [
-                const CircleAvatar(
-                  radius: 18,
-                  backgroundColor: _T.primaryLight,
-                  child: Text('🐾', style: TextStyle(fontSize: 14)),
-                ),
-                const SizedBox(width: 10),
-                Expanded(
-                  child: TextField(
-                    controller: _controller,
-                    textInputAction: TextInputAction.send,
-                    onSubmitted: (_) => _sendComment(),
-                    style: const TextStyle(fontSize: 14, color: _T.textPrimary),
-                    decoration: InputDecoration(
-                      hintText: 'Add a comment…',
-                      hintStyle: TextStyle(
-                        color: _T.textSecondary,
-                        fontSize: 14,
-                      ),
-                      filled: true,
-                      fillColor: _T.bg,
-                      contentPadding: const EdgeInsets.symmetric(
-                        horizontal: 14,
-                        vertical: 10,
-                      ),
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(_T.chipRadius),
-                        borderSide: BorderSide.none,
-                      ),
-                    ),
-                  ),
-                ),
-                const SizedBox(width: 8),
-                _isSending
-                    ? const SizedBox(
-                  width: 36,
-                  height: 36,
-                  child: CircularProgressIndicator(
-                    color: _T.primary,
-                    strokeWidth: 2,
-                  ),
-                )
-                    : IconButton(
-                  onPressed: _sendComment,
-                  icon: const Icon(Icons.send_rounded),
-                  color: _T.primary,
-                  iconSize: 26,
-                  padding: EdgeInsets.zero,
-                  constraints: const BoxConstraints(
-                    minWidth: 36,
-                    minHeight: 36,
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
+if (token != null && token.isNotEmpty) {
+request.headers['Authorization'] =
+'Bearer $token';
 }
 
-class _CommentTile extends StatelessWidget {
-  final Comment comment;
-  const _CommentTile({required this.comment});
+// ==========================================================
+// FORM FIELDS
+// ==========================================================
 
-  @override
-  Widget build(BuildContext context) {
-    final initials =
-    comment.userId.isNotEmpty ? comment.userId[0].toUpperCase() : '?';
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        CircleAvatar(
-          radius: 16,
-          backgroundColor: _T.primaryLight,
-          child: Text(
-            initials,
-            style: TextStyle(
-              color: _T.primary,
-              fontWeight: FontWeight.w700,
-              fontSize: 12,
-            ),
-          ),
-        ),
-        const SizedBox(width: 10),
-        Expanded(
-          child: Container(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-            decoration: BoxDecoration(
-              color: _T.bg,
-              borderRadius: BorderRadius.circular(14),
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  comment.userId,
-                  style: const TextStyle(
-                    fontWeight: FontWeight.w700,
-                    fontSize: 12,
-                    color: _T.textPrimary,
-                  ),
-                ),
-                const SizedBox(height: 2),
-                Text(
-                  comment.text,
-                  style: const TextStyle(
-                    fontSize: 13,
-                    color: _T.textPrimary,
-                    height: 1.4,
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ),
-      ],
-    );
-  }
+request.fields['userId'] = userId;
+
+request.fields['name'] =
+userName ?? 'Unknown';
+
+request.fields['text'] = text;
+
+// ==========================================================
+// ADD IMAGES
+// ==========================================================
+
+for (final file in imageFiles) {
+if (!await file.exists()) {
+print(
+'IMAGE FILE NOT FOUND => ${file.path}',
+);
+continue;
 }
 
-// ─────────────────────────────────────────────
-// FOOTER WIDGETS
-// ─────────────────────────────────────────────
+final fileName =
+file.path.split(Platform.pathSeparator).last;
 
-class _LoadingFooter extends StatelessWidget {
-  const _LoadingFooter();
+final mimeType =
+lookupMimeType(file.path) ?? 'image/jpeg';
 
-  @override
-  Widget build(BuildContext context) {
-    return const Padding(
-      padding: EdgeInsets.symmetric(vertical: 24),
-      child: Center(
-        child: CircularProgressIndicator(color: _T.primary, strokeWidth: 2.5),
-      ),
-    );
-  }
+final mimeParts =
+mimeType.split('/');
+
+final mainType =
+mimeParts.isNotEmpty
+? mimeParts[0]
+    : 'image';
+
+final subType =
+mimeParts.length > 1
+? mimeParts[1]
+    : 'jpeg';
+
+print('UPLOADING IMAGE => $fileName');
+print('MIME TYPE => $mimeType');
+
+final stream =
+http.ByteStream(
+file.openRead(),
+);
+
+final length =
+await file.length();
+
+final multipartFile =
+http.MultipartFile(
+'images',
+stream,
+length,
+filename: fileName,
+contentType: MediaType(
+mainType,
+subType,
+),
+);
+
+request.files.add(
+multipartFile,
+);
 }
 
-class _ErrorFooter extends StatelessWidget {
-  final String message;
-  final VoidCallback onRetry;
-  const _ErrorFooter({required this.message, required this.onRetry});
+// ==========================================================
+// SEND REQUEST
+// ==========================================================
 
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 24, horizontal: _T.pagePad),
-      child: Column(
-        children: [
-          Text(
-            message,
-            style: TextStyle(color: _T.textSecondary, fontSize: 14),
-          ),
-          const SizedBox(height: 10),
-          OutlinedButton(
-            onPressed: onRetry,
-            style: OutlinedButton.styleFrom(
-              foregroundColor: _T.primary,
-              side: const BorderSide(color: _T.primary),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(_T.chipRadius),
-              ),
-            ),
-            child: const Text('Retry'),
-          ),
-        ],
-      ),
-    );
-  }
+http.StreamedResponse response;
+
+try {
+response = await request.send();
+} catch (e) {
+print(
+'CREATE POST NETWORK ERROR => $e',
+);
+
+throw Exception(
+'Could not connect to server.',
+);
 }
 
-class _EndFooter extends StatelessWidget {
-  const _EndFooter();
+// ==========================================================
+// READ RESPONSE
+// ==========================================================
 
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 24),
-      child: Center(
-        child: Text(
-          '🐾  You\'ve seen all posts',
-          style: TextStyle(color: _T.textSecondary, fontSize: 13),
-        ),
-      ),
-    );
-  }
+final responseBody =
+await response.stream.bytesToString();
+
+print(
+'CREATE POST STATUS => ${response.statusCode}',
+);
+
+print(
+'CREATE POST BODY => $responseBody',
+);
+
+// ==========================================================
+// EMPTY RESPONSE
+// ==========================================================
+
+if (responseBody.isEmpty) {
+throw Exception(
+'Server returned an empty response.',
+);
+}
+
+// ==========================================================
+// PARSE JSON
+// ==========================================================
+
+dynamic decoded;
+
+try {
+decoded = jsonDecode(
+responseBody,
+);
+} catch (e) {
+throw Exception(
+'Invalid server response: $responseBody',
+);
+}
+
+// ==========================================================
+// SUCCESS
+//
+// Expected:
+//
+// {
+//   "success": true,
+//   "post": {...},
+//   "ai": {
+//      "allowed": true,
+//      "category": "pet_related"
+//   }
+// }
+// ==========================================================
+
+if (response.statusCode == 201 ||
+response.statusCode == 200) {
+if (decoded is Map<String, dynamic>) {
+return decoded;
+}
+
+throw Exception(
+'Invalid create post response.',
+);
+}
+
+// ==========================================================
+// ERROR RESPONSE
+// ==========================================================
+
+if (decoded is Map<String, dynamic>) {
+final message =
+decoded['message'] ??
+decoded['error'] ??
+'Create post failed';
+
+throw Exception(
+message.toString(),
+);
+}
+
+throw Exception(
+'Create post failed: $responseBody',
+);
+}
+
+// ============================================================
+// TOGGLE LIKE
+//
+// POST /api/posts/like
+//
+// Body:
+// {
+//   "postId": "...",
+//   "userId": "..."
+// }
+// ============================================================
+
+static Future<Map<String, dynamic>> toggleLike(
+String postId,
+) async {
+if (currentUserId.isEmpty) {
+await init();
+}
+
+if (currentUserId.isEmpty) {
+throw Exception(
+'User information not found. Please login again.',
+);
+}
+
+final uri = Uri.parse(
+'$_baseUrl/api/posts/like',
+);
+
+print('======================================');
+print('TOGGLE LIKE');
+print('POST ID => $postId');
+print('USER ID => $currentUserId');
+print('======================================');
+
+try {
+final response = await http.post(
+uri,
+headers: await _headers(
+jsonContent: true,
+),
+body: jsonEncode({
+'postId': postId,
+'userId': currentUserId,
+}),
+);
+
+print(
+'TOGGLE LIKE STATUS => ${response.statusCode}',
+);
+
+print(
+'TOGGLE LIKE BODY => ${response.body}',
+);
+
+if (response.statusCode != 200) {
+throw Exception(
+'Like failed: ${response.body}',
+);
+}
+
+if (response.body.isEmpty) {
+return {};
+}
+
+final decoded =
+jsonDecode(response.body);
+
+if (decoded is Map<String, dynamic>) {
+return decoded;
+}
+
+return {};
+} catch (e) {
+print(
+'TOGGLE LIKE ERROR => $e',
+);
+rethrow;
+}
+}
+
+// ============================================================
+// ADD COMMENT
+//
+// POST /api/posts/comment
+//
+// Body:
+// {
+//   "postId": "...",
+//   "userId": "...",
+//   "text": "..."
+// }
+// ============================================================
+
+static Future<Map<String, dynamic>> addComment(
+String postId,
+String text,
+) async {
+if (currentUserId.isEmpty) {
+await init();
+}
+
+if (currentUserId.isEmpty) {
+throw Exception(
+'User information not found. Please login again.',
+);
+}
+
+final uri = Uri.parse(
+'$_baseUrl/api/posts/comment',
+);
+
+print('======================================');
+print('ADD COMMENT');
+print('POST ID => $postId');
+print('USER ID => $currentUserId');
+print('TEXT => $text');
+print('======================================');
+
+try {
+final response = await http.post(
+uri,
+headers: await _headers(
+jsonContent: true,
+),
+body: jsonEncode({
+'postId': postId,
+'userId': currentUserId,
+'text': text,
+}),
+);
+
+print(
+'ADD COMMENT STATUS => ${response.statusCode}',
+);
+
+print(
+'ADD COMMENT BODY => ${response.body}',
+);
+
+if (response.statusCode != 200 &&
+response.statusCode != 201) {
+throw Exception(
+'Comment failed: ${response.body}',
+);
+}
+
+if (response.body.isEmpty) {
+return {};
+}
+
+final decoded =
+jsonDecode(response.body);
+
+if (decoded is Map<String, dynamic>) {
+return decoded;
+}
+
+return {};
+} catch (e) {
+print(
+'ADD COMMENT ERROR => $e',
+);
+rethrow;
+}
+}
 }

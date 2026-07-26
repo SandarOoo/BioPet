@@ -1,7 +1,3 @@
-require("dotenv").config({
-  path: "../.env",
-});
-
 const API_KEY =
   process.env.GEMINI_API_KEY;
 
@@ -9,6 +5,7 @@ console.log(
   "GEMINI KEY EXISTS:",
   !!API_KEY
 );
+
 
 // =====================================================
 // SAFE JSON PARSER
@@ -25,17 +22,14 @@ function safeParseAI(text) {
 
     let cleaned =
       text
-
         .replace(
-          /```json/gi,
+          /```json/g,
           ""
         )
-
         .replace(
           /```/g,
           ""
         )
-
         .trim();
 
     const start =
@@ -65,42 +59,18 @@ function safeParseAI(text) {
         end + 1
       );
 
-    const parsed =
-      JSON.parse(
-        jsonString
-      );
-
-    return {
-
-      allowed:
-        parsed.allowed !== false,
-
-      petRelated:
-        parsed.petRelated === true,
-
-      category:
-        parsed.category ||
-        "general",
-
-      reason:
-        parsed.reason ||
-        "AI moderation completed",
-
-    };
-
-  } catch (err) {
-
-    console.error(
-      "❌ JSON PARSE ERROR:",
-      err.message
+    return JSON.parse(
+      jsonString
     );
 
-    // IMPORTANT:
-    // Fallback means allow post
-    // if Gemini response cannot be parsed.
+  } catch (error) {
+
+    console.error(
+      "❌ AI JSON PARSE ERROR:",
+      error.message
+    );
 
     return {
-
       allowed:
         true,
 
@@ -112,15 +82,14 @@ function safeParseAI(text) {
 
       reason:
         "AI response could not be parsed",
-
     };
 
   }
-
 }
 
+
 // =====================================================
-// GEMINI AI MODERATION
+// GEMINI AI
 // =====================================================
 
 async function analyzePost(
@@ -129,14 +98,15 @@ async function analyzePost(
 
   try {
 
-    if (!API_KEY) {
+    if (
+      !API_KEY
+    ) {
 
       console.error(
-        "❌ GEMINI_API_KEY NOT FOUND"
+        "❌ GEMINI_API_KEY IS MISSING"
       );
 
       return {
-
         allowed:
           true,
 
@@ -147,15 +117,16 @@ async function analyzePost(
           "general",
 
         reason:
-          "Gemini API key not configured",
-
+          "Gemini API key missing",
       };
 
     }
 
+
     console.log(
-      "🤖 SENDING POST TO GEMINI"
+      "🤖 Sending post to Gemini..."
     );
+
 
     const response =
       await fetch(
@@ -163,63 +134,53 @@ async function analyzePost(
         `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${API_KEY}`,
 
         {
-
           method:
             "POST",
 
           headers: {
-
             "Content-Type":
               "application/json",
-
           },
 
           body:
             JSON.stringify({
 
               contents: [
-
                 {
-
                   parts: [
-
                     {
-
                       text: `
 
-You are an AI moderator for a PET SOCIAL MEDIA APP.
+You are an AI content moderator for BioPet,
+a social media application for pet lovers.
 
-Your job is to check whether a user's post is related to pets.
+Your job is to check whether a post is related
+to pets.
 
-RULES:
-
-1. Allow posts about:
+ALLOW:
 - Dogs
 - Cats
 - Birds
-- Rabbits
 - Fish
-- Other pets
+- Rabbits
 - Pet health
 - Pet food
 - Pet adoption
 - Pet care
-- Pet training
 - Veterinary topics
 - Pet products
 
-2. Block posts that are:
-- Completely unrelated to pets
+BLOCK:
 - Spam
 - Scam
 - Hate speech
-- Dangerous content
+- Illegal content
+- Completely unrelated posts
+- Advertising unrelated to pets
 
 Return ONLY valid JSON.
 
 Do NOT use markdown.
-
-Do NOT write explanations outside JSON.
 
 JSON FORMAT:
 
@@ -235,28 +196,24 @@ POST:
 "${text}"
 
                       `,
-
                     },
-
                   ],
-
                 },
-
               ],
-
             }),
-
         }
-
       );
+
 
     console.log(
       "GEMINI STATUS:",
       response.status
     );
 
+
     const data =
       await response.json();
+
 
     console.log(
       "GEMINI RESPONSE:",
@@ -267,21 +224,16 @@ POST:
       )
     );
 
-    // =================================================
-    // API ERROR
-    // =================================================
 
     if (
       !response.ok
     ) {
 
       console.error(
-        "❌ GEMINI API ERROR:",
-        data
+        "❌ GEMINI API ERROR"
       );
 
       return {
-
         allowed:
           true,
 
@@ -293,14 +245,10 @@ POST:
 
         reason:
           "Gemini API error",
-
       };
 
     }
 
-    // =================================================
-    // GET AI TEXT
-    // =================================================
 
     const raw =
       data
@@ -311,14 +259,16 @@ POST:
         ?.[0]
         ?.text;
 
-    if (!raw) {
+
+    if (
+      !raw
+    ) {
 
       console.error(
-        "❌ NO GEMINI TEXT"
+        "❌ NO GEMINI RESPONSE"
       );
 
       return {
-
         allowed:
           true,
 
@@ -330,28 +280,23 @@ POST:
 
         reason:
           "No Gemini response",
-
       };
 
     }
 
-    // =================================================
-    // PARSE AI
-    // =================================================
 
     return safeParseAI(
       raw
     );
 
-  } catch (err) {
+  } catch (error) {
 
     console.error(
       "❌ GEMINI ERROR:",
-      err
+      error.message
     );
 
     return {
-
       allowed:
         true,
 
@@ -363,19 +308,12 @@ POST:
 
       reason:
         "Gemini connection error",
-
     };
 
   }
-
 }
 
-// =====================================================
-// EXPORT
-// =====================================================
 
 module.exports = {
-
   analyzePost,
-
 };
