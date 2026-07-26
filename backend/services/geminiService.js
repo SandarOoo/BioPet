@@ -1,76 +1,225 @@
-require("dotenv").config();
+require("dotenv").config({
+  path: "../.env",
+});
 
-const API_KEY = process.env.GEMINI_API_KEY;
+const API_KEY =
+  process.env.GEMINI_API_KEY;
 
-console.log("GEMINI KEY EXISTS:", !!API_KEY);
+console.log(
+  "GEMINI KEY EXISTS:",
+  !!API_KEY
+);
 
 // =====================================================
 // SAFE JSON PARSER
 // =====================================================
 
 function safeParseAI(text) {
+
   try {
-    console.log("🔥 RAW GEMINI AI:", text);
 
-    let cleaned = text
-      .replace(/```json/g, "")
-      .replace(/```/g, "")
-      .trim();
+    console.log(
+      "🔥 RAW GEMINI:",
+      text
+    );
 
-    const start = cleaned.indexOf("{");
-    const end = cleaned.lastIndexOf("}");
+    let cleaned =
+      text
 
-    if (start === -1 || end === -1) {
-      throw new Error("No JSON found");
+        .replace(
+          /```json/gi,
+          ""
+        )
+
+        .replace(
+          /```/g,
+          ""
+        )
+
+        .trim();
+
+    const start =
+      cleaned.indexOf(
+        "{"
+      );
+
+    const end =
+      cleaned.lastIndexOf(
+        "}"
+      );
+
+    if (
+      start === -1 ||
+      end === -1
+    ) {
+
+      throw new Error(
+        "No JSON found"
+      );
+
     }
 
-    const jsonString = cleaned.substring(start, end + 1);
+    const jsonString =
+      cleaned.substring(
+        start,
+        end + 1
+      );
 
-    return JSON.parse(jsonString);
-  } catch (err) {
-    console.error("❌ AI PARSE ERROR:", err.message);
+    const parsed =
+      JSON.parse(
+        jsonString
+      );
 
     return {
-      allowed: true,
-      petRelated: true,
-      category: "general",
-      reason: "AI response could not be parsed",
+
+      allowed:
+        parsed.allowed !== false,
+
+      petRelated:
+        parsed.petRelated === true,
+
+      category:
+        parsed.category ||
+        "general",
+
+      reason:
+        parsed.reason ||
+        "AI moderation completed",
+
     };
+
+  } catch (err) {
+
+    console.error(
+      "❌ JSON PARSE ERROR:",
+      err.message
+    );
+
+    // IMPORTANT:
+    // Fallback means allow post
+    // if Gemini response cannot be parsed.
+
+    return {
+
+      allowed:
+        true,
+
+      petRelated:
+        true,
+
+      category:
+        "general",
+
+      reason:
+        "AI response could not be parsed",
+
+    };
+
   }
+
 }
 
 // =====================================================
-// ANALYZE POST (TEXT + IMAGES)
+// GEMINI AI MODERATION
 // =====================================================
 
-async function analyzePost(text, images = []) {
+async function analyzePost(
+  text
+) {
+
   try {
+
     if (!API_KEY) {
-      throw new Error("GEMINI_API_KEY is missing");
+
+      console.error(
+        "❌ GEMINI_API_KEY NOT FOUND"
+      );
+
+      return {
+
+        allowed:
+          true,
+
+        petRelated:
+          true,
+
+        category:
+          "general",
+
+        reason:
+          "Gemini API key not configured",
+
+      };
+
     }
 
-    console.log("🤖 Sending post to Gemini...");
-    console.log("🖼️ Image count:", images.length);
+    console.log(
+      "🤖 SENDING POST TO GEMINI"
+    );
 
-    const promptText = `
-You are a strict AI moderator for a PET social media application.
+    const response =
+      await fetch(
+
+        `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${API_KEY}`,
+
+        {
+
+          method:
+            "POST",
+
+          headers: {
+
+            "Content-Type":
+              "application/json",
+
+          },
+
+          body:
+            JSON.stringify({
+
+              contents: [
+
+                {
+
+                  parts: [
+
+                    {
+
+                      text: `
+
+You are an AI moderator for a PET SOCIAL MEDIA APP.
+
+Your job is to check whether a user's post is related to pets.
 
 RULES:
 
-1. Allow ONLY pet-related posts (text AND images).
-2. Allow posts about dogs, cats, birds, animals, pets, veterinary care, pet health, pet food, pet adoption, pet grooming and pet products.
-3. Block spam.
-4. Block scams.
-5. Block hate speech.
-6. Block unrelated content (including images that are not pet-related).
-7. Block advertisements that are not related to pets.
-8. If images are attached, check that the images also show pets or pet-related content.
+1. Allow posts about:
+- Dogs
+- Cats
+- Birds
+- Rabbits
+- Fish
+- Other pets
+- Pet health
+- Pet food
+- Pet adoption
+- Pet care
+- Pet training
+- Veterinary topics
+- Pet products
+
+2. Block posts that are:
+- Completely unrelated to pets
+- Spam
+- Scam
+- Hate speech
+- Dangerous content
 
 Return ONLY valid JSON.
 
-Do not use markdown.
-Do not use code blocks.
-Do not write any explanation outside JSON.
+Do NOT use markdown.
+
+Do NOT write explanations outside JSON.
 
 JSON FORMAT:
 
@@ -78,95 +227,155 @@ JSON FORMAT:
   "allowed": true,
   "petRelated": true,
   "category": "health",
-  "reason": "Short explanation"
+  "reason": "This post is about pet health."
 }
 
-Allowed categories:
-
-health
-adoption
-food
-grooming
-product
-general
-spam
-scam
-hate
-unrelated
-
-POST TEXT:
+POST:
 
 "${text}"
-    `;
 
-    // Build image parts for Gemini (inline base64)
-    const imageParts = images
-      .filter((img) => img && img.data)
-      .map((img) => {
-        const base64Data = img.data.includes(",")
-          ? img.data.split(",").pop()
-          : img.data;
+                      `,
 
-        return {
-          inline_data: {
-            mime_type: img.contentType || "image/jpeg",
-            data: base64Data,
-          },
-        };
-      });
+                    },
 
-    const parts = [{ text: promptText }, ...imageParts];
+                  ],
 
-    const response = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${API_KEY}`,
-      {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          contents: [
-            {
-              parts: parts,
-            },
-          ],
-        }),
-      }
+                },
+
+              ],
+
+            }),
+
+        }
+
+      );
+
+    console.log(
+      "GEMINI STATUS:",
+      response.status
     );
 
-    console.log("GEMINI STATUS:", response.status);
+    const data =
+      await response.json();
 
-    const data = await response.json();
+    console.log(
+      "GEMINI RESPONSE:",
+      JSON.stringify(
+        data,
+        null,
+        2
+      )
+    );
 
-    console.log("GEMINI RESPONSE:", JSON.stringify(data, null, 2));
+    // =================================================
+    // API ERROR
+    // =================================================
 
-    if (!response.ok) {
-      console.error("❌ GEMINI API ERROR:", data);
+    if (
+      !response.ok
+    ) {
 
-      throw new Error(
-        data?.error?.message || `Gemini API error: ${response.status}`
+      console.error(
+        "❌ GEMINI API ERROR:",
+        data
       );
+
+      return {
+
+        allowed:
+          true,
+
+        petRelated:
+          true,
+
+        category:
+          "general",
+
+        reason:
+          "Gemini API error",
+
+      };
+
     }
 
-    const raw = data?.candidates?.[0]?.content?.parts?.[0]?.text;
+    // =================================================
+    // GET AI TEXT
+    // =================================================
+
+    const raw =
+      data
+        ?.candidates
+        ?.[0]
+        ?.content
+        ?.parts
+        ?.[0]
+        ?.text;
 
     if (!raw) {
-      throw new Error("Gemini returned no text");
+
+      console.error(
+        "❌ NO GEMINI TEXT"
+      );
+
+      return {
+
+        allowed:
+          true,
+
+        petRelated:
+          true,
+
+        category:
+          "general",
+
+        reason:
+          "No Gemini response",
+
+      };
+
     }
 
-    return safeParseAI(raw);
+    // =================================================
+    // PARSE AI
+    // =================================================
+
+    return safeParseAI(
+      raw
+    );
+
   } catch (err) {
-    console.error("❌ GEMINI ERROR:", err.message);
+
+    console.error(
+      "❌ GEMINI ERROR:",
+      err
+    );
 
     return {
-      allowed: true,
-      petRelated: true,
-      category: "general",
-      reason: "AI service temporarily unavailable",
+
+      allowed:
+        true,
+
+      petRelated:
+        true,
+
+      category:
+        "general",
+
+      reason:
+        "Gemini connection error",
+
     };
+
   }
+
 }
 
+// =====================================================
+// EXPORT
+// =====================================================
+
 module.exports = {
+
   analyzePost,
+
 };

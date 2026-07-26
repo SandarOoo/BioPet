@@ -6,12 +6,18 @@ const express = require("express");
 const mongoose = require("mongoose");
 const cors = require("cors");
 
+// =====================================================
+// GEMINI SERVICE
+// =====================================================
+
+const {
+  analyzePost,
+} = require("./services/geminiService");
+
 console.log(
   "GEMINI KEY EXISTS:",
   !!process.env.GEMINI_API_KEY
 );
-
-const { analyzePost } = require("./services/geminiService");
 
 // =====================================================
 // APP
@@ -39,7 +45,60 @@ app.use(
 );
 
 // =====================================================
-// TEST GEMINI ROUTE
+// ROUTES
+// =====================================================
+
+const authRoute =
+  require("./routes/auth");
+
+const productRoutes =
+  require("./routes/productRoutes");
+
+const orderRoutes =
+  require("./routes/orderRoutes");
+
+const adminRoutes =
+  require("./routes/admin");
+
+const postRoutes =
+  require("./routes/postRoutes");
+
+// =====================================================
+// API ROUTES
+// =====================================================
+
+// AUTH
+app.use(
+  "/api/auth",
+  authRoute
+);
+
+// BUSINESS / PRODUCTS
+app.use(
+  "/api/business",
+  productRoutes
+);
+
+// ORDERS
+app.use(
+  "/api/orders",
+  orderRoutes
+);
+
+// ADMIN
+app.use(
+  "/api/admin",
+  adminRoutes
+);
+
+// POSTS / NEWS FEED
+app.use(
+  "/api/posts",
+  postRoutes
+);
+
+// =====================================================
+// TEST GEMINI
 // =====================================================
 
 app.get(
@@ -48,21 +107,42 @@ app.get(
 
     try {
 
+      console.log(
+        "🤖 TESTING GEMINI..."
+      );
+
       const result =
         await analyzePost(
           "My dog is sick and needs veterinary care."
         );
 
+      console.log(
+        "🤖 GEMINI TEST RESULT:",
+        result
+      );
+
       return res.json({
+
         success: true,
+
         ai: result,
+
       });
 
     } catch (err) {
 
+      console.error(
+        "❌ GEMINI TEST ERROR:",
+        err
+      );
+
       return res.status(500).json({
+
         success: false,
-        error: err.message,
+
+        error:
+          err.message,
+
       });
 
     }
@@ -71,41 +151,20 @@ app.get(
 );
 
 // =====================================================
-// ROUTES
+// ENVIRONMENT CHECK
 // =====================================================
 
-const authRoute = require("./routes/auth");
-const productRoutes = require("./routes/productRoutes");
-const orderRoutes = require("./routes/orderRoutes");
-const adminRoutes = require("./routes/admin");
-const postRoutes = require("./routes/postRoutes");
+console.log(
+  "================================="
+);
 
-// =====================================================
-// API ROUTES
-// =====================================================
+console.log(
+  "ENVIRONMENT CHECK"
+);
 
-// AUTH
-app.use("/api/auth", authRoute);
-
-// BUSINESS / PRODUCTS
-app.use("/api/business", productRoutes);
-
-// ORDERS
-app.use("/api/orders", orderRoutes);
-
-// ADMIN
-app.use("/api/admin", adminRoutes);
-
-// POSTS (feed, create post, like, comment)
-app.use("/api/posts", postRoutes);
-
-// =====================================================
-// ENV CHECK
-// =====================================================
-
-console.log("=================================");
-console.log("ENVIRONMENT CHECK");
-console.log("=================================");
+console.log(
+  "================================="
+);
 
 console.log(
   "MONGO_URI EXISTS:",
@@ -137,19 +196,30 @@ console.log(
 // =====================================================
 
 mongoose
-  .connect(process.env.MONGO_URI)
+  .connect(
+    process.env.MONGO_URI
+  )
+
   .then(() => {
-    console.log("✅ MongoDB Connected");
+
+    console.log(
+      "✅ MongoDB Connected"
+    );
+
     console.log(
       "Database:",
       mongoose.connection.name
     );
+
   })
+
   .catch((err) => {
+
     console.error(
       "❌ MongoDB Error:",
       err.message
     );
+
   });
 
 // =====================================================
@@ -159,30 +229,46 @@ mongoose
 app.get(
   "/",
   (req, res) => {
+
     res.json({
+
       success: true,
-      message: "BioPet API Running",
+
+      message:
+        "BioPet API Running",
+
     });
+
   }
 );
 
 // =====================================================
-// ERROR HANDLER
+// GLOBAL ERROR HANDLER
 // =====================================================
 
 app.use(
-  (err, req, res, next) => {
+  (
+    err,
+    req,
+    res,
+    next
+  ) => {
+
     console.error(
       "GLOBAL ERROR:",
       err
     );
 
     res.status(500).json({
+
       success: false,
+
       message:
         err.message ||
         "Server error",
+
     });
+
   }
 );
 
@@ -198,8 +284,10 @@ app.listen(
   PORT,
   "0.0.0.0",
   () => {
+
     console.log(
       `🚀 Server running on port ${PORT}`
     );
+
   }
 );

@@ -1,7 +1,5 @@
 import 'dart:convert';
 import 'dart:io';
-import 'package:biopet/Login_Screen.dart';
-import 'package:biopet/screens/users/ShopPage.dart';
 import 'package:biopet/time_ago.dart';
 import 'package:http_parser/http_parser.dart';
 import 'package:biopet/services/api_service.dart';
@@ -104,24 +102,13 @@ class PostApiService {
     print(response.body);
 
     if (response.statusCode == 200) {
-      final decoded = jsonDecode(response.body);
-
-      List<dynamic> postsList;
-      if (decoded is Map && decoded['success'] == true) {
-        postsList = decoded['posts'] as List<dynamic>;
-      } else if (decoded is List) {
-        postsList = decoded;
-      } else {
-        throw Exception('Unexpected response format');
-      }
-
-      return postsList
-          .map((e) => Post.fromJson(Map<String, dynamic>.from(e)))
-          .toList();
+      final List data = jsonDecode(response.body);
+      return data.map((e) => Post.fromJson(e)).toList();
     }
 
     throw Exception('Failed to load posts');
   }
+
   static Future<Map<String, dynamic>> createPostWithImages({
     required String text,
     required List<File> imageFiles,
@@ -432,15 +419,9 @@ class _HomeScreenState extends State<HomeScreen> {
         IconButton(
           icon: Badge(
             backgroundColor: _T.accent,
-            child: const Icon(Icons.logout_outlined, color: _T.textPrimary),
+            child: const Icon(Icons.notifications_outlined, color: _T.textPrimary),
           ),
-          onPressed: () async {
-            await ApiService.logout();
-            
-            if(!mounted) return;
-            
-            Navigator.pushReplacement(context, MaterialPageRoute(builder: (_) => const ShopPage()));
-          },
+          onPressed: () {},
         ),
         const SizedBox(width: 4),
       ],

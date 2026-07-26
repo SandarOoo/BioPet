@@ -1,475 +1,153 @@
 import 'dart:convert';
 import 'dart:io';
-
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 
-import '../models/post.dart';
-
 class PostApiService {
+  static final baseUrl = dotenv.env['BASE_URL'] ?? "";
 
-  static final String baseUrl =
-      dotenv.env['BASE_URL'] ?? "";
-
-  // ============================================================
+  // ─────────────────────────────
   // TOKEN
-  // ============================================================
-
+  // ─────────────────────────────
   static Future<String?> getToken() async {
-
-    final prefs =
-    await SharedPreferences.getInstance();
-
+    final prefs = await SharedPreferences.getInstance();
     return prefs.getString('token');
   }
 
-
-  // ============================================================
-  // HEADERS
-  // ============================================================
-
-  static Future<Map<String, String>> _headers({
-    bool isJson = true,
-  }) async {
-
-    final token =
-    await getToken();
+  static Future<Map<String, String>> _headers({bool isJson = true}) async {
+    final token = await getToken();
 
     return {
-
-      if (isJson)
-        "Content-Type":
-        "application/json",
-
-      "ngrok-skip-browser-warning":
-      "true",
-
-      if (token != null &&
-          token.isNotEmpty)
-        "Authorization":
-        "Bearer $token",
-
+      if (isJson) "Content-Type": "application/json",
+      if (token != null) "Authorization": "Bearer $token",
     };
-
   }
 
-
-  // ============================================================
+  // ─────────────────────────────
   // CURRENT USER
-  // ============================================================
-
-  static String _currentUserId =
-      "guest";
-
-  static String _currentUserName =
-      "Guest";
-
+  // ─────────────────────────────
+  static String _currentUserId = "guest";
+  static String _currentUserName = "Guest";
 
   static void setUser({
     required String id,
     required String name,
   }) {
-
-    _currentUserId =
-        id;
-
-    _currentUserName =
-        name;
-
-    print(
-      "POST SERVICE USER ID => "
-          "$_currentUserId",
-    );
-
-    print(
-      "POST SERVICE USER NAME => "
-          "$_currentUserName",
-    );
-
+    _currentUserId = id;
+    _currentUserName = name;
   }
 
+  static String get currentUserId => _currentUserId;
+  static String get currentUserName => _currentUserName;
 
-  static String get currentUserId =>
-      _currentUserId;
-
-
-  static String get currentUserName =>
-      _currentUserName;
-
-
-
-  // ============================================================
+  // ─────────────────────────────
   // FETCH POSTS
-  // ===========================================baseUrl========
+  // ─────────────────────────────
+  static Future<List<Map<String, dynamic>>> fetchPosts(int page) async {
+    final uri = Uri.parse("$baseUrl/api/posts?page=$page&limit=10");
 
-  static Future<List<Post>> fetchPosts(int page) async {
-    final uri = Uri.parse('$baseUrl/api/posts?page=$page&limit=10');
-    final response = await http.get(uri);
+    final res = await http.get(uri, headers: await _headers());
 
-    print("GET POSTS => ${response.statusCode}");
-    print(response.body);
-
-    if (response.statusCode == 200) {
-      final decoded = jsonDecode(response.body);
-
-      List<dynamic> postsList;
-      if (decoded is Map && decoded['success'] == true) {
-        postsList = decoded['posts'] as List<dynamic>;
-      } else if (decoded is List) {
-        postsList = decoded;
-      } else {
-        throw Exception('Unexpected response format');
-      }
-
-      return postsList
-          .map((e) => Post.fromJson(Map<String, dynamic>.from(e)))
-          .toList();
+    if (res.statusCode != 200) {
+      throw Exception("Fetch posts failed: ${res.body}");
     }
 
-    throw Exception('Failed to load posts');
+    final data = jsonDecode(res.body);
+
+    if (data is List) {
+      return List<Map<String, dynamic>>.from(data);
+    }
+
+    return [];
   }
 
-
-  // ============================================================
-  // CREATE POST + GEMINI AI
-  // ============================================================
-
-  static Future<Map<String, dynamic>>
-  createPostWithImages({
-
+  // ─────────────────────────────
+  // CREATE POST (WITH AI)
+  // ─────────────────────────────
+  static Future<Map<String, dynamic>> createPostWithImages({
     required String text,
-
-    required List<File>
-    imageFiles,
-
+    required List<File> imageFiles,
   }) async {
+    final uri = Uri.parse("$baseUrl/api/posts/create");
 
-    try {
+    final request = http.MultipartRequest("POST", uri);
+    request.headers.addAll(await _headers(isJson: false));
 
-      final uri =
-      Uri.parse(
-        "$baseUrl/api/posts/create",
+    request.fields["userId"] = _currentUserId;
+    request.fields["name"] = _currentUserName;
+    request.fields["text"] = text;
+
+    for (final file in imageFiles) {
+      request.files.add(
+        await http.MultipartFile.fromPath("images", file.path),
       );
-
-
-      print(
-        "CREATE POST URL => $uri",
-      );
-
-
-      final request =
-      http.MultipartRequest(
-        "POST",
-        uri,
-      );
-
-
-      request.headers.addAll(
-        await _headers(
-          isJson: false,
-        ),
-      );
-
-
-      // ========================================================
-      // USER DATA
-      // ========================================================
-
-      request.fields["userId"] =
-          _currentUserId;
-
-
-      request.fields["name"] =
-          _currentUserName;
-
-
-      request.fields["text"] =
-          text.trim();
-
-
-      // ========================================================
-      // IMAGES
-      // ========================================================
-
-      for (
-      final file
-      in imageFiles
-      ) {
-
-        request.files.add(
-
-          await http.MultipartFile
-              .fromPath(
-
-            "images",
-
-            file.path,
-
-          ),
-
-        );
-
-      }
-
-
-      print(
-        "SENDING POST TO BACKEND...",
-      );
-
-
-      final streamed =
-      await request.send();
-
-
-      final response =
-      await streamed
-          .stream
-          .bytesToString();
-
-
-      print(
-        "CREATE POST STATUS => "
-            "${streamed.statusCode}",
-      );
-
-
-      print(
-        "CREATE POST RESPONSE => "
-            "$response",
-      );
-
-
-      final decoded =
-      jsonDecode(
-        response,
-      );
-
-
-      // ========================================================
-      // SUCCESS
-      // ========================================================
-
-      if (
-      streamed.statusCode ==
-          201 &&
-          decoded["success"] ==
-              true
-      ) {
-
-        print(
-          "POST CREATED SUCCESSFULLY",
-        );
-
-
-        print(
-          "AI RESULT => "
-              "${decoded["ai"]}",
-        );
-
-
-        return {
-
-          "success":
-          true,
-
-          "post":
-          decoded["post"],
-
-          "ai":
-          decoded["ai"],
-
-          "message":
-          decoded["message"],
-
-        };
-
-      }
-
-
-      // ========================================================
-      // AI BLOCKED POST
-      // ========================================================
-
-      throw Exception(
-
-        decoded["message"] ??
-            "Create post failed",
-
-      );
-
-
-    } catch (e) {
-
-      print(
-        "CREATE POST ERROR => $e",
-      );
-
-      rethrow;
-
     }
 
+    final streamed = await request.send();
+    final response = await streamed.stream.bytesToString();
+
+    final decoded = jsonDecode(response);
+
+    if (streamed.statusCode == 201) {
+      return {
+        "post": decoded["post"],
+        "ai": decoded["ai"]
+      };
+    }
+
+    throw Exception(decoded["message"] ?? "Create post failed");
   }
 
-
-
-  // ============================================================
+  // ─────────────────────────────
   // LIKE POST
-  // ============================================================
+  // ─────────────────────────────
+  static Future<Map<String, dynamic>> toggleLike(String postId) async {
+    final uri = Uri.parse("$baseUrl/api/posts/like");
 
-  static Future<Map<String, dynamic>>
-  toggleLike(
-      String postId,
-      ) async {
-
-    final uri =
-    Uri.parse(
-      "$baseUrl/api/posts/like",
-    );
-
-
-    final res =
-    await http.post(
-
+    final res = await http.post(
       uri,
-
-      headers:
-      await _headers(),
-
-      body:
-      jsonEncode({
-
-        "postId":
-        postId,
-
-        "userId":
-        _currentUserId,
-
+      headers: await _headers(),
+      body: jsonEncode({
+        "postId": postId,
+        "userId": _currentUserId,
       }),
-
     );
 
+    final data = jsonDecode(res.body);
 
-    print(
-      "LIKE STATUS => "
-          "${res.statusCode}",
-    );
-
-
-    print(
-      "LIKE BODY => "
-          "${res.body}",
-    );
-
-
-    final data =
-    jsonDecode(
-      res.body,
-    );
-
-
-    if (
-    res.statusCode !=
-        200
-    ) {
-
-      throw Exception(
-
-        data["message"] ??
-            data["error"] ??
-            "Like failed",
-
-      );
-
+    if (res.statusCode != 200) {
+      throw Exception(data["error"] ?? "Like failed");
     }
 
-
     return data;
-
   }
 
-
-
-  // ============================================================
-  // ADD COMMENT
-  // ============================================================
-
-  static Future<Map<String, dynamic>>
-  addComment({
-
+  // ─────────────────────────────
+  // COMMENT
+  // ─────────────────────────────
+  static Future<Map<String, dynamic>> addComment({
     required String postId,
-
     required String text,
-
   }) async {
+    final uri = Uri.parse("$baseUrl/api/posts/comment");
 
-    final uri =
-    Uri.parse(
-      "$baseUrl/api/posts/comment",
-    );
-
-
-    final res =
-    await http.post(
-
+    final res = await http.post(
       uri,
-
-      headers:
-      await _headers(),
-
-      body:
-      jsonEncode({
-
-        "postId":
-        postId,
-
-        "userId":
-        _currentUserId,
-
-        "text":
-        text.trim(),
-
+      headers: await _headers(),
+      body: jsonEncode({
+        "postId": postId,
+        "userId": _currentUserId,
+        "text": text,
       }),
-
     );
 
+    final data = jsonDecode(res.body);
 
-    print(
-      "COMMENT STATUS => "
-          "${res.statusCode}",
-    );
-
-
-    print(
-      "COMMENT BODY => "
-          "${res.body}",
-    );
-
-
-    final data =
-    jsonDecode(
-      res.body,
-    );
-
-
-    if (
-    res.statusCode !=
-        200
-    ) {
-
-      throw Exception(
-
-        data["message"] ??
-            data["error"] ??
-            "Comment failed",
-
-      );
-
+    if (res.statusCode != 200) {
+      throw Exception(data["error"] ?? "Comment failed");
     }
 
-
     return data;
-
   }
-
 }
