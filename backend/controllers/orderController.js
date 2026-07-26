@@ -293,3 +293,237 @@ exports.cancelOrder = async (
     });
   }
 };
+
+// =====================================================
+// GET BUSINESS OWNER ORDERS
+// =====================================================
+
+// =====================================================
+// GET BUSINESS OWNER ORDERS
+// =====================================================
+
+// =====================================================
+// GET BUSINESS OWNER ORDERS
+// =====================================================
+
+exports.getBusinessOrders = async (
+  req,
+  res
+) => {
+  try {
+    // 1. Find products owned by current business owner
+    const businessProducts =
+      await Product.find({
+        owner: req.user._id,
+      }).select("_id");
+
+    const productIds =
+      businessProducts.map(
+        (product) => product._id.toString()
+      );
+
+    // 2. Find orders containing business owner's products
+    const orders =
+      await Order.find({
+        "items.product": {
+          $in: productIds,
+        },
+      })
+        .populate(
+          "customer",
+          "name email phone"
+        )
+        .populate(
+          "items.product"
+        )
+        .sort({
+          createdAt: -1,
+        });
+
+    // 3. Return only this business owner's products
+    const businessOrders =
+      orders.map((order) => {
+        const filteredItems =
+          order.items.filter((item) => {
+            if (!item.product) {
+              return false;
+            }
+
+            return productIds.includes(
+              item.product._id.toString()
+            );
+          });
+
+        return {
+          _id: order._id,
+          orderNumber:
+            order.orderNumber,
+
+          customer:
+            order.customer,
+
+          items:
+            filteredItems,
+
+          // Calculate only this business owner's total
+          totalAmount:
+            filteredItems.reduce(
+              (total, item) =>
+                total +
+                Number(item.price) *
+                  Number(item.quantity),
+              0
+            ),
+
+          shippingAddress:
+            order.shippingAddress,
+
+          paymentMethod:
+            order.paymentMethod,
+
+          paymentStatus:
+            order.paymentStatus,
+
+          status:
+            order.status,
+
+          createdAt:
+            order.createdAt,
+
+          updatedAt:
+            order.updatedAt,
+        };
+      });
+
+    return res.status(200).json({
+      success: true,
+      orders:
+        businessOrders,
+    });
+
+  } catch (error) {
+    console.error(
+      "GET BUSINESS ORDERS ERROR:",
+      error
+    );
+
+    return res.status(500).json({
+      success: false,
+      message: error.message,
+    });
+  }
+};
+
+
+// =====================================================
+// UPDATE ORDER STATUS - BUSINESS OWNER
+// =====================================================
+
+exports.updateOrderStatus = async (
+  req,
+  res
+) => {
+  try {
+    const {
+      status,
+    } = req.body;
+
+    // Allowed statuses
+    const allowedStatuses = [
+      "Pending",
+      "Confirmed",
+      "Processing",
+      "Shipped",
+      "Delivered",
+      "Cancelled",
+    ];
+
+    // Check status
+    if (
+      !status ||
+      !allowedStatuses.includes(status)
+    ) {
+      return res.status(400).json({
+        success: false,
+        message:
+          "Invalid order status",
+        allowedStatuses,
+      });
+    }
+
+    // Find order
+    const order =
+      await Order.findById(
+        req.params.id
+      ).populate(
+        "items.product"
+      );
+
+    if (!order) {
+      return res.status(404).json({
+        success: false,
+        message:
+          "Order not found",
+      });
+    }
+
+    // Check if business owner owns
+    // at least one product in this order
+    const isBusinessOwner =
+      order.items.some((item) => {
+        if (!item.product) {
+          return false;
+        }
+
+        return (
+          item.product.owner.toString() ===
+          req.user._id.toString()
+        );
+      });
+
+    if (!isBusinessOwner) {
+      return res.status(403).json({
+        success: false,
+        message:
+          "You are not authorized to update this order",
+      });
+    }
+
+    // Update status
+    order.status = status;
+
+    await order.save();
+
+    // Populate response
+    const updatedOrder =
+      await Order.findById(
+        order._id
+      )
+        .populate(
+          "customer",
+          "name email phone"
+        )
+        .populate(
+          "items.product"
+        );
+
+    return res.status(200).json({
+      success: true,
+      message:
+        "Order status updated successfully",
+      order:
+        updatedOrder,
+    });
+
+  } catch (error) {
+    console.error(
+      "UPDATE ORDER STATUS ERROR:",
+      error
+    );
+
+    return res.status(500).json({
+      success: false,
+      message: error.message,
+    });
+  }
+};

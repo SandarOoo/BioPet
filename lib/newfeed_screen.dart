@@ -826,18 +826,21 @@ class _CreatePostSheetState extends State<_CreatePostSheet> {
 
       final Map<String, dynamic> data = res;
 
-      final postJson = data['post'];
-      final ai = data['ai'];
+      // final postJson = data['post'];
+      // final ai = data['ai'];
+      //
+      // if (ai != null && ai['allowed'] == false) {
+      //   setState(() {
+      //     _error = "Post blocked by AI 🚫 (${ai['category']})";
+      //     _isPosting = false;
+      //   });
+      //   return;
+      // }
 
-      if (ai != null && ai['allowed'] == false) {
-        setState(() {
-          _error = "Post blocked by AI 🚫 (${ai['category']})";
-          _isPosting = false;
-        });
-        return;
-      }
+      final postJson = data['post'];
 
       final post = Post.fromJson(postJson);
+
 
       if (mounted) widget.onPostCreated(post);
 

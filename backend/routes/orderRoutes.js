@@ -1,13 +1,14 @@
 const express = require("express");
 
-const router =
-  express.Router();
+const router = express.Router();
 
 const {
   createOrder,
   getMyOrders,
   getOrderById,
   cancelOrder,
+  getBusinessOrders,
+  updateOrderStatus,
 } = require(
   "../controllers/orderController"
 );
@@ -35,11 +36,27 @@ router.get(
 );
 
 
+// GET BUSINESS OWNER ORDERS
+// MUST BE BEFORE /:id
+router.get(
+  "/business",
+  protect,
+  getBusinessOrders
+);
+
+
 // GET ORDER DETAIL
 router.get(
   "/:id",
   protect,
   getOrderById
+);
+
+// UPDATE ORDER STATUS
+router.put(
+  "/:id/status",
+  protect,
+  updateOrderStatus
 );
 
 
@@ -51,5 +68,4 @@ router.put(
 );
 
 
-module.exports =
-  router;
+module.exports = router;

@@ -2,10 +2,14 @@ import 'dart:convert';
 import 'package:biopet/services/api_service.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:http/http.dart' as http;
+import '../models/business_order.dart';
 import '../models/product.dart';
 
+import 'order_service.dart';
+
+
 class BusinessService {
-  final String baseUrl =dotenv.env['BASE_URL'] ?? "";
+  final String baseUrl = dotenv.env['BASE_URL'] ?? "";
 
   // =========================================================
 // CREATE ORDER
@@ -18,7 +22,6 @@ class BusinessService {
     required String address,
     String paymentMethod = "COD",
   }) async {
-
     final token =
     await ApiService.getToken();
 
@@ -73,9 +76,7 @@ class BusinessService {
     response.statusCode == 201 &&
         data['success'] == true
     ) {
-
       return data;
-
     }
 
     throw Exception(
@@ -90,7 +91,6 @@ class BusinessService {
 // =========================================================
 
   Future<List<dynamic>> getMyOrders() async {
-
     final token =
     await ApiService.getToken();
 
@@ -117,9 +117,7 @@ class BusinessService {
     response.statusCode == 200 &&
         data['success'] == true
     ) {
-
       return data['orders'] ?? [];
-
     }
 
     throw Exception(
@@ -134,10 +132,7 @@ class BusinessService {
 // =========================================================
 
   Future<Map<String, dynamic>>
-  getOrderById(
-      String orderId,
-      ) async {
-
+  getOrderById(String orderId,) async {
     final token =
     await ApiService.getToken();
 
@@ -161,9 +156,7 @@ class BusinessService {
     response.statusCode == 200 &&
         data['success'] == true
     ) {
-
       return data['order'];
-
     }
 
     throw Exception(
@@ -179,7 +172,6 @@ class BusinessService {
   // =========================================================
 
   Future<List<Product>> getShopProducts() async {
-
     final url =
         '${ApiService.baseUrl}/api/business/shop/products';
 
@@ -189,7 +181,6 @@ class BusinessService {
     print('======================================');
 
     try {
-
       final response = await http.get(
 
         Uri.parse(url),
@@ -218,13 +209,11 @@ class BusinessService {
       // ---------------------------------------------------
 
       if (response.statusCode != 200) {
-
         throw Exception(
           'Failed to load products.\n'
               'Status: ${response.statusCode}\n'
               'Response: ${response.body}',
         );
-
       }
 
 
@@ -236,13 +225,11 @@ class BusinessService {
           response.headers['content-type'] ?? '';
 
       if (!contentType.contains('application/json')) {
-
         throw Exception(
           'Server returned non-JSON response.\n'
               'Status: ${response.statusCode}\n'
               'Response: ${response.body}',
         );
-
       }
 
 
@@ -255,12 +242,10 @@ class BusinessService {
       // ---------------------------------------------------
 
       if (data['success'] != true) {
-
         throw Exception(
           data['message'] ??
               'Failed to load products',
         );
-
       }
 
 
@@ -280,33 +265,27 @@ class BusinessService {
             ),
       )
           .toList();
-
     } catch (e) {
-
       print(
         'GET SHOP PRODUCTS ERROR => $e',
       );
 
       rethrow;
-
     }
-
   }
-
 
 
   // get_products
 
   Future<List<Product>> getProducts() async {
-
     final token = await ApiService.getToken();
 
     final response = await http.get(
       Uri.parse(
           "${ApiService.baseUrl}/api/business/products"
       ),
-      headers:{
-        "Authorization":"Bearer $token"
+      headers: {
+        "Authorization": "Bearer $token"
       },
     );
 
@@ -314,24 +293,18 @@ class BusinessService {
     final data = jsonDecode(response.body);
 
 
-    if(response.statusCode == 200){
-
+    if (response.statusCode == 200) {
       return (data["products"] as List)
           .map(
-              (item)=>Product.fromJson(item)
+              (item) => Product.fromJson(item)
       )
           .toList();
-
-    }else{
-
+    } else {
       throw Exception(
           data["message"] ?? "Failed to load products"
       );
-
     }
-
   }
-
 
 
   Future<bool> addProduct(Map<String, dynamic> body) async {
@@ -356,7 +329,8 @@ class BusinessService {
     print("RESPONSE BODY: ${response.body}");
 
     // Prevent jsonDecode HTML error
-    if (response.headers['content-type']?.contains('application/json') != true) {
+    if (response.headers['content-type']?.contains('application/json') !=
+        true) {
       throw Exception(
         "Server returned non-JSON response.\n"
             "Status: ${response.statusCode}\n"
@@ -377,9 +351,103 @@ class BusinessService {
     );
   }
 
+
+  Future<List<BusinessOrder>> getBusinessOrders() async {
+    final token = await ApiService.getToken();
+
+    if (token == null || token.isEmpty) {
+      throw Exception("User token not found");
+    }
+
+    final response = await http.get(
+      Uri.parse(
+        '${ApiService.baseUrl}/api/orders/business',
+      ),
+      headers: {
+        'Authorization': 'Bearer $token',
+        'Content-Type': 'application/json',
+      },
+    );
+
+    print(
+      "GET BUSINESS ORDERS STATUS: ${response.statusCode}",
+    );
+
+    print(
+      "GET BUSINESS ORDERS RESPONSE: ${response.body}",
+    );
+
+    if (response.statusCode == 200) {
+      final data = jsonDecode(response.body);
+
+      final List orders =
+          data['orders'] ?? [];
+
+      return orders
+          .map(
+            (order) =>
+            BusinessOrder.fromJson(
+              order,
+            ),
+      )
+          .toList();
+    }
+
+    throw Exception(
+      "Failed to load business orders: ${response.body}",
+    );
+  }
+
+
+  // =====================================================
+  // UPDATE ORDER STATUS
+  // =====================================================
+
+  Future<Map<String, dynamic>> updateOrderStatus({
+    required String orderId,
+    required String status,
+  }) async {
+    final token = await ApiService.getToken();
+
+    if (token == null || token.isEmpty) {
+      throw Exception("User token not found");
+    }
+
+    final response = await http.put(
+      Uri.parse(
+        '${ApiService.baseUrl}/api/orders/$orderId/status',
+      ),
+      headers: {
+        'Authorization': 'Bearer $token',
+        'Content-Type': 'application/json',
+      },
+      body: jsonEncode({
+        'status': status,
+      }),
+    );
+
+    print(
+      "UPDATE ORDER STATUS: ${response.statusCode}",
+    );
+
+    print(
+      "UPDATE ORDER RESPONSE: ${response.body}",
+    );
+
+    final data = jsonDecode(response.body);
+
+    if (response.statusCode == 200) {
+      return data;
+    }
+
+    throw Exception(
+      data['message'] ??
+          'Failed to update order status',
+    );
+  }
+
+
   Future<bool> deleteProduct(String id) async {
-
-
     final token =
     await ApiService.getToken();
 
@@ -392,19 +460,18 @@ class BusinessService {
       ),
 
 
-      headers:{
-        "Authorization":"Bearer $token"
+      headers: {
+        "Authorization": "Bearer $token"
       },
 
 
     );
 
 
-    final data=jsonDecode(response.body);
+    final data = jsonDecode(response.body);
 
 
-    return data['success']==true;
-
+    return data['success'] == true;
   }
 
   Future<bool> updateProduct({
@@ -443,7 +510,6 @@ class BusinessService {
 
       print('UPDATE PRODUCT ERROR: ${response.body}');
       return false;
-
     } catch (e) {
       print('UPDATE PRODUCT ERROR: $e');
       return false;
@@ -451,46 +517,42 @@ class BusinessService {
   }
 
 
-
   Future<bool> acceptAgreement(String token) async {
-    final response = await http.put(Uri.parse("$baseUrl/api/business/agreement"),
-    headers: {
-      "Content-Type":"application/json",
-      "Authorization":"Bearer $token",
-    },
-      body: jsonEncode({"accepted": true})
+    final response = await http.put(
+        Uri.parse("$baseUrl/api/business/agreement"),
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": "Bearer $token",
+        },
+        body: jsonEncode({"accepted": true})
     );
 
     final data = jsonDecode(response.body);
 
-    if(response.statusCode== 200 && data["success"]== true){
+    if (response.statusCode == 200 && data["success"] == true) {
       return true;
     }
     return false;
   }
 
-  Future<bool> updateLocation(
-      String token,
+  Future<bool> updateLocation(String token,
       double latitude,
-      double longitude,
-      ) async {
-
+      double longitude,) async {
     final response = await http.put(
 
       Uri.parse(
           "$baseUrl/api/business/location"
       ),
 
-      headers:{
-        "Content-Type":"application/json",
-        "Authorization":"Bearer $token"
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": "Bearer $token"
       },
 
       body: jsonEncode({
 
         "latitude": latitude,
         "longitude": longitude
-
       }),
 
     );
@@ -501,20 +563,18 @@ class BusinessService {
 
     return response.statusCode == 200 &&
         data["success"] == true;
-
   }
 
   Future<bool> submitBusiness(String token) async {
-
     final response = await http.put(
 
       Uri.parse(
           "$baseUrl/api/business/submit"
       ),
 
-      headers:{
-        "Authorization":"Bearer $token",
-        "Content-Type":"application/json",
+      headers: {
+        "Authorization": "Bearer $token",
+        "Content-Type": "application/json",
       },
 
     );
@@ -525,6 +585,5 @@ class BusinessService {
 
     return response.statusCode == 200 &&
         data["success"] == true;
-
   }
 }
