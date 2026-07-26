@@ -12,70 +12,42 @@ console.log(
 // =====================================================
 
 function safeParseAI(text) {
-
   try {
-
-    console.log(
-      "🔥 RAW GEMINI AI:",
-      text
-    );
+    console.log("🔥 RAW GEMINI AI:", text);
 
     let cleaned = text
       .replace(/```json/g, "")
       .replace(/```/g, "")
       .trim();
 
-    const start =
-      cleaned.indexOf("{");
+    const start = cleaned.indexOf("{");
+    const end = cleaned.lastIndexOf("}");
 
-    const end =
-      cleaned.lastIndexOf("}");
-
-    if (
-      start === -1 ||
-      end === -1
-    ) {
-      throw new Error(
-        "No JSON found in Gemini response"
-      );
+    if (start === -1 || end === -1) {
+      throw new Error("No JSON found");
     }
 
-    const jsonString =
-      cleaned.substring(
-        start,
-        end + 1
-      );
+    const jsonString = cleaned.substring(
+      start,
+      end + 1
+    );
 
-    const result =
-      JSON.parse(jsonString);
-
-    return result;
+    return JSON.parse(jsonString);
 
   } catch (err) {
-
     console.error(
       "❌ AI PARSE ERROR:",
       err.message
     );
 
-    // Safe fallback
     return {
-
       allowed: true,
-
       petRelated: true,
-
       category: "general",
-
-      reason:
-        "AI response could not be parsed"
-
+      reason: "AI response could not be parsed"
     };
-
   }
-
 }
-
 
 // =====================================================
 // ANALYZE POST
@@ -86,65 +58,50 @@ async function analyzePost(text) {
   try {
 
     if (!API_KEY) {
-
       throw new Error(
         "GEMINI_API_KEY is missing"
       );
-
     }
 
     console.log(
       "🤖 Sending post to Gemini..."
     );
 
-    const response =
-      await fetch(
+    const response = await fetch(
+      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${API_KEY}`,
+      {
+        method: "POST",
 
-        `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${API_KEY}`,
+        headers: {
+          "Content-Type": "application/json",
+        },
 
-        {
+        body: JSON.stringify({
 
-          method: "POST",
+          contents: [
 
-          headers: {
-
-            "Content-Type":
-              "application/json",
-
-          },
-
-          body:
-            JSON.stringify({
-
-              contents: [
+            {
+              parts: [
 
                 {
-
-                  parts: [
-
-                    {
-
-                      text: `
-
-You are a strict AI moderator for a pet social media application.
-
-Your job is to check whether the user's post is appropriate.
+                  text: `
+You are a strict AI moderator for a PET social media application.
 
 RULES:
 
-1. Allow pet-related content.
+1. Allow ONLY pet-related posts.
 2. Allow posts about dogs, cats, birds, animals, pets, veterinary care, pet health, pet food, pet adoption, pet grooming and pet products.
 3. Block spam.
 4. Block scams.
 5. Block hate speech.
 6. Block unrelated content.
 7. Block advertisements that are not related to pets.
-8. If the post is related to pets, allowed should be true.
 
 Return ONLY valid JSON.
 
 Do not use markdown.
-Do not use ```.
+Do not use code blocks.
+Do not write any explanation outside JSON.
 
 JSON FORMAT:
 
@@ -171,33 +128,25 @@ unrelated
 POST:
 
 "${text}"
-
-                      `,
-
-                    },
-
-                  ],
-
+                  `,
                 },
 
               ],
+            },
 
-            }),
+          ],
 
-        }
-
-      );
-
+        }),
+      }
+    );
 
     console.log(
       "GEMINI STATUS:",
       response.status
     );
 
-
     const data =
       await response.json();
-
 
     console.log(
       "GEMINI RESPONSE:",
@@ -208,9 +157,8 @@ POST:
       )
     );
 
-
     // =================================================
-    // CHECK API ERROR
+    // GEMINI API ERROR
     // =================================================
 
     if (!response.ok) {
@@ -224,38 +172,31 @@ POST:
         data?.error?.message ||
         `Gemini API error: ${response.status}`
       );
-
     }
 
-
     // =================================================
-    // GET GEMINI TEXT
+    // GET GEMINI RESPONSE TEXT
     // =================================================
 
     const raw =
       data
         ?.candidates?.[0]
-        ?.content?.parts?.[0]
+        ?.content
+        ?.parts?.[0]
         ?.text;
-
 
     if (!raw) {
 
       throw new Error(
         "Gemini returned no text"
       );
-
     }
 
-
     // =================================================
-    // PARSE JSON
+    // PARSE GEMINI JSON
     // =================================================
 
-    return safeParseAI(
-      raw
-    );
-
+    return safeParseAI(raw);
 
   } catch (err) {
 
@@ -264,25 +205,14 @@ POST:
       err.message
     );
 
-
-    // Safe fallback
     return {
-
       allowed: true,
-
       petRelated: true,
-
       category: "general",
-
-      reason:
-        "AI service temporarily unavailable"
-
+      reason: "AI service temporarily unavailable"
     };
-
   }
-
 }
-
 
 module.exports = {
   analyzePost,
