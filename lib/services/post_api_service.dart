@@ -5,6 +5,8 @@ import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 
+import '../models/post.dart';
+
 class PostApiService {
 
   static final String baseUrl =
@@ -99,137 +101,34 @@ class PostApiService {
 
   // ============================================================
   // FETCH POSTS
-  // ============================================================
+  // ===========================================baseUrl========
 
-  static Future<List<Map<String, dynamic>>>
-  fetchPosts(
-      int page,
-      ) async {
+  static Future<List<Post>> fetchPosts(int page) async {
+    final uri = Uri.parse('$baseUrl/api/posts?page=$page&limit=10');
+    final response = await http.get(uri);
 
-    try {
+    print("GET POSTS => ${response.statusCode}");
+    print(response.body);
 
-      final uri =
-      Uri.parse(
-        "$baseUrl/api/posts?page=$page&limit=10",
-      );
+    if (response.statusCode == 200) {
+      final decoded = jsonDecode(response.body);
 
-
-      print(
-        "GET POSTS URL => $uri",
-      );
-
-
-      final res =
-      await http.get(
-        uri,
-        headers:
-        await _headers(),
-      );
-
-
-      print(
-        "GET POSTS STATUS => "
-            "${res.statusCode}",
-      );
-
-
-      print(
-        "GET POSTS BODY => "
-            "${res.body}",
-      );
-
-
-      if (res.statusCode != 200) {
-
-        throw Exception(
-          "Fetch posts failed: "
-              "${res.body}",
-        );
-
+      List<dynamic> postsList;
+      if (decoded is Map && decoded['success'] == true) {
+        postsList = decoded['posts'] as List<dynamic>;
+      } else if (decoded is List) {
+        postsList = decoded;
+      } else {
+        throw Exception('Unexpected response format');
       }
 
-
-      final data =
-      jsonDecode(
-        res.body,
-      );
-
-
-      // ========================================================
-      // BACKEND RESPONSE
-      //
-      // {
-      //   "success": true,
-      //   "posts": [...]
-      // }
-      // ========================================================
-
-      if (data is Map &&
-          data["success"] == true) {
-
-        final posts =
-        data["posts"];
-
-
-        if (posts is List) {
-
-          final result =
-          posts
-              .map(
-                (post) =>
-            Map<String, dynamic>.from(
-              post,
-            ),
-          )
-              .toList();
-
-
-          print(
-            "POST COUNT => "
-                "${result.length}",
-          );
-
-
-          return result;
-
-        }
-
-      }
-
-
-      // ========================================================
-      // FALLBACK
-      // If backend returns direct List
-      // ========================================================
-
-      if (data is List) {
-
-        return data
-            .map(
-              (post) =>
-          Map<String, dynamic>.from(
-            post,
-          ),
-        )
-            .toList();
-
-      }
-
-
-      return [];
-
-    } catch (e) {
-
-      print(
-        "FETCH POSTS ERROR => $e",
-      );
-
-      rethrow;
-
+      return postsList
+          .map((e) => Post.fromJson(Map<String, dynamic>.from(e)))
+          .toList();
     }
 
+    throw Exception('Failed to load posts');
   }
-
 
 
   // ============================================================

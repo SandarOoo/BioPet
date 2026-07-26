@@ -104,13 +104,24 @@ class PostApiService {
     print(response.body);
 
     if (response.statusCode == 200) {
-      final List data = jsonDecode(response.body);
-      return data.map((e) => Post.fromJson(e)).toList();
+      final decoded = jsonDecode(response.body);
+
+      List<dynamic> postsList;
+      if (decoded is Map && decoded['success'] == true) {
+        postsList = decoded['posts'] as List<dynamic>;
+      } else if (decoded is List) {
+        postsList = decoded;
+      } else {
+        throw Exception('Unexpected response format');
+      }
+
+      return postsList
+          .map((e) => Post.fromJson(Map<String, dynamic>.from(e)))
+          .toList();
     }
 
     throw Exception('Failed to load posts');
   }
-
   static Future<Map<String, dynamic>> createPostWithImages({
     required String text,
     required List<File> imageFiles,
