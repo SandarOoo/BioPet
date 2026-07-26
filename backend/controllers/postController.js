@@ -1,5 +1,5 @@
 const Post = require("../models/Post");
-const { analyzePost } = require("../lib/services/geminiService.js");
+const { analyzePost } = require("../services/geminiService.js");
 
 // =====================================================
 // GET POSTS
