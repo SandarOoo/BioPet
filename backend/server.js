@@ -6,61 +6,66 @@ require("dotenv").config({
   path: "../.env",
 });
 
+console.log(
+  "GEMINI KEY EXISTS:",
+  !!process.env.GEMINI_API_KEY
+);
+
 
 // =====================================================
 // IMPORTS
 // =====================================================
 
-const express =
-  require("express");
-
-const mongoose =
-  require("mongoose");
-
-const cors =
-  require("cors");
-
+const express = require("express");
+const mongoose = require("mongoose");
+const cors = require("cors");
 
 // =====================================================
-// GEMINI
+// ROUTES
+// =====================================================
+
+const geminiRoute = require("./routes/geminiRoute");
+const testGeminiRoute = require("./routes/testGeminiRoute");
+
+const authRoute = require("./routes/auth");
+const classifyRoute = require("./routes/classifyRoute");
+const productRoutes = require("./routes/productRoutes");
+const orderRoutes = require("./routes/orderRoutes");
+const adminRoutes = require("./routes/admin");
+const postRoutes = require("./routes/postRoutes");
+
+// =====================================================
+// GEMINI SERVICE
 // =====================================================
 
 const {
   analyzePost,
-} =
-  require("./services/geminiService");
+} = require("./services/geminiService");
 
 
 // =====================================================
 // APP
 // =====================================================
 
-const app =
-  express();
+const app = express();
 
 
 // =====================================================
 // MIDDLEWARE
 // =====================================================
 
-app.use(
-  cors()
-);
+app.use(cors());
 
 app.use(
   express.json({
-    limit:
-      "20mb",
+    limit: "20mb",
   })
 );
 
 app.use(
   express.urlencoded({
-    extended:
-      true,
-
-    limit:
-      "20mb",
+    extended: true,
+    limit: "20mb",
   })
 );
 
@@ -69,17 +74,9 @@ app.use(
 // ENV CHECK
 // =====================================================
 
-console.log(
-  "================================="
-);
-
-console.log(
-  "ENVIRONMENT CHECK"
-);
-
-console.log(
-  "================================="
-);
+console.log("=================================");
+console.log("ENVIRONMENT CHECK");
+console.log("=================================");
 
 console.log(
   "MONGO_URI EXISTS:",
@@ -108,28 +105,20 @@ console.log(
 
 
 // =====================================================
-// ROUTES
-// =====================================================
-
-const authRoute =
-  require("./routes/auth");
-
-const productRoutes =
-  require("./routes/productRoutes");
-
-const orderRoutes =
-  require("./routes/orderRoutes");
-
-const adminRoutes =
-  require("./routes/admin");
-
-const postRoutes =
-  require("./routes/postRoutes");
-
-
-// =====================================================
 // REGISTER ROUTES
 // =====================================================
+
+// GEMINI
+app.use(
+  "/api/gemini",
+  geminiRoute
+);
+
+// TEST GEMINI
+app.use(
+  "/api",
+  testGeminiRoute
+);
 
 // AUTH
 app.use(
@@ -137,6 +126,11 @@ app.use(
   authRoute
 );
 
+// CLASSIFICATION / HISTORY
+app.use(
+  "/api/classify",
+  classifyRoute
+);
 
 // BUSINESS / PRODUCTS
 app.use(
@@ -144,20 +138,17 @@ app.use(
   productRoutes
 );
 
-
 // ORDERS
 app.use(
   "/api/orders",
   orderRoutes
 );
 
-
 // ADMIN
 app.use(
   "/api/admin",
   adminRoutes
 );
-
 
 // NEWS FEED
 app.use(
@@ -172,10 +163,7 @@ app.use(
 
 app.get(
   "/api/test-gemini",
-  async (
-    req,
-    res
-  ) => {
+  async (req, res) => {
 
     try {
 
@@ -194,11 +182,8 @@ app.get(
       );
 
       return res.json({
-        success:
-          true,
-
-        ai:
-          result,
+        success: true,
+        ai: result,
       });
 
     } catch (error) {
@@ -209,11 +194,8 @@ app.get(
       );
 
       return res.status(500).json({
-        success:
-          false,
-
-        error:
-          error.message,
+        success: false,
+        error: error.message,
       });
     }
   }
@@ -226,17 +208,11 @@ app.get(
 
 app.get(
   "/",
-  (
-    req,
-    res
-  ) => {
+  (req, res) => {
 
     res.json({
-      success:
-        true,
-
-      message:
-        "🐶 BioPet API Running",
+      success: true,
+      message: "🐶 BioPet API Running",
     });
 
   }
@@ -248,12 +224,7 @@ app.get(
 // =====================================================
 
 app.use(
-  (
-    err,
-    req,
-    res,
-    next
-  ) => {
+  (err, req, res, next) => {
 
     console.error(
       "GLOBAL ERROR:",
@@ -261,9 +232,7 @@ app.use(
     );
 
     res.status(500).json({
-      success:
-        false,
-
+      success: false,
       message:
         err.message ||
         "Server error",
