@@ -109,14 +109,7 @@ const createPost = async (req, res) => {
       comments: [],
     });
 
-    console.log("=================================");
-    console.log("✅ POST CREATED SUCCESSFULLY");
-    console.log("POST ID =>", post._id);
-    console.log("IMAGE COUNT =>", post.images.length);
-    console.log("IMAGE DATA EXISTS =>", post.images[0]?.data ? true : false);
-    console.log("IMAGE CONTENT TYPE =>", post.images[0]?.contentType);
-    console.log("IMAGE FILENAME =>", post.images[0]?.filename);
-    console.log("=================================");
+
 
     // =====================================================
     // LOG CREATED POST
