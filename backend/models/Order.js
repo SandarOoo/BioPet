@@ -66,7 +66,13 @@ const orderSchema = new mongoose.Schema(
 
     paymentMethod: {
       type: String,
-      enum: ["COD", "KBZ_PAY", "WAVE_PAY", "CARD"],
+      enum: [
+        "COD",
+        "KBZ_PAY",
+        "WAVE_PAY",
+        "AYA_PAY",
+        "CARD",
+      ],
       default: "COD",
     },
 

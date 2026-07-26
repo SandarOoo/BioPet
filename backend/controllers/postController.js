@@ -1,345 +1,716 @@
 const Post = require("../models/Post");
-const { analyzePost } = require("../services/geminiService");
 
+const {
+  analyzePost,
+} = require("../services/geminiService");
+
+console.log(
+  "ANALYZE POST TYPE =>",
+  typeof analyzePost
+);
 // =====================================================
 // CREATE POST
-// GEMINI AI MODERATION
+// TEXT ONLY
+// IMAGE ONLY
+// TEXT + IMAGE
 // =====================================================
 
-const createPost = async (req, res) => {
-  try {
-    const {
-      userId,
-      name,
-      text,
-    } = req.body;
+const createPost =
+  async (
+    req,
+    res
+  ) => {
 
-    // =========================================
-    // VALIDATE
-    // =========================================
+    try {
 
-    if (!text || text.trim().length === 0) {
-      return res.status(400).json({
-        success: false,
-        message: "Post text is required",
-      });
-    }
-
-    console.log("=================================");
-    console.log("🤖 START AI MODERATION");
-    console.log("POST TEXT:", text);
-    console.log("=================================");
-
-    // =========================================
-    // GEMINI AI
-    // =========================================
-
-    const aiResult = await analyzePost(
-      text.trim()
-    );
-
-    console.log(
-      "🤖 AI RESULT:",
-      aiResult
-    );
-
-    // =========================================
-    // BLOCK POST
-    // =========================================
-
-    if (
-      aiResult &&
-      aiResult.allowed === false
-    ) {
       console.log(
-        "🚫 POST BLOCKED BY GEMINI"
+        "================================="
       );
 
-      return res.status(400).json({
+      console.log(
+        "📥 CREATE POST REQUEST"
+      );
+
+      console.log(
+        "================================="
+      );
+
+
+      // =================================================
+      // GET BODY
+      // =================================================
+
+      const {
+
+        userId,
+
+        name,
+
+        text,
+
+      } =
+        req.body;
+
+
+      // =================================================
+      // GET FILES
+      // =================================================
+
+      const files =
+        req.files || [];
+
+
+      // =================================================
+      // CLEAN TEXT
+      // =================================================
+
+      const cleanText =
+        text
+          ? text.trim()
+          : "";
+
+
+      // =================================================
+      // LOG REQUEST
+      // =================================================
+
+      console.log(
+        "👤 USER ID:",
+        userId
+      );
+
+      console.log(
+        "👤 NAME:",
+        name
+      );
+
+      console.log(
+        "📝 TEXT:",
+        cleanText
+      );
+
+      console.log(
+        "🖼️ IMAGE COUNT:",
+        files.length
+      );
+
+
+      // =================================================
+      // VALIDATE USER ID
+      // =================================================
+
+      if (
+        !userId ||
+        userId.trim().length === 0
+      ) {
+
+        return res.status(
+          400
+        ).json({
+
+          success: false,
+
+          message:
+            "User ID is required",
+
+        });
+
+      }
+
+
+      // =================================================
+      // VALIDATE
+      // TEXT OR IMAGE REQUIRED
+      // =================================================
+
+      if (
+
+        cleanText.length === 0 &&
+
+        files.length === 0
+
+      ) {
+
+        return res.status(
+          400
+        ).json({
+
+          success: false,
+
+          message:
+            "Post text or image is required",
+
+        });
+
+      }
+
+
+      // =================================================
+      // START GEMINI
+      // =================================================
+
+      console.log(
+        "================================="
+      );
+
+      console.log(
+        "🤖 START AI MODERATION"
+      );
+
+      console.log(
+        "================================="
+      );
+
+
+      const aiResult =
+        await analyzePost(
+
+          cleanText,
+
+          files
+
+        );
+
+
+      console.log(
+        "🤖 AI RESULT:",
+        aiResult
+      );
+
+
+      // =================================================
+      // CHECK AI RESULT
+      // =================================================
+
+      if (
+
+        aiResult &&
+
+        aiResult.allowed === false
+
+      ) {
+
+        console.log(
+          "🚫 POST BLOCKED BY AI"
+        );
+
+
+        return res.status(
+          400
+        ).json({
+
+          success: false,
+
+          message:
+
+            aiResult.reason ||
+
+            "Post blocked by AI moderation",
+
+          ai:
+            aiResult,
+
+        });
+
+      }
+
+
+      // =================================================
+      // PROCESS IMAGES
+      // =================================================
+
+      const images = [];
+
+
+      if (
+        files.length > 0
+      ) {
+
+        for (
+          const file of files
+        ) {
+
+          console.log(
+            "📸 PROCESSING IMAGE:",
+            file.originalname
+          );
+
+
+          images.push({
+
+            data:
+
+              `data:${file.mimetype};base64,` +
+
+              file.buffer.toString(
+                "base64"
+              ),
+
+            contentType:
+
+              file.mimetype,
+
+            filename:
+
+              file.originalname,
+
+          });
+
+        }
+
+      }
+
+
+      // =================================================
+      // CREATE POST
+      // =================================================
+
+      const post =
+        new Post({
+
+          userId:
+
+            userId,
+
+          name:
+
+            name ||
+            "Anonymous",
+
+          text:
+
+            cleanText,
+
+          images:
+
+            images,
+
+          aiReview:
+
+            aiResult,
+
+          likes: [],
+
+          comments: [],
+
+        });
+
+
+      // =================================================
+      // SAVE POST
+      // =================================================
+
+      const savedPost =
+        await post.save();
+
+
+      console.log(
+        "================================="
+      );
+
+      console.log(
+        "✅ POST SAVED SUCCESSFULLY"
+      );
+
+      console.log(
+        "POST ID:",
+        savedPost._id
+      );
+
+      console.log(
+        "================================="
+      );
+
+
+      // =================================================
+      // RESPONSE
+      // =================================================
+
+      return res.status(
+        201
+      ).json({
+
+        success: true,
+
+        message:
+          "Post created successfully",
+
+        post:
+          savedPost,
+
+        ai:
+          aiResult,
+
+      });
+
+
+    } catch (
+      error
+    ) {
+
+
+      console.error(
+        "================================="
+      );
+
+      console.error(
+        "❌ CREATE POST ERROR"
+      );
+
+      console.error(
+        error
+      );
+
+      console.error(
+        "================================="
+      );
+
+
+      return res.status(
+        500
+      ).json({
+
         success: false,
 
         message:
-          aiResult.reason ||
-          "Post blocked by AI moderation",
+          error.message,
 
-        ai: aiResult,
       });
+
     }
 
-    // =========================================
-    // IMAGE PROCESSING
-    // =========================================
-
-    const images = [];
-
-    if (
-      req.files &&
-      req.files.length > 0
-    ) {
-      for (
-        const file of req.files
-      ) {
-        images.push({
-          data:
-            `data:${file.mimetype};base64,` +
-            file.buffer.toString("base64"),
-
-          contentType:
-            file.mimetype,
-
-          filename:
-            file.originalname,
-        });
-      }
-    }
-
-    // =========================================
-    // CREATE POST
-    // =========================================
-
-    const post = new Post({
-      userId:
-        userId || "guest",
-
-      name:
-        name || "Anonymous",
-
-      text:
-        text.trim(),
-
-      images,
-
-      likes: [],
-
-      comments: [],
-    });
-
-    const savedPost =
-      await post.save();
-
-    console.log(
-      "✅ POST SAVED"
-    );
-
-    // =========================================
-    // RESPONSE
-    // =========================================
-
-    return res.status(201).json({
-      success: true,
-
-      message:
-        "Post created successfully",
-
-      post:
-        savedPost,
-
-      ai:
-        aiResult,
-    });
-
-  } catch (error) {
-
-    console.error(
-      "❌ CREATE POST ERROR:",
-      error
-    );
-
-    return res.status(500).json({
-      success: false,
-
-      message:
-        error.message,
-    });
-  }
-};
+  };
 
 
 // =====================================================
 // GET POSTS
 // =====================================================
 
-const getPosts = async (
-  req,
-  res
-) => {
-  try {
+const getPosts =
+  async (
+    req,
+    res
+  ) => {
 
-    const posts =
-      await Post
-        .find()
-        .sort({
-          createdAt: -1,
-        });
+    try {
 
-    return res.json({
-      success: true,
+      const posts =
 
-      posts,
-    });
+        await Post
 
-  } catch (error) {
+          .find()
 
-    console.error(
-      "GET POSTS ERROR:",
+          .sort({
+
+            createdAt:
+              -1,
+
+          });
+
+
+      return res.json({
+
+        success: true,
+
+        posts:
+
+          posts,
+
+      });
+
+
+    } catch (
       error
-    );
+    ) {
 
-    return res.status(500).json({
-      success: false,
+      console.error(
 
-      message:
-        error.message,
-    });
-  }
-};
+        "GET POSTS ERROR:",
+
+        error
+
+      );
+
+
+      return res.status(
+        500
+      ).json({
+
+        success: false,
+
+        message:
+          error.message,
+
+      });
+
+    }
+
+  };
 
 
 // =====================================================
 // LIKE POST
 // =====================================================
 
-const toggleLike = async (
-  req,
-  res
-) => {
+const toggleLike =
+  async (
+    req,
+    res
+  ) => {
 
-  try {
+    try {
 
-    const {
-      postId,
-      userId,
-    } = req.body;
+      const {
 
-    const post =
-      await Post.findById(
-        postId
-      );
+        postId,
 
-    if (!post) {
-      return res.status(404).json({
-        success: false,
-        message:
-          "Post not found",
-      });
-    }
+        userId,
 
-    if (
-      post.likes.includes(
-        userId
-      )
-    ) {
+      } =
+        req.body;
 
-      post.likes =
-        post.likes.filter(
-          (id) =>
-            id !== userId
+
+      const post =
+
+        await Post.findById(
+
+          postId
+
         );
 
-    } else {
 
-      post.likes.push(
-        userId
-      );
+      if (
+        !post
+      ) {
 
-    }
+        return res.status(
+          404
+        ).json({
 
-    await post.save();
+          success: false,
 
-    return res.json({
-      success: true,
+          message:
+            "Post not found",
 
-      likes:
-        post.likes.length,
+        });
 
-      post,
-    });
-
-  } catch (error) {
-
-    return res.status(500).json({
-      success: false,
-
-      message:
-        error.message,
-    });
-  }
-};
+      }
 
 
-// =====================================================
-// COMMENT
-// =====================================================
+      if (
 
-const addComment = async (
-  req,
-  res
-) => {
+        post.likes.includes(
 
-  try {
+          userId
 
-    const {
-      postId,
-      userId,
-      text,
-    } = req.body;
+        )
 
-    if (
-      !text ||
-      text.trim().length === 0
+      ) {
+
+        post.likes =
+
+          post.likes.filter(
+
+            (id) =>
+
+              id !== userId
+
+          );
+
+      } else {
+
+        post.likes.push(
+
+          userId
+
+        );
+
+      }
+
+
+      await post.save();
+
+
+      return res.json({
+
+        success: true,
+
+        likes:
+
+          post.likes.length,
+
+        post:
+
+          post,
+
+      });
+
+
+    } catch (
+      error
     ) {
-      return res.status(400).json({
+
+      return res.status(
+        500
+      ).json({
+
         success: false,
+
         message:
-          "Comment text is required",
+          error.message,
+
       });
+
     }
 
-    const post =
-      await Post.findById(
-        postId
-      );
+  };
 
-    if (!post) {
-      return res.status(404).json({
-        success: false,
-        message:
-          "Post not found",
+
+// =====================================================
+// ADD COMMENT
+// =====================================================
+
+const addComment =
+  async (
+    req,
+    res
+  ) => {
+
+    try {
+
+      const {
+
+        postId,
+
+        userId,
+
+        text,
+
+      } =
+        req.body;
+
+
+      // =================================================
+      // VALIDATE TEXT
+      // =================================================
+
+      if (
+
+        !text ||
+
+        text.trim().length === 0
+
+      ) {
+
+        return res.status(
+          400
+        ).json({
+
+          success: false,
+
+          message:
+            "Comment text is required",
+
+        });
+
+      }
+
+
+      // =================================================
+      // FIND POST
+      // =================================================
+
+      const post =
+
+        await Post.findById(
+
+          postId
+
+        );
+
+
+      if (
+        !post
+      ) {
+
+        return res.status(
+          404
+        ).json({
+
+          success: false,
+
+          message:
+            "Post not found",
+
+        });
+
+      }
+
+
+      // =================================================
+      // ADD COMMENT
+      // =================================================
+
+      post.comments.push({
+
+        userId:
+
+          userId ||
+          "guest",
+
+        text:
+
+          text.trim(),
+
       });
+
+
+      await post.save();
+
+
+      return res.json({
+
+        success: true,
+
+        comments:
+
+          post.comments,
+
+      });
+
+
+    } catch (
+      error
+    ) {
+
+      return res.status(
+        500
+      ).json({
+
+        success: false,
+
+        message:
+          error.message,
+
+      });
+
     }
 
-    post.comments.push({
-      userId:
-        userId || "guest",
+  };
 
-      text:
-        text.trim(),
-    });
 
-    await post.save();
-
-    return res.json({
-      success: true,
-
-      comments:
-        post.comments,
-    });
-
-  } catch (error) {
-
-    return res.status(500).json({
-      success: false,
-
-      message:
-        error.message,
-    });
-  }
-};
-
+// =====================================================
+// EXPORT
+// =====================================================
 
 module.exports = {
+
   createPost,
+
   getPosts,
+
   toggleLike,
+
   addComment,
+
 };

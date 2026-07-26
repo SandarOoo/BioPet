@@ -108,6 +108,10 @@ console.log(
 // REGISTER ROUTES
 // =====================================================
 
+app.use(
+  "/api/posts",
+  postRoutes
+);
 // GEMINI
 app.use(
   "/api/gemini",

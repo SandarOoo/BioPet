@@ -1,15 +1,36 @@
-const express = require("express");
-const multer = require("multer");
+const express =
+  require("express");
+
+const multer =
+  require("multer");
 
 const {
+
   createPost,
+
   getPosts,
+
   toggleLike,
+
   addComment,
-} = require("../controllers/postController");
+
+} =
+  require(
+    "../controllers/postController"
+  );
+
 
 const router =
   express.Router();
+
+
+// =====================================================
+// MULTER MEMORY STORAGE
+// =====================================================
+
+const storage =
+  multer.memoryStorage();
+
 
 // =====================================================
 // MULTER
@@ -17,45 +38,89 @@ const router =
 
 const upload =
   multer({
+
     storage:
-      multer.memoryStorage(),
+
+      storage,
 
     limits: {
+
       fileSize:
-        10 * 1024 * 1024,
+
+        10 *
+        1024 *
+        1024,
 
       files:
+
         10,
+
     },
 
-    fileFilter:
-      (req, file, cb) => {
 
-        const allowed =
-          /jpeg|jpg|png|gif|webp/;
+    fileFilter:
+
+      (
+        req,
+
+        file,
+
+        cb
+
+      ) => {
+
+
+        const allowedTypes = [
+
+          "image/jpeg",
+
+          "image/jpg",
+
+          "image/png",
+
+          "image/gif",
+
+          "image/webp",
+
+        ];
+
 
         if (
-          allowed.test(
+
+          allowedTypes.includes(
+
             file.mimetype
+
           )
+
         ) {
 
           cb(
+
             null,
+
             true
+
           );
 
         } else {
 
           cb(
+
             new Error(
+
               "Only image files are allowed"
+
             )
+
           );
 
         }
+
       },
+
   });
+
 
 // =====================================================
 // CREATE POST
@@ -63,13 +128,21 @@ const upload =
 // =====================================================
 
 router.post(
+
   "/create",
+
   upload.array(
+
     "images",
+
     10
+
   ),
+
   createPost
+
 );
+
 
 // =====================================================
 // GET POSTS
@@ -77,9 +150,13 @@ router.post(
 // =====================================================
 
 router.get(
+
   "/",
+
   getPosts
+
 );
+
 
 // =====================================================
 // LIKE
@@ -87,9 +164,13 @@ router.get(
 // =====================================================
 
 router.post(
+
   "/like",
+
   toggleLike
+
 );
+
 
 // =====================================================
 // COMMENT
@@ -97,9 +178,17 @@ router.post(
 // =====================================================
 
 router.post(
+
   "/comment",
+
   addComment
+
 );
+
+
+// =====================================================
+// EXPORT
+// =====================================================
 
 module.exports =
   router;
