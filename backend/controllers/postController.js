@@ -1,12 +1,4 @@
 const Post = require("../models/Post");
-
-// =====================================================
-// CREATE POST
-// TEXT ONLY
-// IMAGE ONLY
-// TEXT + IMAGE
-// =====================================================
-
 const createPost = async (req, res) => {
   try {
     console.log("=================================");

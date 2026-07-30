@@ -7,7 +7,6 @@ import '../../services/business_service.dart';
 import 'add_product_screen.dart';
 import 'seller_products_screen.dart';
 import 'seller_orders_screen.dart';
-import 'seller_profile_screen.dart';
 
 class BusinessDashboard extends StatefulWidget {
   const BusinessDashboard({
@@ -21,30 +20,36 @@ class BusinessDashboard extends StatefulWidget {
 
 class _BusinessDashboardState
     extends State<BusinessDashboard> {
+  // ============================================================
+  // STATE
+  // ============================================================
+
   int currentIndex = 0;
 
   Map<String, dynamic>? currentUser;
 
   List<dynamic> products = [];
 
-  List<BusinessOrder> _orders = [];
-
-  String? _ordersError;
+  List<BusinessOrder> orders = [];
 
   bool loadingUser = true;
   bool loadingProducts = true;
-  bool _isLoadingOrders = false;
+  bool loadingOrders = true;
+
+  String? ordersError;
 
   final BusinessService businessService =
   BusinessService();
+
+  // ============================================================
+  // INIT
+  // ============================================================
 
   @override
   void initState() {
     super.initState();
 
     loadDashboardData();
-
-    _loadBusinessOrders();
   }
 
   // ============================================================
@@ -55,6 +60,7 @@ class _BusinessDashboardState
     await Future.wait([
       loadCurrentUser(),
       loadProducts(),
+      loadOrders(),
     ]);
   }
 
@@ -69,21 +75,39 @@ class _BusinessDashboardState
 
       if (!mounted) return;
 
-      setState(() {
-        if (response?['user'] != null) {
-          currentUser =
-          Map<String, dynamic>.from(
-            response!['user'],
-          );
-        } else {
-          currentUser = response;
-        }
+      Map<String, dynamic>? user;
 
+      if (response != null &&
+          response['user'] != null &&
+          response['user'] is Map) {
+        user = Map<String, dynamic>.from(
+          response['user'],
+        );
+      } else if (response != null) {
+        user = Map<String, dynamic>.from(
+          response,
+        );
+      }
+
+      setState(() {
+        currentUser = user;
         loadingUser = false;
       });
+
+      debugPrint(
+        'CURRENT USER LOADED',
+      );
+
+      debugPrint(
+        'BUSINESS NAME: $businessName',
+      );
+
+      debugPrint(
+        'BUSINESS TYPE: $businessType',
+      );
     } catch (e) {
       debugPrint(
-        "LOAD CURRENT USER ERROR: $e",
+        'LOAD CURRENT USER ERROR: $e',
       );
 
       if (!mounted) return;
@@ -107,12 +131,15 @@ class _BusinessDashboardState
 
       setState(() {
         products = result;
-
         loadingProducts = false;
       });
+
+      debugPrint(
+        'PRODUCTS COUNT: ${products.length}',
+      );
     } catch (e) {
       debugPrint(
-        "LOAD PRODUCTS ERROR: $e",
+        'LOAD PRODUCTS ERROR: $e',
       );
 
       if (!mounted) return;
@@ -127,62 +154,135 @@ class _BusinessDashboardState
   // LOAD BUSINESS ORDERS
   // ============================================================
 
-  Future<void> _loadBusinessOrders() async {
+  Future<void> loadOrders() async {
     if (mounted) {
       setState(() {
-        _isLoadingOrders = true;
-        _ordersError = null;
+        loadingOrders = true;
+        ordersError = null;
       });
     }
 
     try {
-      final orders =
-      await businessService
-          .getBusinessOrders();
+      debugPrint(
+        '========================================',
+      );
+
+      debugPrint(
+        'LOADING BUSINESS ORDERS',
+      );
+
+      final result =
+      await businessService.getBusinessOrders();
+
+      debugPrint(
+        'ORDERS API COUNT: ${result.length}',
+      );
+
+      final List<BusinessOrder> parsedOrders = [];
+
+      for (final item in result) {
+        try {
+          if (item is! Map) {
+            debugPrint(
+              'INVALID ORDER ITEM',
+            );
+
+            continue;
+          }
+
+          final orderJson =
+          Map<String, dynamic>.from(item);
+
+          debugPrint(
+            '----------------------------------------',
+          );
+
+          debugPrint(
+            'ORDER ID: '
+                '${orderJson['_id'] ?? ''}',
+          );
+
+          debugPrint(
+            'ORDER NUMBER: '
+                '${orderJson['orderNumber'] ?? ''}',
+          );
+
+          debugPrint(
+            'ORDER STATUS: '
+                '${orderJson['status'] ?? ''}',
+          );
+
+          final businessOrder =
+          BusinessOrder.fromJson(
+            orderJson,
+          );
+
+          debugPrint(
+            'PARSED ORDER ID: '
+                '${businessOrder.id}',
+          );
+
+          debugPrint(
+            'PARSED ORDER NUMBER: '
+                '${businessOrder.orderNumber}',
+          );
+
+          debugPrint(
+            'PARSED ORDER STATUS: '
+                '${businessOrder.status}',
+          );
+
+          parsedOrders.add(
+            businessOrder,
+          );
+        } catch (e, stackTrace) {
+          debugPrint(
+            'PARSE ORDER ERROR: $e',
+          );
+
+          debugPrint(
+            'STACK: $stackTrace',
+          );
+        }
+      }
 
       if (!mounted) return;
 
       setState(() {
-        _orders = orders;
-
-        _isLoadingOrders = false;
+        orders = parsedOrders;
+        loadingOrders = false;
+        ordersError = null;
       });
 
       debugPrint(
-        "BUSINESS ORDERS COUNT: "
-            "${orders.length}",
+        '========================================',
       );
 
-      for (final order in orders) {
-        debugPrint(
-          "ORDER: ${order.orderNumber}",
-        );
-
-        debugPrint(
-          "CUSTOMER: "
-              "${order.customer.name}",
-        );
-
-        debugPrint(
-          "STATUS: ${order.status}",
-        );
-
-        debugPrint(
-          "TOTAL: "
-              "${order.totalAmount}",
-        );
-      }
-    } catch (e) {
       debugPrint(
-        "BUSINESS ORDERS ERROR: $e",
+        'BUSINESS ORDERS LOADED',
+      );
+
+      debugPrint(
+        'TOTAL PARSED ORDERS: ${orders.length}',
+      );
+
+      debugPrint(
+        '========================================',
+      );
+    } catch (e, stackTrace) {
+      debugPrint(
+        'LOAD BUSINESS ORDERS ERROR: $e',
+      );
+
+      debugPrint(
+        'STACK TRACE: $stackTrace',
       );
 
       if (!mounted) return;
 
       setState(() {
-        _isLoadingOrders = false;
-
-        _ordersError = e.toString();
+        loadingOrders = false;
+        ordersError = e.toString();
       });
     }
   }
@@ -192,9 +292,14 @@ class _BusinessDashboardState
   // ============================================================
 
   String get ownerName {
-    return currentUser?['name']
-        ?.toString() ??
-        'Business Owner';
+    final name =
+    currentUser?['name']?.toString();
+
+    if (name != null && name.isNotEmpty) {
+      return name;
+    }
+
+    return 'Business Owner';
   }
 
   String get email {
@@ -208,9 +313,10 @@ class _BusinessDashboardState
     final profile =
     currentUser?['businessProfile'];
 
-    if (profile
-    is Map<String, dynamic>) {
-      return profile;
+    if (profile is Map) {
+      return Map<String, dynamic>.from(
+        profile,
+      );
     }
 
     return {};
@@ -218,12 +324,10 @@ class _BusinessDashboardState
 
   String get businessName {
     final name =
-    businessProfile[
-    'businessName']
+    businessProfile['businessName']
         ?.toString();
 
-    if (name != null &&
-        name.isNotEmpty) {
+    if (name != null && name.isNotEmpty) {
       return name;
     }
 
@@ -232,12 +336,10 @@ class _BusinessDashboardState
 
   String get businessType {
     final type =
-    businessProfile[
-    'businessType']
+    businessProfile['businessType']
         ?.toString();
 
-    if (type == null ||
-        type.isEmpty) {
+    if (type == null || type.isEmpty) {
       return 'Pet Business';
     }
 
@@ -258,8 +360,7 @@ class _BusinessDashboardState
   }
 
   String formatBusinessType(
-      String type,
-      ) {
+      String type) {
     switch (type) {
       case 'vet_clinic':
         return 'Veterinary Clinic';
@@ -278,8 +379,7 @@ class _BusinessDashboardState
             .replaceAll('_', ' ')
             .split(' ')
             .map(
-              (word) =>
-          word.isEmpty
+              (word) => word.isEmpty
               ? ''
               : word[0]
               .toUpperCase() +
@@ -290,7 +390,20 @@ class _BusinessDashboardState
   }
 
   // ============================================================
-  // ADD PRODUCT
+  // RECENT ORDERS
+  // ============================================================
+
+  List<BusinessOrder>
+  get recentOrders {
+    if (orders.length <= 5) {
+      return orders;
+    }
+
+    return orders.take(5).toList();
+  }
+
+  // ============================================================
+  // OPEN ADD PRODUCT
   // ============================================================
 
   Future<void> openAddProduct() async {
@@ -306,51 +419,75 @@ class _BusinessDashboardState
   }
 
   // ============================================================
-  // NAVIGATION PAGES
+  // OPEN ALL ORDERS
+  // ============================================================
+
+  void openOrders() {
+    setState(() {
+      currentIndex = 2;
+    });
+
+    loadOrders();
+  }
+
+  // ============================================================
+  // PAGES
   // ============================================================
 
   List<Widget> get pages {
     return [
+      // ========================================================
+      // PAGE 0 - DASHBOARD
+      // ========================================================
+
       DashboardHome(
-        businessName:
-        businessName,
-        businessType:
-        businessType,
+        businessName: businessName,
+        businessType: businessType,
         businessAddress:
         businessAddress,
-        ownerName:
-        ownerName,
-        email:
-        email,
+        ownerName: ownerName,
+        email: email,
         productCount:
         products.length,
-        orderCount:
-        _orders.length,
+        orderCount: orders.length,
         recentOrders:
-        _orders,
+        recentOrders,
         loadingProducts:
         loadingProducts,
         loadingOrders:
-        _isLoadingOrders,
+        loadingOrders,
         onAddProduct:
         openAddProduct,
-        onRefreshOrders:
-        _loadBusinessOrders,
+        onViewOrders:
+        openOrders,
+        onRefresh:
+        loadDashboardData,
       ),
+
+      // ========================================================
+      // PAGE 1 - PRODUCTS
+      // ========================================================
 
       const SellerProductsScreen(),
 
-      // SellerOrdersScreen(
-      //   orders: _orders,
-      //   isLoading:
-      //   _isLoadingOrders,
-      //   error:
-      //   _ordersError,
-      //   onRefresh:
-      //   _loadBusinessOrders,
-      // ),
+      // ========================================================
+      // PAGE 2 - ORDERS
+      // ========================================================
 
-      // const SellerProfileScreen(),
+      SellerOrdersScreen(
+        orders: orders,
+        isLoading:
+        loadingOrders,
+        error: ordersError,
+        onRefresh:
+        loadOrders,
+      ),
+
+      // ========================================================
+      // PAGE 3 - PROFILE
+      // ========================================================
+
+      // SellerProfileScreen(),
     ];
   }
 
@@ -360,8 +497,7 @@ class _BusinessDashboardState
 
   @override
   Widget build(
-      BuildContext context,
-      ) {
+      BuildContext context) {
     return Scaffold(
       body: loadingUser
           ? const Center(
@@ -373,6 +509,10 @@ class _BusinessDashboardState
         children: pages,
       ),
 
+      // ========================================================
+      // BOTTOM NAVIGATION
+      // ========================================================
+
       bottomNavigationBar:
       NavigationBar(
         selectedIndex:
@@ -381,16 +521,29 @@ class _BusinessDashboardState
         onDestinationSelected:
             (index) {
           setState(() {
-            currentIndex =
-                index;
+            currentIndex = index;
           });
+
+          // Dashboard
+          if (index == 0) {
+            loadDashboardData();
+          }
+
+          // Products
+          if (index == 1) {
+            loadProducts();
+          }
+
+          // Orders
+          if (index == 2) {
+            loadOrders();
+          }
         },
 
         indicatorColor:
         Colors.green.shade100,
 
-        destinations:
-        const [
+        destinations: const [
           NavigationDestination(
             icon: Icon(
               Icons
@@ -443,9 +596,9 @@ class _BusinessDashboardState
   }
 }
 
-// ================================================================
+// ==================================================================
 // DASHBOARD HOME
-// ================================================================
+// ==================================================================
 
 class DashboardHome
     extends StatelessWidget {
@@ -466,48 +619,42 @@ class DashboardHome
 
   final VoidCallback onAddProduct;
 
+  final VoidCallback onViewOrders;
+
   final Future<void> Function()
-  onRefreshOrders;
+  onRefresh;
 
   const DashboardHome({
     super.key,
-
     required this.businessName,
     required this.businessType,
     required this.businessAddress,
     required this.ownerName,
     required this.email,
-
     required this.productCount,
     required this.orderCount,
-
     required this.recentOrders,
-
     required this.loadingProducts,
     required this.loadingOrders,
-
     required this.onAddProduct,
-
-    required this.onRefreshOrders,
+    required this.onViewOrders,
+    required this.onRefresh,
   });
 
   @override
   Widget build(
-      BuildContext context,
-      ) {
+      BuildContext context) {
     return Scaffold(
       backgroundColor:
       const Color(0xffF6FAF7),
 
       appBar: AppBar(
         elevation: 0,
-
         backgroundColor:
         const Color(0xffF6FAF7),
 
         title: const Text(
           'Seller Center',
-
           style: TextStyle(
             fontWeight:
             FontWeight.bold,
@@ -517,7 +664,6 @@ class DashboardHome
         actions: [
           IconButton(
             onPressed: () {},
-
             icon: const Icon(
               Icons
                   .notifications_none_rounded,
@@ -531,8 +677,7 @@ class DashboardHome
       ),
 
       body: RefreshIndicator(
-        onRefresh:
-        onRefreshOrders,
+        onRefresh: onRefresh,
 
         child:
         SingleChildScrollView(
@@ -549,14 +694,12 @@ class DashboardHome
 
           child: Column(
             crossAxisAlignment:
-            CrossAxisAlignment
-                .start,
+            CrossAxisAlignment.start,
 
             children: [
-
-              // =================================================
+              // ==================================================
               // WELCOME
-              // =================================================
+              // ==================================================
 
               Text(
                 'Welcome back, '
@@ -565,8 +708,7 @@ class DashboardHome
                 style:
                 const TextStyle(
                   fontSize: 16,
-                  color:
-                  Colors.grey,
+                  color: Colors.grey,
                 ),
               ),
 
@@ -589,9 +731,9 @@ class DashboardHome
                 height: 20,
               ),
 
-              // =================================================
+              // ==================================================
               // BUSINESS CARD
-              // =================================================
+              // ==================================================
 
               Container(
                 width:
@@ -612,32 +754,24 @@ class DashboardHome
                       Colors.green
                           .shade600,
                     ],
-
                     begin:
                     Alignment.topLeft,
-
-                    end:
-                    Alignment
+                    end: Alignment
                         .bottomRight,
                   ),
 
                   borderRadius:
-                  BorderRadius
-                      .circular(
+                  BorderRadius.circular(
                     24,
                   ),
 
                   boxShadow: [
                     BoxShadow(
-                      color: Colors
-                          .green
+                      color: Colors.green
                           .withOpacity(
                         0.25,
                       ),
-
-                      blurRadius:
-                      18,
-
+                      blurRadius: 18,
                       offset:
                       const Offset(
                         0,
@@ -647,17 +781,13 @@ class DashboardHome
                   ],
                 ),
 
-                child:
-                Column(
+                child: Column(
                   crossAxisAlignment:
-                  CrossAxisAlignment
-                      .start,
+                  CrossAxisAlignment.start,
 
                   children: [
-
                     Row(
                       children: [
-
                         Container(
                           width: 58,
                           height: 58,
@@ -666,7 +796,6 @@ class DashboardHome
                           BoxDecoration(
                             color:
                             Colors.white,
-
                             borderRadius:
                             BorderRadius
                                 .circular(
@@ -678,10 +807,8 @@ class DashboardHome
                           const Icon(
                             Icons
                                 .store_rounded,
-
                             color:
                             Colors.green,
-
                             size: 32,
                           ),
                         ),
@@ -698,12 +825,10 @@ class DashboardHome
                                 .start,
 
                             children: [
-
                               Text(
                                 businessName,
 
-                                maxLines:
-                                1,
+                                maxLines: 1,
 
                                 overflow:
                                 TextOverflow
@@ -713,10 +838,7 @@ class DashboardHome
                                 const TextStyle(
                                   color:
                                   Colors.white,
-
-                                  fontSize:
-                                  21,
-
+                                  fontSize: 21,
                                   fontWeight:
                                   FontWeight
                                       .bold,
@@ -734,9 +856,7 @@ class DashboardHome
                                 const TextStyle(
                                   color:
                                   Colors.white70,
-
-                                  fontSize:
-                                  14,
+                                  fontSize: 14,
                                 ),
                               ),
                             ],
@@ -759,8 +879,7 @@ class DashboardHome
 
                       decoration:
                       BoxDecoration(
-                        color: Colors
-                            .white
+                        color: Colors.white
                             .withOpacity(
                           0.12,
                         ),
@@ -772,17 +891,13 @@ class DashboardHome
                         ),
                       ),
 
-                      child:
-                      Row(
+                      child: Row(
                         children: [
-
                           const Icon(
                             Icons
                                 .location_on_outlined,
-
                             color:
                             Colors.white,
-
                             size: 20,
                           ),
 
@@ -791,12 +906,10 @@ class DashboardHome
                           ),
 
                           Expanded(
-                            child:
-                            Text(
+                            child: Text(
                               businessAddress,
 
-                              maxLines:
-                              2,
+                              maxLines: 2,
 
                               overflow:
                               TextOverflow
@@ -806,9 +919,7 @@ class DashboardHome
                               const TextStyle(
                                 color:
                                 Colors.white,
-
-                                fontSize:
-                                13,
+                                fontSize: 13,
                               ),
                             ),
                           ),
@@ -823,9 +934,9 @@ class DashboardHome
                 height: 28,
               ),
 
-              // =================================================
+              // ==================================================
               // OVERVIEW
-              // =================================================
+              // ==================================================
 
               const Text(
                 'Business Overview',
@@ -845,36 +956,27 @@ class DashboardHome
               GridView.count(
                 crossAxisCount: 2,
 
-                crossAxisSpacing:
-                12,
+                crossAxisSpacing: 12,
 
-                mainAxisSpacing:
-                12,
+                mainAxisSpacing: 12,
 
-                childAspectRatio:
-                1.35,
+                childAspectRatio: 1.35,
 
-                shrinkWrap:
-                true,
+                shrinkWrap: true,
 
                 physics:
                 const NeverScrollableScrollPhysics(),
 
                 children: [
-
                   DashboardStatCard(
                     icon: Icons
                         .inventory_2_outlined,
-
-                    title:
-                    'Products',
-
+                    title: 'Products',
                     value:
                     loadingProducts
                         ? '...'
                         : productCount
                         .toString(),
-
                     iconColor:
                     Colors.green,
                   ),
@@ -882,16 +984,12 @@ class DashboardHome
                   DashboardStatCard(
                     icon: Icons
                         .shopping_bag_outlined,
-
-                    title:
-                    'Orders',
-
+                    title: 'Orders',
                     value:
                     loadingOrders
                         ? '...'
                         : orderCount
                         .toString(),
-
                     iconColor:
                     Colors.blue,
                   ),
@@ -899,27 +997,17 @@ class DashboardHome
                   const DashboardStatCard(
                     icon: Icons
                         .payments_outlined,
-
-                    title:
-                    'Revenue',
-
-                    value:
-                    '0 MMK',
-
+                    title: 'Revenue',
+                    value: '0 MMK',
                     iconColor:
                     Colors.orange,
                   ),
 
                   const DashboardStatCard(
-                    icon: Icons
-                        .star_outline,
-
-                    title:
-                    'Rating',
-
-                    value:
-                    '0.0',
-
+                    icon:
+                    Icons.star_outline,
+                    title: 'Rating',
+                    value: '0.0',
                     iconColor:
                     Colors.amber,
                   ),
@@ -930,9 +1018,9 @@ class DashboardHome
                 height: 28,
               ),
 
-              // =================================================
-              // QUICK ACTION
-              // =================================================
+              // ==================================================
+              // QUICK ACTIONS
+              // ==================================================
 
               const Text(
                 'Quick Actions',
@@ -951,19 +1039,15 @@ class DashboardHome
 
               Row(
                 children: [
-
                   Expanded(
                     child:
                     QuickActionCard(
                       icon: Icons
                           .add_box_outlined,
-
                       title:
                       'Add Product',
-
                       subtitle:
                       'Create new product',
-
                       onTap:
                       onAddProduct,
                     ),
@@ -978,13 +1062,10 @@ class DashboardHome
                     QuickActionCard(
                       icon: Icons
                           .inventory_2_outlined,
-
                       title:
                       'My Products',
-
                       subtitle:
                       'Manage products',
-
                       onTap: () {},
                     ),
                   ),
@@ -995,9 +1076,9 @@ class DashboardHome
                 height: 28,
               ),
 
-              // =================================================
-              // RECENT ORDERS
-              // =================================================
+              // ==================================================
+              // RECENT ORDERS HEADER
+              // ==================================================
 
               Row(
                 mainAxisAlignment:
@@ -1005,7 +1086,6 @@ class DashboardHome
                     .spaceBetween,
 
                 children: [
-
                   const Text(
                     'Recent Orders',
 
@@ -1018,7 +1098,8 @@ class DashboardHome
                   ),
 
                   TextButton(
-                    onPressed: () {},
+                    onPressed:
+                    onViewOrders,
 
                     child:
                     const Text(
@@ -1032,246 +1113,50 @@ class DashboardHome
                 height: 10,
               ),
 
-              _buildRecentOrders(),
+              // ==================================================
+              // ORDERS
+              // ==================================================
+
+              if (loadingOrders)
+                const Center(
+                  child: Padding(
+                    padding:
+                    EdgeInsets.all(
+                      30,
+                    ),
+                    child:
+                    CircularProgressIndicator(),
+                  ),
+                )
+              else if (recentOrders
+                  .isEmpty)
+                const EmptyOrdersCard()
+              else
+                Column(
+                  children:
+                  recentOrders
+                      .map(
+                        (
+                        order,
+                        ) =>
+                        RecentOrderCard(
+                          order:
+                          order,
+                        ),
+                  )
+                      .toList(),
+                ),
             ],
           ),
         ),
       ),
     );
   }
-
-  // ============================================================
-  // RECENT ORDERS WIDGET
-  // ============================================================
-
-  Widget _buildRecentOrders() {
-    if (loadingOrders) {
-      return const Center(
-        child:
-        Padding(
-          padding:
-          EdgeInsets.all(
-            30,
-          ),
-
-          child:
-          CircularProgressIndicator(),
-        ),
-      );
-    }
-
-    if (recentOrders.isEmpty) {
-      return const EmptyOrdersCard();
-    }
-
-    final orders =
-    recentOrders
-        .take(3)
-        .toList();
-
-    return Column(
-      children:
-      orders.map(
-            (order) {
-          return _RecentOrderCard(
-            order: order,
-          );
-        },
-      ).toList(),
-    );
-  }
 }
 
-// ================================================================
-// RECENT ORDER CARD
-// ================================================================
-
-class _RecentOrderCard
-    extends StatelessWidget {
-  final BusinessOrder order;
-
-  const _RecentOrderCard({
-    required this.order,
-  });
-
-  @override
-  Widget build(
-      BuildContext context,
-      ) {
-    return Card(
-      margin:
-      const EdgeInsets.only(
-        bottom: 10,
-      ),
-
-      elevation: 1,
-
-      shape:
-      RoundedRectangleBorder(
-        borderRadius:
-        BorderRadius.circular(
-          16,
-        ),
-      ),
-
-      child:
-      Padding(
-        padding:
-        const EdgeInsets.all(
-          16,
-        ),
-
-        child:
-        Row(
-          children: [
-
-            Container(
-              width: 48,
-              height: 48,
-
-              decoration:
-              BoxDecoration(
-                color:
-                Colors.green
-                    .shade50,
-
-                borderRadius:
-                BorderRadius
-                    .circular(
-                  14,
-                ),
-              ),
-
-              child:
-              Icon(
-                Icons
-                    .shopping_bag_outlined,
-
-                color:
-                Colors.green
-                    .shade700,
-              ),
-            ),
-
-            const SizedBox(
-              width: 12,
-            ),
-
-            Expanded(
-              child:
-              Column(
-                crossAxisAlignment:
-                CrossAxisAlignment
-                    .start,
-
-                children: [
-
-                  Text(
-                    order.orderNumber,
-
-                    style:
-                    const TextStyle(
-                      fontWeight:
-                      FontWeight.bold,
-                    ),
-                  ),
-
-                  const SizedBox(
-                    height: 4,
-                  ),
-
-                  Text(
-                    order.customer
-                        .name,
-
-                    style:
-                    const TextStyle(
-                      color:
-                      Colors.grey,
-                    ),
-                  ),
-
-                  const SizedBox(
-                    height: 4,
-                  ),
-
-                  Text(
-                    '${order.totalAmount} MMK',
-
-                    style:
-                    const TextStyle(
-                      fontWeight:
-                      FontWeight.bold,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-
-            _StatusBadge(
-              status:
-              order.status,
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-// ================================================================
-// STATUS BADGE
-// ================================================================
-
-class _StatusBadge
-    extends StatelessWidget {
-  final String status;
-
-  const _StatusBadge({
-    required this.status,
-  });
-
-  @override
-  Widget build(
-      BuildContext context,
-      ) {
-    return Container(
-      padding:
-      const EdgeInsets
-          .symmetric(
-        horizontal: 10,
-        vertical: 6,
-      ),
-
-      decoration:
-      BoxDecoration(
-        color:
-        Colors.grey.shade100,
-
-        borderRadius:
-        BorderRadius.circular(
-          20,
-        ),
-      ),
-
-      child:
-      Text(
-        status,
-
-        style:
-        const TextStyle(
-          fontSize: 11,
-          fontWeight:
-          FontWeight.bold,
-        ),
-      ),
-    );
-  }
-}
-
-// ================================================================
+// ==================================================================
 // STAT CARD
-// ================================================================
+// ==================================================================
 
 class DashboardStatCard
     extends StatelessWidget {
@@ -1282,7 +1167,6 @@ class DashboardStatCard
 
   const DashboardStatCard({
     super.key,
-
     required this.icon,
     required this.title,
     required this.value,
@@ -1291,18 +1175,14 @@ class DashboardStatCard
 
   @override
   Widget build(
-      BuildContext context,
-      ) {
+      BuildContext context) {
     return Container(
       padding:
-      const EdgeInsets.all(
-        16,
-      ),
+      const EdgeInsets.all(16),
 
       decoration:
       BoxDecoration(
-        color:
-        Colors.white,
+        color: Colors.white,
 
         borderRadius:
         BorderRadius.circular(
@@ -1315,56 +1195,41 @@ class DashboardStatCard
                 .withOpacity(
               0.05,
             ),
-
-            blurRadius:
-            10,
-
+            blurRadius: 10,
             offset:
-            const Offset(
-              0,
-              4,
-            ),
+            const Offset(0, 4),
           ),
         ],
       ),
 
-      child:
-      Column(
+      child: Column(
         crossAxisAlignment:
-        CrossAxisAlignment
-            .start,
+        CrossAxisAlignment.start,
 
         mainAxisAlignment:
-        MainAxisAlignment
-            .center,
+        MainAxisAlignment.center,
 
         children: [
-
           Container(
             width: 42,
             height: 42,
 
             decoration:
             BoxDecoration(
-              color:
-              iconColor
+              color: iconColor
                   .withOpacity(
                 0.1,
               ),
 
               borderRadius:
-              BorderRadius
-                  .circular(
+              BorderRadius.circular(
                 12,
               ),
             ),
 
-            child:
-            Icon(
+            child: Icon(
               icon,
-
-              color:
-              iconColor,
+              color: iconColor,
             ),
           ),
 
@@ -1392,9 +1257,7 @@ class DashboardStatCard
 
             style:
             const TextStyle(
-              color:
-              Colors.grey,
-
+              color: Colors.grey,
               fontSize: 13,
             ),
           ),
@@ -1404,9 +1267,9 @@ class DashboardStatCard
   }
 }
 
-// ================================================================
-// QUICK ACTION
-// ================================================================
+// ==================================================================
+// QUICK ACTION CARD
+// ==================================================================
 
 class QuickActionCard
     extends StatelessWidget {
@@ -1417,7 +1280,6 @@ class QuickActionCard
 
   const QuickActionCard({
     super.key,
-
     required this.icon,
     required this.title,
     required this.subtitle,
@@ -1426,55 +1288,42 @@ class QuickActionCard
 
   @override
   Widget build(
-      BuildContext context,
-      ) {
+      BuildContext context) {
     return InkWell(
-      onTap:
-      onTap,
+      onTap: onTap,
 
       borderRadius:
       BorderRadius.circular(
         18,
       ),
 
-      child:
-      Container(
+      child: Container(
         padding:
-        const EdgeInsets.all(
-          16,
-        ),
+        const EdgeInsets.all(16),
 
         decoration:
         BoxDecoration(
-          color:
-          Colors.white,
+          color: Colors.white,
 
           borderRadius:
           BorderRadius.circular(
             18,
           ),
 
-          border:
-          Border.all(
-            color:
-            Colors.green.shade100,
+          border: Border.all(
+            color: Colors.green
+                .shade100,
           ),
         ),
 
-        child:
-        Column(
+        child: Column(
           crossAxisAlignment:
-          CrossAxisAlignment
-              .start,
+          CrossAxisAlignment.start,
 
           children: [
-
             Icon(
               icon,
-
-              color:
-              Colors.green,
-
+              color: Colors.green,
               size: 30,
             ),
 
@@ -1489,9 +1338,7 @@ class QuickActionCard
               const TextStyle(
                 fontWeight:
                 FontWeight.bold,
-
-                fontSize:
-                15,
+                fontSize: 15,
               ),
             ),
 
@@ -1504,11 +1351,8 @@ class QuickActionCard
 
               style:
               const TextStyle(
-                color:
-                Colors.grey,
-
-                fontSize:
-                12,
+                color: Colors.grey,
+                fontSize: 12,
               ),
             ),
           ],
@@ -1518,9 +1362,227 @@ class QuickActionCard
   }
 }
 
-// ================================================================
+// ==================================================================
+// RECENT ORDER CARD
+// ==================================================================
+
+class RecentOrderCard
+    extends StatelessWidget {
+  final BusinessOrder order;
+
+  const RecentOrderCard({
+    super.key,
+    required this.order,
+  });
+
+  @override
+  Widget build(
+      BuildContext context) {
+    return Container(
+      width:
+      double.infinity,
+
+      margin:
+      const EdgeInsets.only(
+        bottom: 12,
+      ),
+
+      padding:
+      const EdgeInsets.all(16),
+
+      decoration:
+      BoxDecoration(
+        color: Colors.white,
+
+        borderRadius:
+        BorderRadius.circular(
+          18,
+        ),
+
+        border: Border.all(
+          color:
+          Colors.grey.shade200,
+        ),
+      ),
+
+      child: Column(
+        children: [
+          Row(
+            children: [
+              Expanded(
+                child: Text(
+                  order.orderNumber,
+
+                  style:
+                  const TextStyle(
+                    fontWeight:
+                    FontWeight.bold,
+                    fontSize: 15,
+                  ),
+                ),
+              ),
+
+              OrderStatusBadge(
+                status:
+                order.status,
+              ),
+            ],
+          ),
+
+          const SizedBox(
+            height: 12,
+          ),
+
+          Row(
+            children: [
+              const Icon(
+                Icons
+                    .person_outline,
+                size: 20,
+                color:
+                Colors.grey,
+              ),
+
+              const SizedBox(
+                width: 8,
+              ),
+
+              Expanded(
+                child: Text(
+                  order.customer.name,
+                ),
+              ),
+
+              Text(
+                '${order.totalAmount.toStringAsFixed(0)} MMK',
+
+                style:
+                const TextStyle(
+                  fontWeight:
+                  FontWeight.bold,
+                  color:
+                  Colors.green,
+                ),
+              ),
+            ],
+          ),
+
+          const SizedBox(
+            height: 8,
+          ),
+
+          Row(
+            children: [
+              const Icon(
+                Icons
+                    .inventory_2_outlined,
+                size: 20,
+                color:
+                Colors.grey,
+              ),
+
+              const SizedBox(
+                width: 8,
+              ),
+
+              Text(
+                '${order.items.length} item(s)',
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// ==================================================================
+// ORDER STATUS BADGE
+// ==================================================================
+
+class OrderStatusBadge
+    extends StatelessWidget {
+  final String status;
+
+  const OrderStatusBadge({
+    super.key,
+    required this.status,
+  });
+
+  @override
+  Widget build(
+      BuildContext context) {
+    Color color;
+
+    switch (
+    status.toLowerCase()) {
+      case 'pending':
+        color = Colors.orange;
+        break;
+
+      case 'confirmed':
+        color = Colors.blue;
+        break;
+
+      case 'processing':
+        color = Colors.indigo;
+        break;
+
+      case 'shipped':
+        color = Colors.purple;
+        break;
+
+      case 'delivered':
+      case 'completed':
+        color = Colors.green;
+        break;
+
+      case 'cancelled':
+      case 'canceled':
+        color = Colors.red;
+        break;
+
+      default:
+        color = Colors.grey;
+    }
+
+    return Container(
+      padding:
+      const EdgeInsets.symmetric(
+        horizontal: 10,
+        vertical: 6,
+      ),
+
+      decoration:
+      BoxDecoration(
+        color: color.withOpacity(
+          0.1,
+        ),
+
+        borderRadius:
+        BorderRadius.circular(
+          20,
+        ),
+      ),
+
+      child: Text(
+        status.toUpperCase(),
+
+        style:
+        TextStyle(
+          color: color,
+          fontSize: 10,
+          fontWeight:
+          FontWeight.bold,
+        ),
+      ),
+    );
+  }
+}
+
+// ==================================================================
 // EMPTY ORDERS
-// ================================================================
+// ==================================================================
 
 class EmptyOrdersCard
     extends StatelessWidget {
@@ -1530,45 +1592,35 @@ class EmptyOrdersCard
 
   @override
   Widget build(
-      BuildContext context,
-      ) {
+      BuildContext context) {
     return Container(
       width:
       double.infinity,
 
       padding:
-      const EdgeInsets.all(
-        28,
-      ),
+      const EdgeInsets.all(28),
 
       decoration:
       BoxDecoration(
-        color:
-        Colors.white,
+        color: Colors.white,
 
         borderRadius:
         BorderRadius.circular(
           18,
         ),
 
-        border:
-        Border.all(
+        border: Border.all(
           color:
           Colors.grey.shade200,
         ),
       ),
 
-      child:
-      Column(
+      child: Column(
         children: [
-
           Icon(
             Icons
                 .shopping_bag_outlined,
-
-            size:
-            48,
-
+            size: 48,
             color:
             Colors.grey.shade400,
           ),
@@ -1582,9 +1634,7 @@ class EmptyOrdersCard
 
             style:
             TextStyle(
-              fontSize:
-              16,
-
+              fontSize: 16,
               fontWeight:
               FontWeight.bold,
             ),
@@ -1595,8 +1645,7 @@ class EmptyOrdersCard
           ),
 
           Text(
-            'Your recent customer orders '
-                'will appear here.',
+            'Your recent customer orders will appear here.',
 
             textAlign:
             TextAlign.center,
@@ -1605,9 +1654,7 @@ class EmptyOrdersCard
             TextStyle(
               color:
               Colors.grey.shade600,
-
-              fontSize:
-              13,
+              fontSize: 13,
             ),
           ),
         ],

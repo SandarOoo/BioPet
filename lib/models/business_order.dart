@@ -1,187 +1,281 @@
 class BusinessOrder {
   final String id;
   final String orderNumber;
-
-  final Customer customer;
-
-  final List<BusinessOrderItem> items;
-
+  final String status;
   final double totalAmount;
+  final DateTime? createdAt;
+
+  final CustomerInfo customer;
+
+  final List<OrderItem> items;
 
   final ShippingAddress shippingAddress;
-
-  final String paymentMethod;
-  final String paymentStatus;
-  final String status;
-
-  final DateTime createdAt;
-  final DateTime updatedAt;
 
   BusinessOrder({
     required this.id,
     required this.orderNumber,
+    required this.status,
+    required this.totalAmount,
+    required this.createdAt,
     required this.customer,
     required this.items,
-    required this.totalAmount,
     required this.shippingAddress,
-    required this.paymentMethod,
-    required this.paymentStatus,
-    required this.status,
-    required this.createdAt,
-    required this.updatedAt,
   });
 
   factory BusinessOrder.fromJson(
       Map<String, dynamic> json,
       ) {
     return BusinessOrder(
-      id: json['_id'] ?? '',
+      id: (
+          json['_id'] ??
+              json['id'] ??
+              ''
+      ).toString(),
 
-      orderNumber:
-      json['orderNumber'] ?? '',
+      orderNumber: (
+          json['orderNumber'] ??
+              json['_id'] ??
+              'Order'
+      ).toString(),
+
+      status: (
+          json['status'] ??
+              'pending'
+      ).toString(),
+
+      totalAmount:
+      _toDouble(
+        json['totalAmount'] ??
+            json['total'] ??
+            json['amount'] ??
+            0,
+      ),
+
+      createdAt:
+      _parseDate(
+        json['createdAt'],
+      ),
 
       customer:
-      Customer.fromJson(
-        json['customer'] ?? {},
+      _parseCustomer(
+        json['customer'],
       ),
 
       items:
-      (json['items'] as List? ?? [])
-          .map(
-            (item) =>
-            BusinessOrderItem.fromJson(
-              item,
-            ),
-      )
-          .toList(),
-
-      totalAmount:
-      (json['totalAmount'] ?? 0)
-          .toDouble(),
-
-      shippingAddress:
-      ShippingAddress.fromJson(
-        json['shippingAddress'] ?? {},
+      _parseItems(
+        json['items'],
       ),
 
-      paymentMethod:
-      json['paymentMethod'] ?? '',
+      shippingAddress:
+      _parseShippingAddress(
+        json['shippingAddress'],
+      ),
+    );
+  }
 
-      paymentStatus:
-      json['paymentStatus'] ?? '',
+  static double _toDouble(
+      dynamic value,
+      ) {
+    if (value is num) {
+      return value.toDouble();
+    }
 
-      status:
-      json['status'] ?? '',
+    return double.tryParse(
+      value?.toString() ?? '',
+    ) ??
+        0.0;
+  }
 
-      createdAt:
-      DateTime.tryParse(
-        json['createdAt'] ?? '',
-      ) ??
-          DateTime.now(),
+  static DateTime? _parseDate(
+      dynamic value,
+      ) {
+    if (value == null) {
+      return null;
+    }
 
-      updatedAt:
-      DateTime.tryParse(
-        json['updatedAt'] ?? '',
-      ) ??
-          DateTime.now(),
+    return DateTime.tryParse(
+      value.toString(),
+    );
+  }
+
+  static CustomerInfo _parseCustomer(
+      dynamic value,
+      ) {
+    if (value is Map) {
+      return CustomerInfo.fromJson(
+        Map<String, dynamic>.from(value),
+      );
+    }
+
+    return CustomerInfo(
+      name: 'Customer',
+      email: '',
+      phone: '',
+    );
+  }
+
+  static List<OrderItem> _parseItems(
+      dynamic value,
+      ) {
+    if (value is! List) {
+      return [];
+    }
+
+    return value
+        .whereType<Map>()
+        .map(
+          (item) =>
+          OrderItem.fromJson(
+            Map<String, dynamic>.from(item),
+          ),
+    )
+        .toList();
+  }
+
+  static ShippingAddress
+  _parseShippingAddress(
+      dynamic value,
+      ) {
+    if (value is Map) {
+      return ShippingAddress.fromJson(
+        Map<String, dynamic>.from(value),
+      );
+    }
+
+    return ShippingAddress(
+      name: '',
+      phone: '',
+      address: '',
     );
   }
 }
-
 
 // =====================================================
 // CUSTOMER
 // =====================================================
 
-class Customer {
-  final String id;
+class CustomerInfo {
   final String name;
   final String email;
   final String phone;
 
-  Customer({
-    required this.id,
+  CustomerInfo({
     required this.name,
     required this.email,
     required this.phone,
   });
 
-  factory Customer.fromJson(
+  factory CustomerInfo.fromJson(
       Map<String, dynamic> json,
       ) {
-    return Customer(
-      id: json['_id'] ?? '',
-      name: json['name'] ?? '',
-      email: json['email'] ?? '',
-      phone: json['phone'] ?? '',
+    return CustomerInfo(
+      name: (
+          json['name'] ??
+              'Customer'
+      ).toString(),
+
+      email: (
+          json['email'] ??
+              ''
+      ).toString(),
+
+      phone: (
+          json['phone'] ??
+              ''
+      ).toString(),
     );
   }
 }
-
 
 // =====================================================
 // ORDER ITEM
 // =====================================================
 
-class BusinessOrderItem {
+class OrderItem {
   final String productId;
   final String name;
   final String image;
-
   final double price;
   final int quantity;
-  final double subtotal;
 
-  BusinessOrderItem({
+  OrderItem({
     required this.productId,
     required this.name,
     required this.image,
     required this.price,
     required this.quantity,
-    required this.subtotal,
   });
 
-  factory BusinessOrderItem.fromJson(
+  factory OrderItem.fromJson(
       Map<String, dynamic> json,
       ) {
-    final product =
-    json['product'] is Map
-        ? json['product']
-    as Map<String, dynamic>
-        : null;
+    dynamic product =
+    json['product'];
 
-    return BusinessOrderItem(
-      productId:
-      product?['_id'] ??
-          json['product'] ??
-          '',
+    String productId = '';
 
-      name:
-      json['name'] ??
-          product?['name'] ??
-          '',
+    if (product is Map) {
+      productId = (
+          product['_id'] ??
+              product['id'] ??
+              ''
+      ).toString();
+    } else {
+      productId =
+          product?.toString() ?? '';
+    }
 
-      image:
-      json['image'] ??
-          product?['image'] ??
-          '',
+    return OrderItem(
+      productId: productId,
+
+      name: (
+          json['name'] ??
+              'Product'
+      ).toString(),
+
+      image: (
+          json['image'] ??
+              ''
+      ).toString(),
 
       price:
-      (json['price'] ?? 0)
-          .toDouble(),
+      _toDouble(
+        json['price'],
+      ),
 
       quantity:
-      json['quantity'] ?? 0,
-
-      subtotal:
-      (json['subtotal'] ??
-          ((json['price'] ?? 0) *
-              (json['quantity'] ?? 0)))
-          .toDouble(),
+      _toInt(
+        json['quantity'],
+      ),
     );
   }
-}
 
+  static double _toDouble(
+      dynamic value,
+      ) {
+    if (value is num) {
+      return value.toDouble();
+    }
+
+    return double.tryParse(
+      value?.toString() ?? '',
+    ) ??
+        0.0;
+  }
+
+  static int _toInt(
+      dynamic value,
+      ) {
+    if (value is num) {
+      return value.toInt();
+    }
+
+    return int.tryParse(
+      value?.toString() ?? '',
+    ) ??
+        0;
+  }
+}
 
 // =====================================================
 // SHIPPING ADDRESS
@@ -202,9 +296,20 @@ class ShippingAddress {
       Map<String, dynamic> json,
       ) {
     return ShippingAddress(
-      name: json['name'] ?? '',
-      phone: json['phone'] ?? '',
-      address: json['address'] ?? '',
+      name: (
+          json['name'] ??
+              ''
+      ).toString(),
+
+      phone: (
+          json['phone'] ??
+              ''
+      ).toString(),
+
+      address: (
+          json['address'] ??
+              ''
+      ).toString(),
     );
   }
 }
