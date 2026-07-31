@@ -514,3 +514,106 @@ exports.deleteUserAdmin = async (req, res) => {
     });
   }
 };
+
+exports.getPaymentOverview = async (req, res) => {
+  try {
+    const orders = await Order.find({});
+
+    const paymentMap = {
+      COD: {
+        name: "Cash on Delivery",
+        amount: 0,
+        pending: 0,
+        paid: 0,
+        failed: 0,
+      },
+      KBZ_PAY: {
+        name: "KBZPay",
+        amount: 0,
+        pending: 0,
+        paid: 0,
+        failed: 0,
+      },
+      WAVE_PAY: {
+        name: "WavePay",
+        amount: 0,
+        pending: 0,
+        paid: 0,
+        failed: 0,
+      },
+      AYA_PAY: {
+        name: "AYA Pay",
+        amount: 0,
+        pending: 0,
+        paid: 0,
+        failed: 0,
+      },
+      CARD: {
+        name: "Card",
+        amount: 0,
+        pending: 0,
+        paid: 0,
+        failed: 0,
+      },
+    };
+
+    for (const order of orders) {
+      const method = order.paymentMethod;
+      const status = order.paymentStatus;
+
+      if (!paymentMap[method]) {
+        continue;
+      }
+
+      const amount = Number(order.totalAmount) || 0;
+
+      paymentMap[method].amount += amount;
+
+      if (status === "Pending") {
+        paymentMap[method].pending += 1;
+      }
+
+      if (status === "Paid") {
+        paymentMap[method].paid += 1;
+      }
+
+      if (status === "Failed") {
+        paymentMap[method].failed += 1;
+      }
+    }
+
+    const payments = Object.values(paymentMap);
+
+    const totalAmount = payments.reduce(
+      (sum, payment) => sum + payment.amount,
+      0
+    );
+
+    const result = payments.map((payment) => ({
+      ...payment,
+      percentage:
+        totalAmount > 0
+          ? payment.amount / totalAmount
+          : 0,
+    }));
+
+    res.status(200).json({
+      success: true,
+      payments: result,
+      totalAmount,
+    });
+  } catch (error) {
+    console.error(
+      "GET PAYMENT OVERVIEW ERROR:",
+      error
+    );
+
+    res.status(500).json({
+      success: false,
+      message:
+        "Failed to load payment overview",
+      error: error.message,
+    });
+  }
+};
+

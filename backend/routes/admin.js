@@ -17,6 +17,7 @@ const {
       getAllUsers,
       changeUserRole,
       deleteUserAdmin,
+      getPaymentOverview,
 } = require("../controllers/adminController");
 
 // =====================================================
@@ -125,6 +126,13 @@ router.delete(
   protect,
   adminOnly,
   deleteUserAdmin
+);
+
+router.get(
+  "/payment-overview",
+  protect,
+  adminOnly,
+  getPaymentOverview
 );
 
 module.exports = router;
