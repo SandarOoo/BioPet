@@ -12,6 +12,8 @@ const {
   rejectBusiness,
   getDashboardStats,
   getAllOrders,
+  getAllProductsAdmin,
+    deleteProductAdmin,
 } = require("../controllers/adminController");
 
 // =====================================================
@@ -67,6 +69,28 @@ router.get(
   protect,
   adminOnly,
   getAllOrders
+);
+
+// =====================================================
+// GET ALL PRODUCTS - ADMIN
+// =====================================================
+
+router.get(
+  "/products",
+  protect,
+  adminOnly,
+  getAllProductsAdmin
+);
+
+// =====================================================
+// DELETE PRODUCT - ADMIN
+// =====================================================
+
+router.delete(
+  "/products/:id",
+  protect,
+  adminOnly,
+  deleteProductAdmin
 );
 
 module.exports = router;

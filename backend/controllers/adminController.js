@@ -1,5 +1,6 @@
 const User = require("../models/User");
 const Order = require("../models/Order");
+const Product = require("../models/Product");
 
 // =====================================================
 // GET PENDING BUSINESSES
@@ -301,4 +302,70 @@ exports.getAllOrders = async (req, res) => {
             message: err.message,
         });
     }
+};
+
+
+// =====================================================
+// GET ALL PRODUCTS - ADMIN
+// =====================================================
+exports.getAllProductsAdmin = async (req, res) => {
+  try {
+    const products = await Product.find()
+      .populate(
+        "owner",
+        "name email businessProfile"
+      )
+      .sort({
+        createdAt: -1,
+      });
+
+    return res.status(200).json({
+      success: true,
+      products,
+    });
+  } catch (err) {
+    console.error(
+      "GET ALL PRODUCTS ADMIN ERROR:",
+      err
+    );
+
+    return res.status(500).json({
+      success: false,
+      message: err.message,
+    });
+  }
+};
+
+// =====================================================
+// DELETE PRODUCT - ADMIN
+// =====================================================
+exports.deleteProductAdmin = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const product =
+      await Product.findByIdAndDelete(id);
+
+    if (!product) {
+      return res.status(404).json({
+        success: false,
+        message: "Product not found.",
+      });
+    }
+
+    return res.status(200).json({
+      success: true,
+      message: "Product deleted successfully.",
+    });
+  } catch (err) {
+    console.error(
+      "DELETE PRODUCT ADMIN ERROR:",
+      err
+    );
+
+    return res.status(500).json({
+      success: false,
+      message: err.message,
+    });
+  }
 };
