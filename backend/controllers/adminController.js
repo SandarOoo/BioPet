@@ -1,163 +1,174 @@
 const User = require("../models/User");
 const Order = require("../models/Order");
 
-// =============================
+// =====================================================
 // GET PENDING BUSINESSES
-// =============================
-exports.getPendingBusinesses = async (req, res) => {
+// =====================================================
 
+exports.getPendingBusinesses = async (req, res) => {
     try {
 
         const businesses = await User.find({
             role: "business_owner",
-            "businessProfile.verificationStatus": "pending"
+            "businessProfile.verificationStatus": "pending",
         }).select("-password -otp");
 
-
-        res.json({
-            success:true,
-            businesses
+        return res.status(200).json({
+            success: true,
+            businesses,
         });
 
+    } catch (err) {
 
-    } catch(err){
+        console.error(
+            "GET PENDING BUSINESSES ERROR:",
+            err
+        );
 
-        res.status(500).json({
-            success:false,
-            message:err.message
+        return res.status(500).json({
+            success: false,
+            message: err.message,
         });
-
     }
-
 };
 
 
-
-// =============================
+// =====================================================
 // APPROVE BUSINESS
-// =============================
-exports.approveBusiness = async (req,res)=>{
+// =====================================================
 
+exports.approveBusiness = async (req, res) => {
     try {
 
         const { userId } = req.params;
 
-
         const user = await User.findById(userId);
 
-
-        if(!user){
+        if (!user) {
             return res.status(404).json({
-                success:false,
-                message:"Business owner not found"
+                success: false,
+                message: "Business owner not found",
             });
         }
-        user.businessProfile.verificationStatus = "approved";
+
+        // Update verification status
+        user.businessProfile.verificationStatus =
+            "approved";
+
         await user.save();
 
-
-        res.json({
-            success:true,
-            message:"Business approved successfully."
+        return res.status(200).json({
+            success: true,
+            message: "Business approved successfully.",
         });
 
+    } catch (err) {
 
-    } catch(err){
+        console.error(
+            "APPROVE BUSINESS ERROR:",
+            err
+        );
 
-        res.status(500).json({
-            success:false,
-            message:err.message
+        return res.status(500).json({
+            success: false,
+            message: err.message,
         });
-
     }
-
 };
 
 
-
-// =============================
+// =====================================================
 // REJECT BUSINESS
-// =============================
-exports.rejectBusiness = async(req,res)=>{
+// =====================================================
 
+exports.rejectBusiness = async (req, res) => {
     try {
 
         const { userId } = req.params;
 
         const { reason } = req.body;
 
-
         const user = await User.findById(userId);
 
-
-        if(!user){
+        if (!user) {
             return res.status(404).json({
-                success:false,
-                message:"Business owner not found"
+                success: false,
+                message: "Business owner not found",
             });
         }
 
-user.businessProfile.verificationStatus = "rejected";
-user.businessProfile.rejectReason = reason;
-await user.save();
+        // Update verification status
+        user.businessProfile.verificationStatus =
+            "rejected";
 
+        // Save rejection reason
+        user.businessProfile.rejectReason =
+            reason || "";
 
-        res.json({
-            success:true,
-            message:"Business rejected successfully."
+        await user.save();
+
+        return res.status(200).json({
+            success: true,
+            message: "Business rejected successfully.",
         });
 
+    } catch (err) {
 
-    } catch(err){
+        console.error(
+            "REJECT BUSINESS ERROR:",
+            err
+        );
 
-        res.status(500).json({
-            success:false,
-            message:err.message
+        return res.status(500).json({
+            success: false,
+            message: err.message,
         });
-
     }
-
 };
 
-// =============================
+
+// =====================================================
 // GET ADMIN DASHBOARD STATS
-// =============================
+// =====================================================
+
 exports.getDashboardStats = async (req, res) => {
     try {
 
-        // ==========================================
+        // =================================================
         // TOTAL USERS
-        // ==========================================
+        // =================================================
 
-        const totalUsers = await User.countDocuments({
-            role: {
-                $ne: "admin"
-            }
-        });
+        const totalUsers =
+            await User.countDocuments({
+                role: {
+                    $ne: "admin",
+                },
+            });
 
 
-        // ==========================================
+        // =================================================
         // ACTIVE / APPROVED SHOPS
-        // ==========================================
+        // =================================================
 
-        const activeShops = await User.countDocuments({
-            role: "business_owner",
-            "businessProfile.verificationStatus":
-                "approved"
-        });
+        const activeShops =
+            await User.countDocuments({
+                role: "business_owner",
+                "businessProfile.verificationStatus":
+                    "approved",
+            });
 
 
-        // ==========================================
+        // =================================================
         // TOTAL ORDERS
-        // ==========================================
+        // =================================================
 
         const totalOrders =
             await Order.countDocuments();
 
 
-        // ==========================================
+        // =================================================
         // CURRENT MONTH REVENUE
-        // ==========================================
+        // =================================================
 
         const now = new Date();
 
@@ -179,26 +190,29 @@ exports.getDashboardStats = async (req, res) => {
         const revenueResult =
             await Order.aggregate([
 
+                // Only current month
+                // delivered orders
                 {
                     $match: {
                         createdAt: {
                             $gte: startOfMonth,
-                            $lt: startOfNextMonth
+                            $lt: startOfNextMonth,
                         },
 
-                        status: "Delivered"
-                    }
+                        status: "Delivered",
+                    },
                 },
 
+                // Calculate total revenue
                 {
                     $group: {
                         _id: null,
 
                         totalRevenue: {
-                            $sum: "$totalAmount"
-                        }
-                    }
-                }
+                            $sum: "$totalAmount",
+                        },
+                    },
+                },
             ]);
 
 
@@ -208,19 +222,19 @@ exports.getDashboardStats = async (req, res) => {
                 : 0;
 
 
-        // ==========================================
+        // =================================================
         // RESPONSE
-        // ==========================================
+        // =================================================
 
-        res.json({
+        return res.status(200).json({
             success: true,
 
             stats: {
                 totalUsers,
                 activeShops,
                 totalOrders,
-                monthlyRevenue
-            }
+                monthlyRevenue,
+            },
         });
 
     } catch (err) {
@@ -230,9 +244,61 @@ exports.getDashboardStats = async (req, res) => {
             err
         );
 
-        res.status(500).json({
+        return res.status(500).json({
             success: false,
-            message: err.message
+            message: err.message,
+        });
+    }
+};
+
+
+// =====================================================
+// GET ALL ORDERS - ADMIN
+// =====================================================
+
+exports.getAllOrders = async (req, res) => {
+    try {
+
+        // Get all orders
+        const orders =
+            await Order.find()
+
+                // Customer information
+                .populate(
+                    "customer",
+                    "name email phone"
+                )
+
+                // Product information
+                .populate(
+                    "items.product"
+                )
+
+                // Latest orders first
+                .sort({
+                    createdAt: -1,
+                });
+
+
+        // =================================================
+        // RESPONSE
+        // =================================================
+
+        return res.status(200).json({
+            success: true,
+            orders,
+        });
+
+    } catch (err) {
+
+        console.error(
+            "GET ALL ORDERS ERROR:",
+            err
+        );
+
+        return res.status(500).json({
+            success: false,
+            message: err.message,
         });
     }
 };

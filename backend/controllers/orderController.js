@@ -414,6 +414,41 @@ exports.getBusinessOrders = async (
   }
 };
 
+// =====================================================
+// GET ALL ORDERS - ADMIN
+// =====================================================
+
+exports.getAllOrders = async (req, res) => {
+  try {
+    const orders = await Order.find()
+      .populate(
+        "customer",
+        "name email phone"
+      )
+      .populate(
+        "items.product"
+      )
+      .sort({
+        createdAt: -1,
+      });
+
+    return res.status(200).json({
+      success: true,
+      orders,
+    });
+  } catch (error) {
+    console.error(
+      "GET ALL ORDERS ERROR:",
+      error
+    );
+
+    return res.status(500).json({
+      success: false,
+      message: error.message,
+    });
+  }
+};
+
 
 // =====================================================
 // UPDATE ORDER STATUS - BUSINESS OWNER
@@ -527,3 +562,8 @@ exports.updateOrderStatus = async (
     });
   }
 };
+
+// =====================================================
+// GET ALL ORDERS - ADMIN DASHBOARD
+// =====================================================
+

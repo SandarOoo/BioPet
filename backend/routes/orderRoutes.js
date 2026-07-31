@@ -9,6 +9,7 @@ const {
   cancelOrder,
   getBusinessOrders,
   updateOrderStatus,
+  getAllOrders,
 } = require(
   "../controllers/orderController"
 );
@@ -42,6 +43,12 @@ router.get(
   "/business",
   protect,
   getBusinessOrders
+);
+// GET ALL ORDERS - ADMIN
+router.get(
+  "/admin/all",
+  protect,
+  getAllOrders
 );
 
 

@@ -1,51 +1,72 @@
 const express = require("express");
 const router = express.Router();
 
-const { protect, adminOnly } = require("../middleware/auth");
+const {
+  protect,
+  adminOnly,
+} = require("../middleware/auth");
 
 const {
-    getPendingBusinesses,
-    approveBusiness,
-    rejectBusiness,
-    getDashboardStats
+  getPendingBusinesses,
+  approveBusiness,
+  rejectBusiness,
+  getDashboardStats,
+  getAllOrders,
 } = require("../controllers/adminController");
 
+// =====================================================
+// DASHBOARD STATISTICS
+// =====================================================
 
-// dashboard statistics
 router.get(
-    "/dashboard/stats",
-    protect,
-    adminOnly,
-    getDashboardStats
+  "/dashboard/stats",
+  protect,
+  adminOnly,
+  getDashboardStats
 );
 
+// =====================================================
+// PENDING BUSINESSES
+// =====================================================
 
-// pending list
 router.get(
-    "/businesses/pending",
-    protect,
-    adminOnly,
-    getPendingBusinesses
+  "/businesses/pending",
+  protect,
+  adminOnly,
+  getPendingBusinesses
 );
 
+// =====================================================
+// APPROVE BUSINESS
+// =====================================================
 
-// approve
 router.put(
-    "/businesses/:userId/approve",
-    protect,
-    adminOnly,
-    approveBusiness
+  "/businesses/:userId/approve",
+  protect,
+  adminOnly,
+  approveBusiness
 );
 
+// =====================================================
+// REJECT BUSINESS
+// =====================================================
 
-// reject
 router.put(
-    "/businesses/:userId/reject",
-    protect,
-    adminOnly,
-    rejectBusiness
+  "/businesses/:userId/reject",
+  protect,
+  adminOnly,
+  rejectBusiness
 );
 
+// =====================================================
+// GET ALL ORDERS - ADMIN
+// =====================================================
 
+router.get(
+  "/orders",
+  protect,
+  adminOnly,
+  getAllOrders
+);
 
 module.exports = router;
