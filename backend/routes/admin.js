@@ -14,6 +14,9 @@ const {
   getAllOrders,
   getAllProductsAdmin,
     deleteProductAdmin,
+      getAllUsers,
+      changeUserRole,
+      deleteUserAdmin,
 } = require("../controllers/adminController");
 
 // =====================================================
@@ -91,6 +94,37 @@ router.delete(
   protect,
   adminOnly,
   deleteProductAdmin
+);
+
+// =====================================================
+// USER MANAGEMENT - ADMIN ONLY
+// =====================================================
+
+// Get all users
+// GET /api/admin/users
+router.get(
+  "/users",
+  protect,
+  adminOnly,
+  getAllUsers
+);
+
+// Change user role
+// PUT /api/admin/users/:id/role
+router.put(
+  "/users/:id/role",
+  protect,
+  adminOnly,
+  changeUserRole
+);
+
+// Permanently delete user
+// DELETE /api/admin/users/:id
+router.delete(
+  "/users/:id",
+  protect,
+  adminOnly,
+  deleteUserAdmin
 );
 
 module.exports = router;

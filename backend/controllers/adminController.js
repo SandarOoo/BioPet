@@ -369,3 +369,148 @@ exports.deleteProductAdmin = async (req, res) => {
     });
   }
 };
+
+// =====================================================
+// GET ALL USERS - ADMIN
+// =====================================================
+
+exports.getAllUsers = async (req, res) => {
+  try {
+    const users = await User.find()
+      .select("-password -otp -otpExpiresAt -lastOtpSentAt")
+      .sort({
+        createdAt: -1,
+      });
+
+    return res.status(200).json({
+      success: true,
+      users,
+    });
+  } catch (err) {
+    console.error(
+      "GET ALL USERS ADMIN ERROR:",
+      err
+    );
+
+    return res.status(500).json({
+      success: false,
+      message: err.message,
+    });
+  }
+};
+
+// =====================================================
+// CHANGE USER ROLE - ADMIN
+// =====================================================
+
+exports.changeUserRole = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { role } = req.body;
+
+    // Valid roles
+    const allowedRoles = [
+      "user",
+      "business_owner",
+      "admin",
+    ];
+
+    if (!role || !allowedRoles.includes(role)) {
+      return res.status(400).json({
+        success: false,
+        message:
+          "Invalid role. Allowed roles: user, business_owner, admin.",
+      });
+    }
+
+    const user = await User.findById(id);
+
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: "User not found.",
+      });
+    }
+
+    // Prevent admin from changing their own role
+    if (user._id.toString() === req.user._id.toString()) {
+      return res.status(403).json({
+        success: false,
+        message:
+          "You cannot change your own admin role.",
+      });
+    }
+
+    user.role = role;
+
+    await user.save();
+
+    return res.status(200).json({
+      success: true,
+      message:
+        "User role updated successfully.",
+      user: {
+        _id: user._id,
+        name: user.name,
+        email: user.email,
+        role: user.role,
+      },
+    });
+  } catch (err) {
+    console.error(
+      "CHANGE USER ROLE ADMIN ERROR:",
+      err
+    );
+
+    return res.status(500).json({
+      success: false,
+      message: err.message,
+    });
+  }
+};
+
+// =====================================================
+// DELETE USER PERMANENTLY - ADMIN
+// =====================================================
+
+exports.deleteUserAdmin = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const user = await User.findById(id);
+
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: "User not found.",
+      });
+    }
+
+    // Prevent admin from deleting themselves
+    if (user._id.toString() === req.user._id.toString()) {
+      return res.status(403).json({
+        success: false,
+        message:
+          "You cannot delete your own admin account.",
+      });
+    }
+
+    await User.findByIdAndDelete(id);
+
+    return res.status(200).json({
+      success: true,
+      message:
+        "User permanently deleted successfully.",
+    });
+  } catch (err) {
+    console.error(
+      "DELETE USER ADMIN ERROR:",
+      err
+    );
+
+    return res.status(500).json({
+      success: false,
+      message: err.message,
+    });
+  }
+};
