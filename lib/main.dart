@@ -1,5 +1,6 @@
 import 'package:biopet/Login_Screen.dart';
 import 'package:biopet/auth_check.dart';
+import 'package:biopet/dashboard_page.dart';
 import 'package:biopet/profile_page.dart';
 import 'package:biopet/providers/classification_provider.dart';
 import 'package:biopet/providers/history_provider.dart';
@@ -159,7 +160,7 @@ class MyApp extends StatelessWidget {
         ),
       ),
       // Start with Login
-      home:  LoginScreen(),
+      home:  const AdminDashboardScreen(),
       onGenerateRoute: (settings) {
         if(settings.name == "/business-location"){
           return MaterialPageRoute(

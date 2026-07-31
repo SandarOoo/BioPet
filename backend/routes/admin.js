@@ -6,8 +6,18 @@ const { protect, adminOnly } = require("../middleware/auth");
 const {
     getPendingBusinesses,
     approveBusiness,
-    rejectBusiness
+    rejectBusiness,
+    getDashboardStats
 } = require("../controllers/adminController");
+
+
+// dashboard statistics
+router.get(
+    "/dashboard/stats",
+    protect,
+    adminOnly,
+    getDashboardStats
+);
 
 
 // pending list
@@ -35,6 +45,7 @@ router.put(
     adminOnly,
     rejectBusiness
 );
+
 
 
 module.exports = router;

@@ -1,5 +1,5 @@
 const User = require("../models/User");
-
+const Order = require("../models/Order");
 
 // =============================
 // GET PENDING BUSINESSES
@@ -117,4 +117,122 @@ await user.save();
 
     }
 
+};
+
+// =============================
+// GET ADMIN DASHBOARD STATS
+// =============================
+exports.getDashboardStats = async (req, res) => {
+    try {
+
+        // ==========================================
+        // TOTAL USERS
+        // ==========================================
+
+        const totalUsers = await User.countDocuments({
+            role: {
+                $ne: "admin"
+            }
+        });
+
+
+        // ==========================================
+        // ACTIVE / APPROVED SHOPS
+        // ==========================================
+
+        const activeShops = await User.countDocuments({
+            role: "business_owner",
+            "businessProfile.verificationStatus":
+                "approved"
+        });
+
+
+        // ==========================================
+        // TOTAL ORDERS
+        // ==========================================
+
+        const totalOrders =
+            await Order.countDocuments();
+
+
+        // ==========================================
+        // CURRENT MONTH REVENUE
+        // ==========================================
+
+        const now = new Date();
+
+        const startOfMonth =
+            new Date(
+                now.getFullYear(),
+                now.getMonth(),
+                1
+            );
+
+        const startOfNextMonth =
+            new Date(
+                now.getFullYear(),
+                now.getMonth() + 1,
+                1
+            );
+
+
+        const revenueResult =
+            await Order.aggregate([
+
+                {
+                    $match: {
+                        createdAt: {
+                            $gte: startOfMonth,
+                            $lt: startOfNextMonth
+                        },
+
+                        status: "Delivered"
+                    }
+                },
+
+                {
+                    $group: {
+                        _id: null,
+
+                        totalRevenue: {
+                            $sum: "$totalAmount"
+                        }
+                    }
+                }
+            ]);
+
+
+        const monthlyRevenue =
+            revenueResult.length > 0
+                ? revenueResult[0].totalRevenue
+                : 0;
+
+
+        // ==========================================
+        // RESPONSE
+        // ==========================================
+
+        res.json({
+            success: true,
+
+            stats: {
+                totalUsers,
+                activeShops,
+                totalOrders,
+                monthlyRevenue
+            }
+        });
+
+    } catch (err) {
+
+        console.error(
+            "GET DASHBOARD STATS ERROR:",
+            err
+        );
+
+        res.status(500).json({
+            success: false,
+            message: err.message
+        });
+    }
 };
