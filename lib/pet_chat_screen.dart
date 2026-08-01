@@ -149,7 +149,7 @@ class _PetChatScreenState extends State<PetChatScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xffF7F9FC),
+      backgroundColor: const Color(0xFFFFF8E7),
       appBar: AppBar(
         elevation: 0,
         centerTitle: true,
@@ -169,7 +169,7 @@ class _PetChatScreenState extends State<PetChatScreen> {
         flexibleSpace: Container(
           decoration: const BoxDecoration(
             gradient: LinearGradient(
-              colors: [Color(0xff43A047), Color(0xff66BB6A)],
+              colors: [Color(0xFF065F46), Color(0xFF065F46)],
             ),
           ),
         ),
@@ -198,7 +198,7 @@ class _PetChatScreenState extends State<PetChatScreen> {
                           backgroundColor: Colors.green.shade100,
                           child: const Icon(
                             Icons.pets,
-                            color: Colors.green,
+                            color: Color(0xFF065F46),
                           ),
                         ),
                       const SizedBox(width: 8),
@@ -208,7 +208,7 @@ class _PetChatScreenState extends State<PetChatScreen> {
                           padding: const EdgeInsets.all(15),
                           decoration: BoxDecoration(
                             color: isUser
-                                ? const Color(0xff43A047)
+                                ? const Color(0xFF065F46)
                                 : isError
                                 ? Colors.red.shade50
                                 : Colors.white,
@@ -216,7 +216,7 @@ class _PetChatScreenState extends State<PetChatScreen> {
                             boxShadow: [
                               BoxShadow(
                                 color: Colors.black12,
-                                blurRadius: 8,
+                                // blurRadius: 8,
                               ),
                             ],
                           ),
@@ -230,7 +230,7 @@ class _PetChatScreenState extends State<PetChatScreen> {
                                 height: 20,
                                 child: CircularProgressIndicator(
                                   strokeWidth: 2,
-                                  color: Colors.green,
+                                  color: Color(0xFF065F46),
                                 ),
                               ),
                               SizedBox(width: 12),
@@ -266,7 +266,7 @@ class _PetChatScreenState extends State<PetChatScreen> {
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 15, vertical: 10),
             decoration: const BoxDecoration(
-              color: Colors.white,
+              color: Color(0xFFFFF8E7),
               borderRadius: BorderRadius.vertical(
                 top: Radius.circular(25),
               ),
@@ -298,7 +298,7 @@ class _PetChatScreenState extends State<PetChatScreen> {
                 const SizedBox(width: 10),
                 CircleAvatar(
                   radius: 25,
-                  backgroundColor: isLoading ? Colors.grey : Colors.green,
+                  backgroundColor: isLoading ? Colors.grey : Color(0xFF065F46),
                   child: IconButton(
                     icon: isLoading
                         ? const SizedBox(
