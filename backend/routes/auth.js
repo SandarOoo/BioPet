@@ -1,3 +1,4 @@
+
 const express = require("express");
 const jwt = require("jsonwebtoken");
 const User = require("../models/User");
@@ -11,13 +12,13 @@ const router = express.Router();
 // =====================================================
 
 const generateToken = (id) =>
-jwt.sign(
-{ id },
-process.env.JWT_SECRET,
-{
-expiresIn: process.env.JWT_EXPIRE,
-}
-);
+  jwt.sign(
+    { id },
+    process.env.JWT_SECRET,
+    {
+      expiresIn: process.env.JWT_EXPIRE,
+    }
+  );
 
 // =====================================================
 // REGISTER
@@ -26,419 +27,423 @@ expiresIn: process.env.JWT_EXPIRE,
 
 router.post("/register", async (req, res) => {
 
-console.log("=================================");
-console.log("REGISTER HIT");
+  console.log("=================================");
+  console.log("REGISTER HIT");
 
-const {
-name,
-email,
-password,
-phone,
-role,
-businessProfile,
-} = req.body;
+  const {
+    name,
+    email,
+    password,
+    phone,
+    role,
+    businessProfile,
+  } = req.body;
 
-try {
+  try {
 
-```
-// =================================================
-// VALIDATION
-// =================================================
+    // =================================================
+    // VALIDATE INPUT
+    // =================================================
 
-if (!name || !name.trim()) {
-  return res.status(400).json({
-    success: false,
-    message: "Name is required",
-  });
-}
+    if (
+      !name ||
+      !email ||
+      !password
+    ) {
+      return res.status(400).json({
+        success: false,
+        message:
+          "Name, email and password are required",
+      });
+    }
 
-if (!email || !email.trim()) {
-  return res.status(400).json({
-    success: false,
-    message: "Email is required",
-  });
-}
+    const cleanEmail =
+      email.trim().toLowerCase();
 
-if (!password || password.length < 6) {
-  return res.status(400).json({
-    success: false,
-    message:
-      "Password must be at least 6 characters",
-  });
-}
+    // =================================================
+    // PREVENT ADMIN REGISTER
+    // =================================================
 
-// =================================================
-// PREVENT ADMIN REGISTER
-// =================================================
+    if (role === "admin") {
+      return res.status(403).json({
+        success: false,
+        message:
+          "Cannot register as admin",
+      });
+    }
 
-if (role === "admin") {
-  return res.status(403).json({
-    success: false,
-    message: "Cannot register as admin",
-  });
-}
+    // =================================================
+    // CHECK MONGODB USER
+    // =================================================
 
-// =================================================
-// CHECK MONGODB USER
-// =================================================
+    const existingUser =
+      await User.findOne({
+        email: cleanEmail,
+      });
 
-const existingUser =
-  await User.findOne({
-    email: email.trim().toLowerCase(),
-  });
+    if (existingUser) {
+      return res.status(400).json({
+        success: false,
+        message:
+          "Email already exists",
+      });
+    }
 
-if (existingUser) {
+    // =================================================
+    // CREATE SUPABASE AUTH USER
+    // =================================================
 
-  return res.status(400).json({
-    success: false,
-    message: "Email already exists",
-  });
+    console.log(
+      "CREATING SUPABASE USER..."
+    );
 
-}
+    const {
+      data: supabaseData,
+      error: supabaseError,
+    } =
+      await supabase.auth.admin.createUser({
 
-// =================================================
-// CREATE SUPABASE AUTH USER
-// =================================================
+        email: cleanEmail,
 
-console.log(
-  "CREATING SUPABASE AUTH USER..."
-);
+        password: password,
 
-const {
-  data: supabaseData,
-  error: supabaseError,
-} =
-  await supabase.auth.signUp({
+        email_confirm: false,
 
-    email:
-      email.trim().toLowerCase(),
+        user_metadata: {
+          name: name,
+          phone: phone || "",
+          role: role || "user",
+        },
 
-    password:
-      password,
+      });
 
-    options: {
+    if (supabaseError) {
 
-      emailRedirectTo:
-        process.env.SUPABASE_REDIRECT_URL,
+      console.error(
+        "SUPABASE CREATE USER ERROR =>",
+        supabaseError
+      );
 
-      data: {
+      return res.status(400).json({
+        success: false,
+        message:
+          "Supabase registration failed",
+        error:
+          supabaseError.message,
+      });
 
-        name:
-          name.trim(),
+    }
 
-        phone:
-          phone || "",
+    console.log(
+      "SUPABASE USER CREATED =>",
+      supabaseData.user.id
+    );
+
+    // =================================================
+    // SEND SUPABASE VERIFICATION EMAIL
+    // =================================================
+
+    console.log(
+      "SENDING SUPABASE VERIFICATION EMAIL..."
+    );
+
+    const {
+      error: emailError,
+    } =
+      await supabase.auth.resend({
+        type: "signup",
+        email: cleanEmail,
+        options: {
+          emailRedirectTo:
+            process.env.SUPABASE_REDIRECT_URL,
+        },
+      });
+
+    if (emailError) {
+
+      console.error(
+        "SUPABASE EMAIL ERROR =>",
+        emailError
+      );
+
+      // Delete Supabase account
+      // if email sending fails
+
+      await supabase.auth.admin.deleteUser(
+        supabaseData.user.id
+      );
+
+      return res.status(500).json({
+        success: false,
+        message:
+          "Unable to send verification email",
+        error:
+          emailError.message,
+      });
+
+    }
+
+    console.log(
+      "✅ SUPABASE VERIFICATION EMAIL SENT"
+    );
+
+    // =================================================
+    // CREATE MONGODB USER
+    // =================================================
+
+    const user =
+      await User.create({
+
+        name: name,
+
+        email: cleanEmail,
+
+        password: password,
+
+        phone: phone,
 
         role:
           role || "user",
 
-      },
+        businessProfile:
+          role === "business_owner"
+            ? {
 
-    },
+                businessName:
+                  businessProfile?.businessName ||
+                  "",
 
-  });
+                businessType:
+                  businessProfile?.businessType ||
+                  "",
 
-// =================================================
-// SUPABASE ERROR
-// =================================================
+                address:
+                  businessProfile?.address ||
+                  "",
 
-if (supabaseError) {
+                latitude:
+                  businessProfile?.latitude ||
+                  null,
 
-  console.error(
-    "SUPABASE SIGNUP ERROR =>",
-    supabaseError
-  );
+                longitude:
+                  businessProfile?.longitude ||
+                  null,
 
-  return res.status(400).json({
+                description:
+                  businessProfile?.description ||
+                  "",
 
-    success: false,
+                agreementAccepted:
+                  false,
 
-    message:
-      supabaseError.message,
+                verificationStatus:
+                  "draft",
 
-  });
+                rejectReason:
+                  "",
 
-}
+              }
+            : {},
 
-// =================================================
-// CHECK SUPABASE USER
-// =================================================
+        // Email verification status
+        isVerified: false,
 
-const supabaseUser =
-  supabaseData?.user;
+        // Supabase User ID
+        supabaseUserId:
+          supabaseData.user.id,
 
-if (!supabaseUser) {
+      });
 
-  return res.status(400).json({
-
-    success: false,
-
-    message:
-      "Failed to create Supabase user",
-
-  });
-
-}
-
-console.log(
-  "SUPABASE USER CREATED =>",
-  supabaseUser.id
-);
-
-// =================================================
-// CREATE MONGODB USER
-// =================================================
-
-const user =
-  await User.create({
-
-    name:
-      name.trim(),
-
-    email:
-      email.trim().toLowerCase(),
-
-    password,
-
-    phone,
-
-    role:
-      role || "user",
-
-    businessProfile:
-      role === "business_owner"
-        ? {
-
-            businessName:
-              businessProfile?.businessName ||
-              "",
-
-            businessType:
-              businessProfile?.businessType ||
-              "",
-
-            address:
-              businessProfile?.address ||
-              "",
-
-            latitude:
-              businessProfile?.latitude ??
-              null,
-
-            longitude:
-              businessProfile?.longitude ??
-              null,
-
-            description:
-              businessProfile?.description ||
-              "",
-
-            agreementAccepted:
-              false,
-
-            verificationStatus:
-              "draft",
-
-            rejectReason:
-              "",
-
-          }
-        : {},
+    console.log(
+      "MONGODB USER CREATED =>",
+      user._id
+    );
 
     // =================================================
-    // EMAIL NOT VERIFIED YET
+    // SUCCESS
     // =================================================
 
-    isVerified:
-      false,
+    return res.status(201).json({
 
-  });
+      success: true,
 
-console.log(
-  "MONGODB USER CREATED =>",
-  user._id
-);
+      message:
+        "Registration successful. Please check your email and click the verification link.",
 
-// =================================================
-// SUCCESS
-// =================================================
+      userId:
+        user._id,
 
-return res.status(201).json({
+      supabaseUserId:
+        supabaseData.user.id,
 
-  success: true,
+    });
 
-  message:
-    "Registration successful. Please check your email and click the verification link.",
+  } catch (err) {
 
-  userId:
-    user._id,
+    console.error(
+      "❌ REGISTER ERROR =>",
+      err
+    );
 
-  supabaseUserId:
-    supabaseUser.id,
+    return res.status(500).json({
 
-});
-```
+      success: false,
 
-} catch (err) {
+      message:
+        "Registration failed",
 
-```
-console.error(
-  "❌ REGISTER ERROR =>",
-  err
-);
+      error:
+        err.message,
 
-return res.status(500).json({
+    });
 
-  success: false,
-
-  message:
-    "Registration failed",
-
-  error:
-    err.message,
-
-});
-```
-
-}
+  }
 
 });
 
 // =====================================================
 // VERIFY EMAIL
 // GET /api/auth/verify-email
-//
-// This endpoint is called after the user returns
-// from Supabase verification.
 // =====================================================
 
 router.get(
-"/verify-email",
-async (req, res) => {
+  "/verify-email",
+  async (req, res) => {
 
-```
-try {
+    try {
 
-  const {
-    email,
-  } = req.query;
+      const {
+        email,
+      } = req.query;
 
-  if (!email) {
+      console.log(
+        "================================="
+      );
 
-    return res.status(400).send(`
-      <h2>Email verification failed</h2>
-      <p>Email is missing.</p>
-    `);
+      console.log(
+        "VERIFY EMAIL REQUEST"
+      );
+
+      console.log(
+        "EMAIL =>",
+        email
+      );
+
+      // =================================================
+      // VALIDATE EMAIL
+      // =================================================
+
+      if (!email) {
+
+        return res.status(400).json({
+
+          success: false,
+
+          message:
+            "Email is missing",
+
+        });
+
+      }
+
+      const cleanEmail =
+        email.trim().toLowerCase();
+
+      // =================================================
+      // FIND USER
+      // =================================================
+
+      const user =
+        await User.findOne({
+
+          email:
+            cleanEmail,
+
+        });
+
+      if (!user) {
+
+        return res.status(404).json({
+
+          success: false,
+
+          message:
+            "User not found",
+
+        });
+
+      }
+
+      // =================================================
+      // ALREADY VERIFIED
+      // =================================================
+
+      if (user.isVerified) {
+
+        return res.json({
+
+          success: true,
+
+          message:
+            "Email is already verified",
+
+        });
+
+      }
+
+      // =================================================
+      // UPDATE MONGODB
+      // =================================================
+
+      user.isVerified =
+        true;
+
+      await user.save();
+
+      console.log(
+        "✅ EMAIL VERIFIED"
+      );
+
+      console.log(
+        "USER =>",
+        user.email
+      );
+
+      // =================================================
+      // SUCCESS
+      // =================================================
+
+      return res.json({
+
+        success: true,
+
+        message:
+          "Email verified successfully. You can now login.",
+
+      });
+
+    } catch (err) {
+
+      console.error(
+        "❌ VERIFY EMAIL ERROR =>",
+        err
+      );
+
+      return res.status(500).json({
+
+        success: false,
+
+        message:
+          "Email verification failed",
+
+        error:
+          err.message,
+
+      });
+
+    }
 
   }
-
-  // =================================================
-  // FIND MONGODB USER
-  // =================================================
-
-  const user =
-    await User.findOne({
-      email:
-        email.trim().toLowerCase(),
-    });
-
-  if (!user) {
-
-    return res.status(404).send(`
-      <h2>User not found</h2>
-      <p>No BioPet account was found for this email.</p>
-    `);
-
-  }
-
-  // =================================================
-  // ALREADY VERIFIED
-  // =================================================
-
-  if (user.isVerified) {
-
-    return res.send(`
-      <h2>Email already verified</h2>
-      <p>Your BioPet account is already verified.</p>
-      <p>You can now open the BioPet app and login.</p>
-    `);
-
-  }
-
-  // =================================================
-  // UPDATE MONGODB
-  // =================================================
-
-  user.isVerified =
-    true;
-
-  await user.save();
-
-  console.log(
-    "EMAIL VERIFIED =>",
-    user.email
-  );
-
-  // =================================================
-  // SUCCESS
-  // =================================================
-
-  return res.send(`
-    <!DOCTYPE html>
-    <html>
-
-    <head>
-
-      <title>BioPet Email Verification</title>
-
-      <meta
-        name="viewport"
-        content="width=device-width, initial-scale=1"
-      />
-
-    </head>
-
-    <body
-      style="
-        font-family: Arial;
-        text-align: center;
-        padding: 50px;
-      "
-    >
-
-      <h1>
-        ✅ Email Verified Successfully
-      </h1>
-
-      <p>
-        Your BioPet account has been verified.
-      </p>
-
-      <p>
-        You can now open the BioPet app and login.
-      </p>
-
-    </body>
-
-    </html>
-  `);
-
-} catch (err) {
-
-  console.error(
-    "VERIFY EMAIL ERROR =>",
-    err
-  );
-
-  return res.status(500).send(`
-    <h2>Verification failed</h2>
-    <p>${err.message}</p>
-  `);
-
-}
-```
-
-}
 );
 
 // =====================================================
@@ -447,315 +452,324 @@ try {
 // =====================================================
 
 router.post(
-"/login",
-async (req, res) => {
+  "/login",
+  async (req, res) => {
 
-```
-const {
-  email,
-  password,
-} = req.body;
+    const {
+      email,
+      password,
+    } = req.body;
 
-try {
+    try {
 
-  // =================================================
-  // FIND USER
-  // =================================================
+      const cleanEmail =
+        email.trim().toLowerCase();
 
-  const user =
-    await User.findOne({
-      email:
-        email.trim().toLowerCase(),
-    });
+      // =================================================
+      // FIND USER
+      // =================================================
 
-  // =================================================
-  // CHECK PASSWORD
-  // =================================================
+      const user =
+        await User.findOne({
 
-  if (
-    !user ||
-    !(await user.matchPassword(password))
-  ) {
+          email:
+            cleanEmail,
 
-    return res.status(401).json({
+        });
 
-      success: false,
+      // =================================================
+      // CHECK CREDENTIALS
+      // =================================================
 
-      message:
-        "Invalid credentials",
+      if (
+        !user ||
+        !(await user.matchPassword(password))
+      ) {
 
-    });
+        return res.status(401).json({
+
+          success: false,
+
+          message:
+            "Invalid credentials",
+
+        });
+
+      }
+
+      // =================================================
+      // CHECK BLOCKED
+      // =================================================
+
+      if (
+        user.isBlocked
+      ) {
+
+        return res.status(403).json({
+
+          success: false,
+
+          message:
+            "Account blocked",
+
+        });
+
+      }
+
+      // =================================================
+      // CHECK EMAIL VERIFICATION
+      // =================================================
+
+      if (
+        !user.isVerified
+      ) {
+
+        return res.status(403).json({
+
+          success: false,
+
+          code:
+            "NOT_VERIFIED",
+
+          message:
+            "Please verify your email first",
+
+        });
+
+      }
+
+      // =================================================
+      // LOGIN SUCCESS
+      // =================================================
+
+      return res.json({
+
+        success: true,
+
+        token:
+          generateToken(
+            user._id
+          ),
+
+        user: {
+
+          id:
+            user._id,
+
+          name:
+            user.name,
+
+          email:
+            user.email,
+
+          role:
+            user.role,
+
+          avatar:
+            user.avatar,
+
+          businessProfile:
+            user.businessProfile,
+
+        },
+
+      });
+
+    } catch (err) {
+
+      console.error(
+        "❌ LOGIN ERROR =>",
+        err
+      );
+
+      return res.status(500).json({
+
+        success: false,
+
+        message:
+          err.message,
+
+      });
+
+    }
 
   }
-
-  // =================================================
-  // CHECK BLOCKED
-  // =================================================
-
-  if (
-    user.isBlocked
-  ) {
-
-    return res.status(403).json({
-
-      success: false,
-
-      message:
-        "Account blocked",
-
-    });
-
-  }
-
-  // =================================================
-  // CHECK EMAIL VERIFICATION
-  // =================================================
-
-  if (
-    !user.isVerified
-  ) {
-
-    return res.status(403).json({
-
-      success: false,
-
-      code:
-        "NOT_VERIFIED",
-
-      message:
-        "Please verify your email first",
-
-    });
-
-  }
-
-  // =================================================
-  // LOGIN SUCCESS
-  // =================================================
-
-  return res.json({
-
-    success: true,
-
-    token:
-      generateToken(
-        user._id
-      ),
-
-    user: {
-
-      id:
-        user._id,
-
-      name:
-        user.name,
-
-      email:
-        user.email,
-
-      role:
-        user.role,
-
-      avatar:
-        user.avatar,
-
-      businessProfile:
-        user.businessProfile,
-
-    },
-
-  });
-
-} catch (err) {
-
-  console.error(
-    "LOGIN ERROR =>",
-    err
-  );
-
-  return res.status(500).json({
-
-    success: false,
-
-    message:
-      err.message,
-
-  });
-
-}
-```
-
-}
 );
 
 // =====================================================
-// CHECK EMAIL VERIFICATION
-// POST /api/auth/check-verification
+// RESEND VERIFICATION EMAIL
+// POST /api/auth/resend-otp
+// =====================================================
 //
-// This can be called by Flutter after user clicks
-// the Supabase verification link.
+// NOTE:
+// This route name is kept as /resend-otp so your existing
+// Flutter code does not need to change immediately.
+// It now resends a Supabase verification email instead
+// of sending an OTP.
 // =====================================================
 
 router.post(
-"/check-verification",
-async (req, res) => {
+  "/resend-otp",
+  async (req, res) => {
 
-```
-try {
+    try {
 
-  const {
-    email,
-  } = req.body;
+      const {
+        email,
+      } = req.body;
 
-  if (!email) {
+      // =================================================
+      // VALIDATE EMAIL
+      // =================================================
 
-    return res.status(400).json({
+      if (!email) {
 
-      success: false,
+        return res.status(400).json({
 
-      message:
-        "Email is required",
+          success: false,
 
-    });
+          message:
+            "Email is required",
+
+        });
+
+      }
+
+      const cleanEmail =
+        email.trim().toLowerCase();
+
+      // =================================================
+      // FIND MONGODB USER
+      // =================================================
+
+      const user =
+        await User.findOne({
+
+          email:
+            cleanEmail,
+
+        });
+
+      if (!user) {
+
+        return res.status(404).json({
+
+          success: false,
+
+          message:
+            "User not found",
+
+        });
+
+      }
+
+      // =================================================
+      // CHECK VERIFIED
+      // =================================================
+
+      if (
+        user.isVerified
+      ) {
+
+        return res.status(400).json({
+
+          success: false,
+
+          message:
+            "Email already verified",
+
+        });
+
+      }
+
+      // =================================================
+      // RESEND SUPABASE EMAIL
+      // =================================================
+
+      console.log(
+        "RESENDING SUPABASE VERIFICATION EMAIL..."
+      );
+
+      const {
+        error,
+      } =
+        await supabase.auth.resend({
+
+          type:
+            "signup",
+
+          email:
+            cleanEmail,
+
+          options: {
+
+            emailRedirectTo:
+              process.env.SUPABASE_REDIRECT_URL,
+
+          },
+
+        });
+
+      if (error) {
+
+        console.error(
+          "RESEND EMAIL ERROR =>",
+          error
+        );
+
+        return res.status(500).json({
+
+          success: false,
+
+          message:
+            "Failed to resend verification email",
+
+          error:
+            error.message,
+
+        });
+
+      }
+
+      console.log(
+        "✅ VERIFICATION EMAIL RESENT"
+      );
+
+      // =================================================
+      // SUCCESS
+      // =================================================
+
+      return res.json({
+
+        success: true,
+
+        message:
+          "Verification email resent successfully",
+
+      });
+
+    } catch (err) {
+
+      console.error(
+        "❌ RESEND VERIFICATION ERROR =>",
+        err
+      );
+
+      return res.status(500).json({
+
+        success: false,
+
+        message:
+          "Failed to resend verification email",
+
+        error:
+          err.message,
+
+      });
+
+    }
 
   }
-
-  // =================================================
-  // GET SUPABASE USER
-  // =================================================
-
-  const {
-    data,
-    error,
-  } =
-    await supabase.auth.admin
-      .listUsers();
-
-  if (error) {
-
-    return res.status(500).json({
-
-      success: false,
-
-      message:
-        error.message,
-
-    });
-
-  }
-
-  // =================================================
-  // FIND SUPABASE USER
-  // =================================================
-
-  const supabaseUser =
-    data.users.find(
-      (u) =>
-        u.email?.toLowerCase() ===
-        email.trim().toLowerCase()
-    );
-
-  if (!supabaseUser) {
-
-    return res.status(404).json({
-
-      success: false,
-
-      message:
-        "Supabase user not found",
-
-    });
-
-  }
-
-  // =================================================
-  // CHECK CONFIRMATION
-  // =================================================
-
-  if (
-    !supabaseUser.email_confirmed_at
-  ) {
-
-    return res.json({
-
-      success: false,
-
-      verified: false,
-
-      message:
-        "Email is not verified yet",
-
-    });
-
-  }
-
-  // =================================================
-  // FIND MONGODB USER
-  // =================================================
-
-  const user =
-    await User.findOne({
-      email:
-        email.trim().toLowerCase(),
-    });
-
-  if (!user) {
-
-    return res.status(404).json({
-
-      success: false,
-
-      message:
-        "MongoDB user not found",
-
-    });
-
-  }
-
-  // =================================================
-  // UPDATE MONGODB
-  // =================================================
-
-  user.isVerified =
-    true;
-
-  await user.save();
-
-  // =================================================
-  // SUCCESS
-  // =================================================
-
-  return res.json({
-
-    success: true,
-
-    verified: true,
-
-    message:
-      "Email verified successfully",
-
-  });
-
-} catch (err) {
-
-  console.error(
-    "CHECK VERIFICATION ERROR =>",
-    err
-  );
-
-  return res.status(500).json({
-
-    success: false,
-
-    message:
-      err.message,
-
-  });
-
-}
-```
-
-}
 );
 
 // =====================================================
@@ -764,42 +778,44 @@ try {
 // =====================================================
 
 router.get(
-"/me",
-protect,
-async (req, res) => {
+  "/me",
+  protect,
+  async (req, res) => {
 
-```
-try {
+    try {
 
-  return res.json({
+      return res.json({
 
-    success: true,
+        success: true,
 
-    user:
-      req.user,
+        user:
+          req.user,
 
-  });
+      });
 
-} catch (err) {
+    } catch (err) {
 
-  console.error(
-    "GET ME ERROR =>",
-    err
-  );
+      console.error(
+        "GET ME ERROR =>",
+        err
+      );
 
-  return res.status(500).json({
+      return res.status(500).json({
 
-    success: false,
+        success: false,
 
-    message:
-      err.message,
+        message:
+          err.message,
 
-  });
+      });
 
-}
-```
+    }
 
-}
+  }
 );
+
+// =====================================================
+// EXPORT
+// =====================================================
 
 module.exports = router;
