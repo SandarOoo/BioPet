@@ -454,6 +454,9 @@ router.get(
 router.post(
   "/login",
   async (req, res) => {
+   console.log("=================================");
+    console.log("LOGIN HIT");
+    console.log("EMAIL =>", req.body.email);
 
     const {
       email,
