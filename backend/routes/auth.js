@@ -451,155 +451,121 @@ router.get(
 // POST /api/auth/login
 // =====================================================
 
-router.post(
-  "/login",
-  async (req, res) => {
-   console.log("=================================");
-    console.log("LOGIN HIT");
-    console.log("EMAIL =>", req.body.email);
+router.post("/login", async (req, res) => {
+  console.log("=================================");
+  console.log("LOGIN HIT");
 
-    const {
-      email,
-      password,
-    } = req.body;
+  try {
+    console.log("BODY =>", req.body);
 
-    try {
+    const { email, password } = req.body;
 
-      const cleanEmail =
-        email.trim().toLowerCase();
+    if (!email || !password) {
+      console.log("MISSING EMAIL OR PASSWORD");
 
-      // =================================================
-      // FIND USER
-      // =================================================
-
-      const user =
-        await User.findOne({
-
-          email:
-            cleanEmail,
-
-        });
-
-      // =================================================
-      // CHECK CREDENTIALS
-      // =================================================
-
-      if (
-        !user ||
-        !(await user.matchPassword(password))
-      ) {
-
-        return res.status(401).json({
-
-          success: false,
-
-          message:
-            "Invalid credentials",
-
-        });
-
-      }
-
-      // =================================================
-      // CHECK BLOCKED
-      // =================================================
-
-      if (
-        user.isBlocked
-      ) {
-
-        return res.status(403).json({
-
-          success: false,
-
-          message:
-            "Account blocked",
-
-        });
-
-      }
-
-      // =================================================
-      // CHECK EMAIL VERIFICATION
-      // =================================================
-
-      if (
-        !user.isVerified
-      ) {
-
-        return res.status(403).json({
-
-          success: false,
-
-          code:
-            "NOT_VERIFIED",
-
-          message:
-            "Please verify your email first",
-
-        });
-
-      }
-
-      // =================================================
-      // LOGIN SUCCESS
-      // =================================================
-
-      return res.json({
-
-        success: true,
-
-        token:
-          generateToken(
-            user._id
-          ),
-
-        user: {
-
-          id:
-            user._id,
-
-          name:
-            user.name,
-
-          email:
-            user.email,
-
-          role:
-            user.role,
-
-          avatar:
-            user.avatar,
-
-          businessProfile:
-            user.businessProfile,
-
-        },
-
-      });
-
-    } catch (err) {
-
-      console.error(
-        "❌ LOGIN ERROR =>",
-        err
-      );
-
-      return res.status(500).json({
-
+      return res.status(400).json({
         success: false,
-
-        message:
-          err.message,
-
+        message: "Email and password are required",
       });
-
     }
 
-  }
-);
+    const cleanEmail = email.trim().toLowerCase();
 
-// =====================================================
+    console.log("CLEAN EMAIL =>", cleanEmail);
+    console.log("FINDING USER...");
+
+    const user = await User.findOne({
+      email: cleanEmail,
+    });
+
+    console.log(
+      "USER FOUND =>",
+      user ? user._id.toString() : "NO USER"
+    );
+
+    if (!user) {
+      return res.status(401).json({
+        success: false,
+        message: "Invalid credentials",
+      });
+    }
+
+    console.log("CHECKING PASSWORD...");
+
+    const passwordMatch =
+      await user.matchPassword(password);
+
+    console.log(
+      "PASSWORD MATCH =>",
+      passwordMatch
+    );
+
+    if (!passwordMatch) {
+      return res.status(401).json({
+        success: false,
+        message: "Invalid credentials",
+      });
+    }
+
+    console.log(
+      "BLOCKED =>",
+      user.isBlocked
+    );
+
+    if (user.isBlocked) {
+      return res.status(403).json({
+        success: false,
+        message: "Account blocked",
+      });
+    }
+
+    console.log(
+      "IS VERIFIED =>",
+      user.isVerified
+    );
+
+    if (!user.isVerified) {
+      return res.status(403).json({
+        success: false,
+        code: "NOT_VERIFIED",
+        message: "Please verify your email first",
+      });
+    }
+
+    console.log("GENERATING JWT...");
+
+    const token = generateToken(user._id);
+
+    console.log("JWT GENERATED");
+
+    return res.status(200).json({
+      success: true,
+
+      token: token,
+
+      user: {
+        id: user._id,
+        name: user.name,
+        email: user.email,
+        role: user.role,
+        avatar: user.avatar,
+        businessProfile: user.businessProfile,
+      },
+    });
+
+  } catch (err) {
+
+    console.error(
+      "❌ LOGIN ERROR =>",
+      err
+    );
+
+    return res.status(500).json({
+      success: false,
+      message: err.message,
+    });
+  }
+});
 // RESEND VERIFICATION EMAIL
 // POST /api/auth/resend-otp
 // =====================================================
