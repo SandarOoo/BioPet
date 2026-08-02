@@ -2,20 +2,26 @@ const axios = require("axios");
 
 const sendEmail = async (to, otp) => {
   const apiKey = process.env.BREVO_API_KEY;
-  const senderEmail =
-    process.env.BREVO_SENDER_EMAIL || "biopet2026@gmail.com";
+  const senderEmail = process.env.BREVO_SENDER_EMAIL;
 
   console.log("=================================");
-  console.log("BREVO DEBUG");
+  console.log("BREVO EMAIL DEBUG");
   console.log("API KEY EXISTS:", !!apiKey);
   console.log("API KEY LENGTH:", apiKey ? apiKey.length : 0);
-  console.log("API KEY START:", apiKey ? apiKey.substring(0, 8) : "NONE");
-  console.log("SENDER:", senderEmail);
+  console.log("SENDER EMAIL:", senderEmail);
   console.log("RECIPIENT:", to);
   console.log("=================================");
 
   if (!apiKey) {
     throw new Error("BREVO_API_KEY is missing");
+  }
+
+  if (!senderEmail) {
+    throw new Error("BREVO_SENDER_EMAIL is missing");
+  }
+
+  if (!to) {
+    throw new Error("Recipient email is missing");
   }
 
   try {
@@ -33,16 +39,37 @@ const sendEmail = async (to, otp) => {
           },
         ],
 
-        subject: "BioPet OTP Verification",
+        subject: "BioPet Email Verification",
 
         htmlContent: `
-          <h2>BioPet Email Verification</h2>
+          <!DOCTYPE html>
+          <html>
+            <body>
+              <h2>Welcome to BioPet 🐾</h2>
 
-          <p>Your verification code is:</p>
+              <p>Thank you for registering with BioPet.</p>
 
-          <h1>${otp}</h1>
+              <p>Your email verification code is:</p>
 
-          <p>This OTP will expire in 5 minutes.</p>
+              <h1 style="letter-spacing: 5px;">
+                ${otp}
+              </h1>
+
+              <p>
+                This OTP will expire in <strong>5 minutes</strong>.
+              </p>
+
+              <p>
+                If you did not create a BioPet account,
+                please ignore this email.
+              </p>
+
+              <br>
+
+              <p>Thank you,<br>
+              <strong>BioPet Team</strong></p>
+            </body>
+          </html>
         `,
       },
       {
@@ -51,27 +78,31 @@ const sendEmail = async (to, otp) => {
           "Content-Type": "application/json",
           Accept: "application/json",
         },
+
+        timeout: 15000,
       }
     );
 
     console.log("=================================");
-    console.log("✅ BREVO SUCCESS");
+    console.log("✅ BREVO EMAIL SENT");
     console.log("STATUS:", response.status);
-    console.log("DATA:", response.data);
+    console.log("MESSAGE ID:", response.data?.messageId);
     console.log("=================================");
 
     return response.data;
-
   } catch (error) {
-
     console.error("=================================");
-    console.error("❌ BREVO FAILED");
+    console.error("❌ BREVO EMAIL FAILED");
     console.error("STATUS:", error.response?.status);
-    console.error("DATA:", error.response?.data);
+    console.error("BREVO ERROR:", error.response?.data);
     console.error("MESSAGE:", error.message);
     console.error("=================================");
 
-    throw error;
+    throw new Error(
+      error.response?.data?.message ||
+      error.message ||
+      "Failed to send verification email"
+    );
   }
 };
 
