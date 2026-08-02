@@ -1,16 +1,22 @@
 const axios = require("axios");
 
 const sendEmail = async (to, otp) => {
-  const senderEmail = process.env.BREVO_SENDER_EMAIL;
+  const apiKey = process.env.BREVO_API_KEY;
+  const senderEmail =
+    process.env.BREVO_SENDER_EMAIL || "biopet2026@gmail.com";
 
   console.log("=================================");
-  console.log("SENDING OTP EMAIL");
-  console.log("TO =>", to);
-  console.log("FROM =>", senderEmail);
-  console.log(
-    "BREVO KEY EXISTS =>",
-    !!process.env.BREVO_API_KEY
-  );
+  console.log("BREVO DEBUG");
+  console.log("API KEY EXISTS:", !!apiKey);
+  console.log("API KEY LENGTH:", apiKey ? apiKey.length : 0);
+  console.log("API KEY START:", apiKey ? apiKey.substring(0, 8) : "NONE");
+  console.log("SENDER:", senderEmail);
+  console.log("RECIPIENT:", to);
+  console.log("=================================");
+
+  if (!apiKey) {
+    throw new Error("BREVO_API_KEY is missing");
+  }
 
   try {
     const response = await axios.post(
@@ -30,48 +36,39 @@ const sendEmail = async (to, otp) => {
         subject: "BioPet OTP Verification",
 
         htmlContent: `
-          <div style="font-family: Arial, sans-serif;">
-            <h2>BioPet Email Verification</h2>
+          <h2>BioPet Email Verification</h2>
 
-            <p>Your verification code is:</p>
+          <p>Your verification code is:</p>
 
-            <h1>${otp}</h1>
+          <h1>${otp}</h1>
 
-            <p>
-              This OTP will expire in 5 minutes.
-            </p>
-          </div>
+          <p>This OTP will expire in 5 minutes.</p>
         `,
       },
       {
         headers: {
-          "api-key": process.env.BREVO_API_KEY,
+          "api-key": apiKey,
           "Content-Type": "application/json",
           Accept: "application/json",
         },
       }
     );
 
-    console.log(
-      "✅ BREVO EMAIL SENT"
-    );
+    console.log("=================================");
+    console.log("✅ BREVO SUCCESS");
+    console.log("STATUS:", response.status);
+    console.log("DATA:", response.data);
+    console.log("=================================");
 
-    console.log(
-      "BREVO RESPONSE =>",
-      response.data
-    );
-
-    return {
-      success: true,
-      messageId: response.data.messageId,
-    };
+    return response.data;
 
   } catch (error) {
+
     console.error("=================================");
-    console.error("❌ BREVO EMAIL FAILED");
-    console.error("STATUS =>", error.response?.status);
-    console.error("DATA =>", error.response?.data);
-    console.error("MESSAGE =>", error.message);
+    console.error("❌ BREVO FAILED");
+    console.error("STATUS:", error.response?.status);
+    console.error("DATA:", error.response?.data);
+    console.error("MESSAGE:", error.message);
     console.error("=================================");
 
     throw error;
