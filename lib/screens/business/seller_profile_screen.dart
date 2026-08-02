@@ -1,270 +1,871 @@
+
 import 'package:flutter/material.dart';
 
+import 'edit_seller_profile_screen.dart';
+
 class SellerProfileScreen extends StatelessWidget {
-  static const Color _emerald = Color(0xFF065F46);
-  static const Color _mint = Color(0xFFA7F3D0);
-  static const Color _cream = Color(0xFFFFF8E7);
-  static const Color _ink = Color(0xFF102A24);
-  static const Color _page = Color(0xFFF7FAF6);
+final Map<String, dynamic>? user;
+final Future<void> Function()? onRefresh;
 
-  final String ownerName;
-  final String email;
-  final String businessName;
-  final String businessType;
-  final String businessAddress;
+const SellerProfileScreen({
+super.key,
+required this.user,
+this.onRefresh,
+});
 
-  const SellerProfileScreen({
-    super.key,
-    this.ownerName = 'Business Owner',
-    this.email = '',
-    this.businessName = 'My Pet Business',
-    this.businessType = 'Pet Business',
-    this.businessAddress = 'Business location not set',
-  });
+// ============================================================
+// BUSINESS PROFILE
+// ============================================================
 
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: _page,
-      appBar: AppBar(
-        backgroundColor: _page,
-        surfaceTintColor: _page,
-        elevation: 0,
-        title: const Text(
-          'Seller Profile',
-          style: TextStyle(color: _ink, fontWeight: FontWeight.w800),
-        ),
-      ),
-      body: SafeArea(
-        child: ListView(
-          padding: const EdgeInsets.fromLTRB(16, 8, 16, 32),
-          children: [
-            Container(
-              padding: const EdgeInsets.all(20),
-              decoration: BoxDecoration(
-                gradient: const LinearGradient(
-                  colors: [_emerald, Color(0xFF0B7A5B)],
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                ),
-                borderRadius: BorderRadius.circular(26),
-                boxShadow: [
-                  BoxShadow(
-                    color: _emerald.withOpacity(0.18),
-                    blurRadius: 24,
-                    offset: const Offset(0, 11),
-                  ),
-                ],
-              ),
-              child: Column(
-                children: [
-                  Container(
-                    width: 88,
-                    height: 88,
-                    decoration: BoxDecoration(
-                      color: _cream,
-                      shape: BoxShape.circle,
-                      border: Border.all(
-                        color: Colors.white.withOpacity(0.65),
-                        width: 4,
-                      ),
-                    ),
-                    child: const Icon(
-                      Icons.person_rounded,
-                      color: _emerald,
-                      size: 46,
-                    ),
-                  ),
-                  const SizedBox(height: 14),
-                  Text(
-                    ownerName,
-                    textAlign: TextAlign.center,
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontSize: 22,
-                      fontWeight: FontWeight.w900,
-                    ),
-                  ),
-                  if (email.isNotEmpty) ...[
-                    const SizedBox(height: 4),
-                    Text(
-                      email,
-                      textAlign: TextAlign.center,
-                      style: const TextStyle(color: Color(0xFFD9FFF1)),
-                    ),
-                  ],
-                  const SizedBox(height: 14),
-                  Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 12,
-                      vertical: 7,
-                    ),
-                    decoration: BoxDecoration(
-                      color: Colors.white.withOpacity(0.15),
-                      borderRadius: BorderRadius.circular(99),
-                    ),
-                    child: const Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Icon(
-                          Icons.verified_rounded,
-                          color: _mint,
-                          size: 18,
-                        ),
-                        SizedBox(width: 6),
-                        Text(
-                          'Approved seller',
-                          style: TextStyle(
-                            color: Colors.white,
-                            fontWeight: FontWeight.w800,
-                            fontSize: 12,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(height: 22),
-            const Text(
-              'Business details',
-              style: TextStyle(
-                color: _ink,
-                fontSize: 18,
-                fontWeight: FontWeight.w900,
-              ),
-            ),
-            const SizedBox(height: 12),
-            Container(
-              padding: const EdgeInsets.all(17),
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(22),
-                border: Border.all(color: const Color(0xFFE2ECE7)),
-              ),
-              child: Column(
-                children: [
-                  _ProfileItem(
-                    icon: Icons.storefront_rounded,
-                    label: 'Business name',
-                    value: businessName,
-                  ),
-                  const Divider(height: 27, color: Color(0xFFE8EFEB)),
-                  _ProfileItem(
-                    icon: Icons.category_outlined,
-                    label: 'Business type',
-                    value: businessType,
-                  ),
-                  const Divider(height: 27, color: Color(0xFFE8EFEB)),
-                  _ProfileItem(
-                    icon: Icons.location_on_outlined,
-                    label: 'Shop address',
-                    value: businessAddress,
-                    multiline: true,
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(height: 16),
-            Container(
-              padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                color: _mint.withOpacity(0.30),
-                borderRadius: BorderRadius.circular(20),
-                border: Border.all(color: _mint),
-              ),
-              child: const Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Icon(Icons.shield_outlined, color: _emerald),
-                  SizedBox(width: 11),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          'Keep your shop information accurate',
-                          style: TextStyle(
-                            color: _ink,
-                            fontWeight: FontWeight.w900,
-                          ),
-                        ),
-                        SizedBox(height: 4),
-                        Text(
-                          'Correct details help customers trust your shop and receive their orders without delays.',
-                          style: TextStyle(
-                            color: Color(0xFF526B64),
-                            height: 1.4,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
+Map<String, dynamic> get businessProfile {
+final profile = user?['businessProfile'];
+
+if (profile is Map) {
+return Map<String, dynamic>.from(profile);
 }
 
-class _ProfileItem extends StatelessWidget {
-  final IconData icon;
-  final String label;
-  final String value;
-  final bool multiline;
+return {};
+}
 
-  const _ProfileItem({
-    required this.icon,
-    required this.label,
-    required this.value,
-    this.multiline = false,
-  });
+// ============================================================
+// USER INFO
+// ============================================================
 
-  @override
-  Widget build(BuildContext context) {
-    return Row(
-      crossAxisAlignment:
-          multiline ? CrossAxisAlignment.start : CrossAxisAlignment.center,
-      children: [
-        Container(
-          width: 43,
-          height: 43,
-          decoration: BoxDecoration(
-            color: const Color(0xFFFFF8E7),
-            borderRadius: BorderRadius.circular(14),
-          ),
-          child: Icon(icon, color: const Color(0xFF065F46), size: 22),
-        ),
-        const SizedBox(width: 13),
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                label,
-                style: const TextStyle(
-                  color: Color(0xFF71847D),
-                  fontSize: 12,
-                  fontWeight: FontWeight.w700,
-                ),
-              ),
-              const SizedBox(height: 3),
-              Text(
-                value,
-                style: const TextStyle(
-                  color: Color(0xFF102A24),
-                  fontWeight: FontWeight.w800,
-                  height: 1.35,
-                ),
-              ),
-            ],
-          ),
-        ),
-      ],
+String get ownerName {
+final value = user?['name']?.toString();
+
+if (value != null && value.isNotEmpty) {
+return value;
+}
+
+return 'Business Owner';
+}
+
+String get email {
+return user?['email']?.toString() ?? '';
+}
+
+String get phone {
+return user?['phone']?.toString() ?? '';
+}
+
+// ============================================================
+// BUSINESS INFO
+// ============================================================
+
+String get businessName {
+final value =
+businessProfile['businessName']?.toString();
+
+if (value != null && value.isNotEmpty) {
+return value;
+}
+
+return 'My Pet Business';
+}
+
+String get businessType {
+final value =
+businessProfile['businessType']?.toString();
+
+if (value == null || value.isEmpty) {
+return 'Pet Business';
+}
+
+switch (value) {
+case 'pet_shop':
+return 'Pet Shop';
+
+case 'vet_clinic':
+return 'Veterinary Clinic';
+
+case 'grooming':
+return 'Pet Grooming';
+
+case 'other':
+return 'Pet Business';
+
+default:
+return value
+    .replaceAll('_', ' ')
+    .split(' ')
+    .map(
+(word) => word.isEmpty
+? ''
+    : word[0].toUpperCase() +
+word.substring(1),
+)
+    .join(' ');
+}
+}
+
+String get address {
+final value =
+businessProfile['address']?.toString();
+
+if (value != null && value.isNotEmpty) {
+return value;
+}
+
+return 'Business location not set';
+}
+
+String get description {
+final value =
+businessProfile['description']?.toString();
+
+if (value != null && value.isNotEmpty) {
+return value;
+}
+
+return 'No business description available.';
+}
+
+String get verificationStatus {
+return businessProfile[
+'verificationStatus']
+    ?.toString() ??
+'draft';
+}
+
+bool get agreementAccepted {
+return businessProfile[
+'agreementAccepted'] ==
+true;
+}
+
+double? get latitude {
+final value =
+businessProfile['latitude'];
+
+if (value is num) {
+return value.toDouble();
+}
+
+return double.tryParse(
+value?.toString() ?? '',
+);
+}
+
+double? get longitude {
+final value =
+businessProfile['longitude'];
+
+if (value is num) {
+return value.toDouble();
+}
+
+return double.tryParse(
+value?.toString() ?? '',
+);
+}
+
+// ============================================================
+// STATUS COLOR
+// ============================================================
+
+Color get statusColor {
+switch (verificationStatus) {
+case 'approved':
+return Colors.green;
+
+case 'pending':
+return Colors.orange;
+
+case 'rejected':
+return Colors.red;
+
+default:
+return Colors.grey;
+}
+}
+
+// ============================================================
+// STATUS TEXT
+// ============================================================
+
+String get statusText {
+switch (verificationStatus) {
+case 'approved':
+return 'Approved';
+
+case 'pending':
+return 'Pending Review';
+
+case 'rejected':
+return 'Rejected';
+
+default:
+return 'Draft';
+}
+}
+
+// ============================================================
+// BUILD
+// ============================================================
+
+@override
+Widget build(BuildContext context) {
+return Scaffold(
+backgroundColor:
+const Color(0xffF6FAF7),
+
+appBar: AppBar(
+elevation: 0,
+
+backgroundColor:
+const Color(0xffF6FAF7),
+
+title: const Text(
+'My Seller Profile',
+style: TextStyle(
+fontWeight: FontWeight.bold,
+),
+),
+
+centerTitle: true,
+
+actions: [
+IconButton(
+onPressed: () {
+// TODO:
+// Open Edit Seller Profile Screen
+},
+icon: const Icon(
+Icons.edit_outlined,
+),
+),
+],
+),
+
+body: RefreshIndicator(
+onRefresh: () async {
+if (onRefresh != null) {
+await onRefresh!();
+}
+},
+
+child: SingleChildScrollView(
+physics:
+const AlwaysScrollableScrollPhysics(),
+
+padding:
+const EdgeInsets.fromLTRB(
+16,
+10,
+16,
+30,
+),
+
+child: Column(
+children: [
+
+// ==================================================
+// PROFILE HEADER
+// ==================================================
+
+Container(
+width: double.infinity,
+
+padding:
+const EdgeInsets.all(24),
+
+decoration:
+BoxDecoration(
+color: Colors.white,
+
+borderRadius:
+BorderRadius.circular(
+24,
+),
+
+boxShadow: [
+BoxShadow(
+color: Colors.black
+    .withOpacity(0.04),
+
+blurRadius: 12,
+
+offset:
+const Offset(0, 5),
+),
+],
+),
+
+child: Column(
+children: [
+
+// PROFILE ICON
+Container(
+width: 90,
+height: 90,
+
+decoration:
+BoxDecoration(
+color:
+Colors.green
+    .shade50,
+
+shape:
+BoxShape.circle,
+),
+
+child: Icon(
+Icons.store_rounded,
+
+size: 48,
+
+color:
+Colors.green
+    .shade700,
+),
+),
+
+const SizedBox(
+height: 16,
+),
+
+// BUSINESS NAME
+Text(
+businessName,
+
+textAlign:
+TextAlign.center,
+
+style:
+const TextStyle(
+fontSize: 24,
+
+fontWeight:
+FontWeight.bold,
+),
+),
+
+const SizedBox(
+height: 6,
+),
+
+// BUSINESS TYPE
+Text(
+businessType,
+
+style:
+TextStyle(
+color:
+Colors.grey
+    .shade600,
+
+fontSize: 15,
+),
+),
+
+const SizedBox(
+height: 16,
+),
+
+// STATUS
+Container(
+padding:
+const EdgeInsets
+    .symmetric(
+horizontal: 16,
+vertical: 8,
+),
+
+decoration:
+BoxDecoration(
+color: statusColor
+    .withOpacity(
+0.1,
+),
+
+borderRadius:
+BorderRadius
+    .circular(
+20,
+),
+),
+
+child: Row(
+mainAxisSize:
+MainAxisSize.min,
+
+children: [
+Icon(
+verificationStatus ==
+'approved'
+? Icons
+    .verified
+    : Icons
+    .info_outline,
+
+size: 18,
+
+color:
+statusColor,
+),
+
+const SizedBox(
+width: 7,
+),
+
+Text(
+statusText,
+
+style:
+TextStyle(
+color:
+statusColor,
+
+fontWeight:
+FontWeight
+    .bold,
+),
+),
+],
+),
+),
+],
+),
+),
+
+const SizedBox(
+height: 16,
+),
+
+// ==================================================
+// BUSINESS INFORMATION
+// ==================================================
+
+_buildSection(
+title:
+'Business Information',
+
+icon:
+Icons.store_outlined,
+
+children: [
+
+_buildInfoRow(
+icon:
+Icons.storefront_outlined,
+
+title:
+'Business Name',
+
+value:
+businessName,
+),
+
+_buildInfoRow(
+icon:
+Icons.category_outlined,
+
+title:
+'Business Type',
+
+value:
+businessType,
+),
+
+_buildInfoRow(
+icon:
+Icons.location_on_outlined,
+
+title:
+'Address',
+
+value:
+address,
+),
+
+_buildInfoRow(
+icon:
+Icons.description_outlined,
+
+title:
+'Description',
+
+value:
+description,
+),
+],
+),
+
+const SizedBox(
+height: 16,
+),
+
+// ==================================================
+// OWNER INFORMATION
+// ==================================================
+
+_buildSection(
+title:
+'Owner Information',
+
+icon:
+Icons.person_outline,
+
+children: [
+
+_buildInfoRow(
+icon:
+Icons.person_outline,
+
+title:
+'Owner Name',
+
+value:
+ownerName,
+),
+
+_buildInfoRow(
+icon:
+Icons.email_outlined,
+
+title:
+'Email',
+
+value:
+email.isEmpty
+? 'Not available'
+    : email,
+),
+
+_buildInfoRow(
+icon:
+Icons.phone_outlined,
+
+title:
+'Phone',
+
+value:
+phone.isEmpty
+? 'Not available'
+    : phone,
+),
+],
+),
+
+const SizedBox(
+height: 16,
+),
+
+// ==================================================
+// VERIFICATION
+// ==================================================
+
+_buildSection(
+title:
+'Verification',
+
+icon:
+Icons.verified_user_outlined,
+
+children: [
+
+_buildInfoRow(
+icon:
+Icons.fact_check_outlined,
+
+title:
+'Application Status',
+
+value:
+statusText,
+),
+
+_buildInfoRow(
+icon:
+Icons
+    .assignment_turned_in_outlined,
+
+title:
+'Agreement',
+
+value:
+agreementAccepted
+? 'Accepted'
+    : 'Not Accepted',
+),
+],
+),
+
+const SizedBox(
+height: 16,
+),
+
+// ==================================================
+// LOCATION COORDINATES
+// ==================================================
+
+_buildSection(
+title:
+'Business Location',
+
+icon:
+Icons.map_outlined,
+
+children: [
+
+_buildInfoRow(
+icon:
+Icons
+    .location_searching,
+
+title:
+'Latitude',
+
+value:
+latitude
+    ?.toString() ??
+'Not set',
+),
+
+_buildInfoRow(
+icon:
+Icons
+    .location_searching,
+
+title:
+'Longitude',
+
+value:
+longitude
+    ?.toString() ??
+'Not set',
+),
+],
+),
+
+const SizedBox(
+height: 20,
+),
+
+// ==================================================
+// EDIT PROFILE BUTTON
+// ==================================================
+
+SizedBox(
+width:
+double.infinity,
+
+height: 52,
+
+child:
+ElevatedButton.icon(
+  onPressed: () async {
+    final updated =
+    await Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) =>
+            EditSellerProfileScreen(
+              user: user,
+            ),
+      ),
     );
-  }
+
+    if (updated == true &&
+        onRefresh != null) {
+      await onRefresh!();
+    }
+  },
+
+icon:
+const Icon(
+Icons.edit_outlined,
+),
+
+label:
+const Text(
+'Edit Business Profile',
+),
+
+style:
+ElevatedButton.styleFrom(
+backgroundColor:
+Colors.green
+    .shade700,
+
+foregroundColor:
+Colors.white,
+
+shape:
+RoundedRectangleBorder(
+borderRadius:
+BorderRadius
+    .circular(
+14,
+),
+),
+),
+),
+),
+],
+),
+),
+),
+);
+}
+
+// ============================================================
+// SECTION
+// ============================================================
+
+Widget _buildSection({
+required String title,
+required IconData icon,
+required List<Widget> children,
+}) {
+return Container(
+width: double.infinity,
+
+padding:
+const EdgeInsets.all(20),
+
+decoration:
+BoxDecoration(
+color: Colors.white,
+
+borderRadius:
+BorderRadius.circular(
+20,
+),
+
+boxShadow: [
+BoxShadow(
+color: Colors.black
+    .withOpacity(0.03),
+
+blurRadius: 10,
+
+offset:
+const Offset(0, 4),
+),
+],
+),
+
+child: Column(
+crossAxisAlignment:
+CrossAxisAlignment.start,
+
+children: [
+
+Row(
+children: [
+Icon(
+icon,
+
+color:
+Colors.green.shade700,
+),
+
+const SizedBox(
+width: 8,
+),
+
+Text(
+title,
+
+style:
+const TextStyle(
+fontSize: 18,
+
+fontWeight:
+FontWeight.bold,
+),
+),
+],
+),
+
+const SizedBox(
+height: 16,
+),
+
+...children,
+],
+),
+);
+}
+
+// ============================================================
+// INFO ROW
+// ============================================================
+
+Widget _buildInfoRow({
+required IconData icon,
+required String title,
+required String value,
+}) {
+return Padding(
+padding:
+const EdgeInsets.only(
+bottom: 16,
+),
+
+child: Row(
+crossAxisAlignment:
+CrossAxisAlignment.start,
+
+children: [
+
+Icon(
+icon,
+
+size: 21,
+
+color:
+Colors.grey.shade600,
+),
+
+const SizedBox(
+width: 12,
+),
+
+Expanded(
+child: Column(
+crossAxisAlignment:
+CrossAxisAlignment
+    .start,
+
+children: [
+
+Text(
+title,
+
+style:
+TextStyle(
+fontSize: 12,
+
+color:
+Colors.grey.shade600,
+),
+),
+
+const SizedBox(
+height: 4,
+),
+
+Text(
+value,
+
+style:
+const TextStyle(
+fontSize: 15,
+
+fontWeight:
+FontWeight.w500,
+
+height: 1.4,
+),
+),
+],
+),
+),
+],
+),
+);
+}
 }

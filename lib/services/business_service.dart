@@ -506,4 +506,126 @@ class BusinessService {
     return response.statusCode == 200 &&
         data['success'] == true;
   }
+
+
+
+  // ============================================================
+  // UPDATE BUSINESS PROFILE
+  // ============================================================
+
+  Future<Map<String, dynamic>> updateBusinessProfile({
+    required String businessName,
+    required String businessType,
+    required String address,
+    required String description,
+    required String phone,
+  }) async {
+    try {
+      // ------------------------------------------
+      // GET BASE URL
+      // ------------------------------------------
+
+      final baseUrl =
+          ApiService.baseUrl;
+
+      // ------------------------------------------
+      // GET TOKEN
+      // ------------------------------------------
+
+      final token =
+      await ApiService.getToken();
+
+      if (token == null ||
+          token.isEmpty) {
+        throw Exception(
+          "Authentication token not found.",
+        );
+      }
+
+      // ------------------------------------------
+      // REQUEST
+      // ------------------------------------------
+
+      final response =
+      await http.put(
+        Uri.parse(
+          '$baseUrl/api/business/profile',
+        ),
+
+        headers: {
+          'Content-Type':
+          'application/json',
+
+          'Authorization':
+          'Bearer $token',
+        },
+
+        body: jsonEncode({
+          'businessName':
+          businessName.trim(),
+
+          'businessType':
+          businessType.trim(),
+
+          'address':
+          address.trim(),
+
+          'description':
+          description.trim(),
+
+          'phone':
+          phone.trim(),
+        }),
+      );
+
+      // ------------------------------------------
+      // DEBUG
+      // ------------------------------------------
+
+      print(
+        'UPDATE PROFILE STATUS: '
+            '${response.statusCode}',
+      );
+
+      print(
+        'UPDATE PROFILE RESPONSE: '
+            '${response.body}',
+      );
+
+      // ------------------------------------------
+      // PARSE RESPONSE
+      // ------------------------------------------
+
+      final data =
+      jsonDecode(response.body);
+
+      // ------------------------------------------
+      // SUCCESS
+      // ------------------------------------------
+
+      if (response.statusCode >= 200 &&
+          response.statusCode < 300 &&
+          data['success'] == true) {
+        return Map<String, dynamic>.from(
+          data,
+        );
+      }
+
+      // ------------------------------------------
+      // API ERROR
+      // ------------------------------------------
+
+      throw Exception(
+        data['message'] ??
+            'Failed to update business profile.',
+      );
+
+    } catch (e) {
+      print(
+        'UPDATE BUSINESS PROFILE ERROR: $e',
+      );
+
+      rethrow;
+    }
+  }
 }
