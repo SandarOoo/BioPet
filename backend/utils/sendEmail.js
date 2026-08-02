@@ -67,27 +67,13 @@ const sendEmail = async (to, otp) => {
     };
 
   } catch (error) {
+    console.error("=================================");
+    console.error("❌ BREVO EMAIL FAILED");
+    console.error("STATUS =>", error.response?.status);
+    console.error("DATA =>", error.response?.data);
+    console.error("MESSAGE =>", error.message);
+    console.error("=================================");
 
-    console.error(
-      "❌ BREVO EMAIL FAILED"
-    );
-
-    console.error(
-      "STATUS =>",
-      error.response?.status
-    );
-
-    console.error(
-      "DATA =>",
-      error.response?.data
-    );
-
-    console.error(
-      "MESSAGE =>",
-      error.message
-    );
-
-    // IMPORTANT
     throw error;
   }
 };
