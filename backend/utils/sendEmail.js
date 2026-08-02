@@ -1,51 +1,93 @@
 const axios = require("axios");
 
 const sendEmail = async (to, otp) => {
-
-  const senderEmail = "biopet2026@gmail.com";
+  const senderEmail = process.env.BREVO_SENDER_EMAIL;
 
   console.log("SENDER BEFORE SEND =>", senderEmail);
+  console.log("RECIPIENT =>", to);
 
   try {
-
     const response = await axios.post(
       "https://api.brevo.com/v3/smtp/email",
       {
         sender: {
           name: "BioPet",
-          email: senderEmail
+          email: senderEmail,
         },
 
         to: [
           {
-            email: to
-          }
+            email: to,
+          },
         ],
 
         subject: "BioPet OTP Verification",
 
         htmlContent: `
-          <h2>BioPet Verification</h2>
-          <h1>${otp}</h1>
-        `
+          <div style="font-family: Arial, sans-serif;">
+            <h2>BioPet Email Verification</h2>
+
+            <p>Your verification code is:</p>
+
+            <h1 style="letter-spacing: 5px;">
+              ${otp}
+            </h1>
+
+            <p>
+              This OTP will expire in 5 minutes.
+            </p>
+
+            <p>
+              If you did not request this code,
+              please ignore this email.
+            </p>
+          </div>
+        `,
       },
       {
         headers: {
           "api-key": process.env.BREVO_API_KEY,
-          "content-type": "application/json"
-        }
+          "Content-Type": "application/json",
+          Accept: "application/json",
+        },
       }
     );
 
-    console.log("Brevo response =>", response.data);
-
-  } catch(error){
     console.log(
-      "Brevo error =>",
-      error.response?.data || error.message
+      "✅ Brevo email sent successfully"
+    );
+
+    console.log(
+      "Brevo response =>",
+      response.data
+    );
+
+    return {
+      success: true,
+      messageId: response.data.messageId,
+    };
+
+  } catch (error) {
+
+    console.error(
+      "❌ Brevo email error =>",
+      error.response?.status
+    );
+
+    console.error(
+      "Brevo error data =>",
+      error.response?.data
+    );
+
+    console.error(
+      "Brevo error message =>",
+      error.message
+    );
+
+    throw new Error(
+      "Failed to send verification email"
     );
   }
-
 };
 
 module.exports = sendEmail;

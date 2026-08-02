@@ -6,10 +6,7 @@ require("dotenv").config({
   path: "../.env",
 });
 
-console.log(
-  "GEMINI KEY EXISTS:",
-  !!process.env.GEMINI_API_KEY
-);
+
 
 
 // =====================================================
@@ -24,8 +21,6 @@ const cors = require("cors");
 // ROUTES
 // =====================================================
 
-const geminiRoute = require("./routes/geminiRoute");
-const testGeminiRoute = require("./routes/testGeminiRoute");
 
 const authRoute = require("./routes/auth");
 const classifyRoute = require("./routes/classifyRoute");
@@ -33,14 +28,6 @@ const productRoutes = require("./routes/productRoutes");
 const orderRoutes = require("./routes/orderRoutes");
 const adminRoutes = require("./routes/admin");
 const postRoutes = require("./routes/postRoutes");
-
-// =====================================================
-// GEMINI SERVICE
-// =====================================================
-
-const {
-  analyzePost,
-} = require("./services/geminiService");
 
 
 // =====================================================
@@ -93,10 +80,7 @@ console.log(
   process.env.JWT_EXPIRE
 );
 
-console.log(
-  "GEMINI KEY EXISTS:",
-  !!process.env.GEMINI_API_KEY
-);
+
 
 console.log(
   "BREVO KEY EXISTS:",
@@ -112,17 +96,9 @@ app.use(
   "/api/posts",
   postRoutes
 );
-// GEMINI
-app.use(
-  "/api/gemini",
-  geminiRoute
-);
 
-// TEST GEMINI
-app.use(
-  "/api",
-  testGeminiRoute
-);
+
+
 
 // AUTH
 app.use(
@@ -160,50 +136,6 @@ app.use(
   postRoutes
 );
 
-
-// =====================================================
-// TEST GEMINI
-// =====================================================
-
-app.get(
-  "/api/test-gemini",
-  async (req, res) => {
-
-    try {
-
-      console.log(
-        "🤖 TESTING GEMINI..."
-      );
-
-      const result =
-        await analyzePost(
-          "My dog is sick and needs veterinary care."
-        );
-
-      console.log(
-        "🤖 GEMINI RESULT:",
-        result
-      );
-
-      return res.json({
-        success: true,
-        ai: result,
-      });
-
-    } catch (error) {
-
-      console.error(
-        "❌ GEMINI ERROR:",
-        error
-      );
-
-      return res.status(500).json({
-        success: false,
-        error: error.message,
-      });
-    }
-  }
-);
 
 
 // =====================================================

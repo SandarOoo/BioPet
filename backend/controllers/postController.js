@@ -1,4 +1,10 @@
 const Post = require("../models/Post");
+const {
+  moderatePetPost,
+} = require("../services/ruleBasedModeration");
+//const {
+//  moderatePetPost,
+//} = require("../services/openaiService");
 const createPost = async (req, res) => {
   try {
     console.log("=================================");
@@ -82,6 +88,63 @@ const createPost = async (req, res) => {
     }
 
     // =====================================================
+    // RULE-BASED MODERATION
+    // =====================================================
+
+    console.log(
+      "🔍 CHECKING POST WITH RULE-BASED MODERATION..."
+    );
+
+    const moderationResult = moderatePetPost({
+      text: cleanText,
+      images: images,
+    });
+
+    console.log(
+      "MODERATION RESULT =>",
+      moderationResult
+    );
+
+    if (!moderationResult.allowed) {
+      return res.status(400).json({
+        success: false,
+        message: moderationResult.reason,
+      });
+    }
+
+    // =====================================================
+    // AI MODERATION - OPENAI
+    // =====================================================
+
+//    let aiResult = null;
+//
+//    // Only check text when text is available
+//    if (cleanText !== "") {
+//      console.log(
+//        "🤖 CHECKING POST WITH OPENAI..."
+//      );
+//
+//      aiResult =
+//        await moderatePetPost(cleanText);
+//
+//      console.log(
+//        "🤖 AI MODERATION RESULT =>",
+//        aiResult
+//      );
+//
+//      // Reject if post is not allowed
+//      if (!aiResult.allowed) {
+//        return res.status(400).json({
+//          success: false,
+//          message:
+//            aiResult.reason ||
+//            "This post cannot be published.",
+//          aiModeration: aiResult,
+//        });
+//      }
+//    }
+//
+//    // =====================================================
     // CREATE POST
     // =====================================================
 
