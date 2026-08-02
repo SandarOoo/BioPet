@@ -126,8 +126,8 @@ app.use(
 
 // ADMIN
 app.use(
-    "/api/admin",
-    adminRoutes
+  "/api/admin",
+  adminRoutes
 );
 
 // NEWS FEED

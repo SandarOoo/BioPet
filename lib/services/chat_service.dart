@@ -1,56 +1,116 @@
+import 'dart:async';
 import 'dart:convert';
-import 'package:http/http.dart' as http;
+
+import 'package:flutter/foundation.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
+import 'package:http/http.dart' as http;
+
+class ChatServiceException implements Exception {
+  const ChatServiceException(this.message);
+
+  final String message;
+
+  @override
+  String toString() => message;
+}
 
 class ChatService {
-  // ✅ OpenAI API key (sk-... နဲ့စတယ်)
-  static String get apiKey => dotenv.env['OPENAI_API_KEY'] ?? '';
-  static const String baseUrl = 'https://openrouter.ai/api/v1/chat/completions';
+  ChatService._();
+
+  static String get _apiBaseUrl {
+    final configuredUrl = dotenv.env['API_BASE_URL']?.trim();
+
+    if (configuredUrl == null || configuredUrl.isEmpty) {
+      throw const ChatServiceException(
+        'API_BASE_URL ကို .env ဖိုင်ထဲမှာ ထည့်ပေးပါ။',
+      );
+    }
+
+    final withoutTrailingSlash = configuredUrl.endsWith('/')
+        ? configuredUrl.substring(0, configuredUrl.length - 1)
+        : configuredUrl;
+
+    return withoutTrailingSlash.endsWith('/api')
+        ? withoutTrailingSlash
+        : '$withoutTrailingSlash/api';
+  }
 
   static Future<String> sendMessage(String userText) async {
+    final message = userText.trim();
+
+    if (message.isEmpty) {
+      throw const ChatServiceException('မေးခွန်းတစ်ခု ရေးပေးပါ။');
+    }
+
+    final uri = Uri.parse('$_apiBaseUrl/pet-chat');
+
     try {
-      if (apiKey.isEmpty) {
-        throw Exception('❌ API Key not found. Please add OPENAI_API_KEY to .env file');
+      final response = await http
+          .post(
+            uri,
+            headers: const {
+              'Content-Type': 'application/json; charset=UTF-8',
+              'Accept': 'application/json',
+            },
+            body: jsonEncode({
+              'message': message,
+            }),
+          )
+          .timeout(const Duration(seconds: 20));
+
+      if (kDebugMode) {
+        debugPrint('BioPet chat status: ${response.statusCode}');
+        debugPrint('BioPet chat response: ${response.body}');
       }
 
-      final url = Uri.parse(baseUrl);
+      final dynamic decodedBody = jsonDecode(utf8.decode(response.bodyBytes));
 
-      print('📡 Sending request to OpenAI API...');
+      if (decodedBody is! Map<String, dynamic>) {
+        throw const ChatServiceException(
+          'Backend response format မမှန်ပါ။',
+        );
+      }
 
-      final response = await http.post(
-        url,
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': 'Bearer $apiKey',
-        },
-        body: jsonEncode({
-          "model": "openai/gpt-3.5-turbo",
-          "messages": [
-            {"role": "user", "content": userText}
-          ]
-        }),
+      if (response.statusCode < 200 || response.statusCode >= 300) {
+        final serverMessage = decodedBody['message']?.toString().trim();
+        throw ChatServiceException(
+          serverMessage == null || serverMessage.isEmpty
+              ? 'BioPet server error ဖြစ်နေပါတယ်။'
+              : serverMessage,
+        );
+      }
+
+      final reply = decodedBody['reply']?.toString().trim();
+
+      if (reply == null || reply.isEmpty) {
+        throw const ChatServiceException(
+          'BioPet AI ဆီက အဖြေမရရှိပါ။',
+        );
+      }
+
+      return reply;
+    } on TimeoutException {
+      throw const ChatServiceException(
+        'Server အဖြေပြန်ချိန်ကြာနေပါတယ်။ ခဏနေရင် ပြန်စမ်းပါ။',
       );
-      print('📥 Response status: ${response.statusCode}');
-      print('📄 Response body: ${response.body}');
-
-      if (response.statusCode == 200) {
-        final data = jsonDecode(response.body);
-
-        try {
-          // ✅ OpenAI response က ဒီလိုယူတယ်
-          final text = data['choices'][0]['message']['content'];
-          return text.trim();
-        } catch (e) {
-          throw Exception('Failed to parse response: $e');
-        }
-      } else {
-        final error = jsonDecode(response.body);
-        final errorMessage = error['error']?['message'] ?? 'Unknown error';
-        throw Exception('API Error: $errorMessage (Status: ${response.statusCode})');
+    } on FormatException {
+      throw const ChatServiceException(
+        'Backend က JSON response မှန်မှန်မပို့ပါ။',
+      );
+    } on http.ClientException {
+      throw const ChatServiceException(
+        'BioPet backend နဲ့ ဆက်သွယ်မရပါ။ Internet connection ကို စစ်ပါ။',
+      );
+    } on ChatServiceException {
+      rethrow;
+    } catch (error) {
+      if (kDebugMode) {
+        debugPrint('ChatService error: $error');
       }
-    } catch (e) {
-      print('❌ ChatService Error: $e');
-      throw Exception('Network Error: $e');
+
+      throw const ChatServiceException(
+        'မမျှော်လင့်ထားတဲ့ error ဖြစ်နေပါတယ်။',
+      );
     }
   }
 }
