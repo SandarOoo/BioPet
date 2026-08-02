@@ -17,7 +17,7 @@ import 'package:biopet/splash.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:provider/provider.dart';
-import 'package:biopet/services/api_service.dart';
+// import 'package:biopet/services/api_service.dart';
 import 'package:biopet/main_navigation.dart';
 import 'package:biopet/screens/business/business_location_screen.dart';
 import 'package:biopet/screens/business/business_submit_screen.dart';
@@ -160,7 +160,7 @@ class MyApp extends StatelessWidget {
         ),
       ),
       // Start with Login
-      home:  const AdminDashboardScreen(),
+      home:  const AuthCheck(),
       onGenerateRoute: (settings) {
         if(settings.name == "/business-location"){
           return MaterialPageRoute(

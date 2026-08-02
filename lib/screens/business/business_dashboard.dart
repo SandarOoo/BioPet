@@ -3,58 +3,42 @@ import 'package:flutter/material.dart';
 import '../../models/business_order.dart';
 import '../../services/api_service.dart';
 import '../../services/business_service.dart';
-
 import 'add_product_screen.dart';
-import 'seller_products_screen.dart';
 import 'seller_orders_screen.dart';
+import 'seller_products_screen.dart';
+import 'seller_profile_screen.dart';
 
 class BusinessDashboard extends StatefulWidget {
-  const BusinessDashboard({
-    super.key,
-  });
+  const BusinessDashboard({super.key});
 
   @override
-  State<BusinessDashboard> createState() =>
-      _BusinessDashboardState();
+  State<BusinessDashboard> createState() => _BusinessDashboardState();
 }
 
-class _BusinessDashboardState
-    extends State<BusinessDashboard> {
-  // ============================================================
-  // STATE
-  // ============================================================
+class _BusinessDashboardState extends State<BusinessDashboard> {
+  static const Color _emerald = Color(0xFF065F46);
+  static const Color _mint = Color(0xFFA7F3D0);
+  static const Color _page = Color(0xFFF7FAF6);
+  static const Color _ink = Color(0xFF102A24);
 
   int currentIndex = 0;
 
   Map<String, dynamic>? currentUser;
-
   List<dynamic> products = [];
-
   List<BusinessOrder> orders = [];
 
   bool loadingUser = true;
   bool loadingProducts = true;
   bool loadingOrders = true;
-
   String? ordersError;
 
-  final BusinessService businessService =
-  BusinessService();
-
-  // ============================================================
-  // INIT
-  // ============================================================
+  final BusinessService businessService = BusinessService();
 
   @override
   void initState() {
     super.initState();
-
     loadDashboardData();
   }
-
-  // ============================================================
-  // LOAD ALL DASHBOARD DATA
-  // ============================================================
 
   Future<void> loadDashboardData() async {
     await Future.wait([
@@ -64,95 +48,45 @@ class _BusinessDashboardState
     ]);
   }
 
-  // ============================================================
-  // LOAD CURRENT USER
-  // ============================================================
-
   Future<void> loadCurrentUser() async {
     try {
-      final response =
-      await ApiService.getCurrentUser();
+      final response = await ApiService.getCurrentUser();
 
       if (!mounted) return;
 
       Map<String, dynamic>? user;
-
       if (response != null &&
           response['user'] != null &&
           response['user'] is Map) {
-        user = Map<String, dynamic>.from(
-          response['user'],
-        );
+        user = Map<String, dynamic>.from(response['user']);
       } else if (response != null) {
-        user = Map<String, dynamic>.from(
-          response,
-        );
+        user = Map<String, dynamic>.from(response);
       }
 
       setState(() {
         currentUser = user;
         loadingUser = false;
       });
-
-      debugPrint(
-        'CURRENT USER LOADED',
-      );
-
-      debugPrint(
-        'BUSINESS NAME: $businessName',
-      );
-
-      debugPrint(
-        'BUSINESS TYPE: $businessType',
-      );
-    } catch (e) {
-      debugPrint(
-        'LOAD CURRENT USER ERROR: $e',
-      );
-
-      if (!mounted) return;
-
-      setState(() {
-        loadingUser = false;
-      });
+    } catch (error) {
+      debugPrint('LOAD CURRENT USER ERROR: $error');
+      if (mounted) setState(() => loadingUser = false);
     }
   }
 
-  // ============================================================
-  // LOAD PRODUCTS
-  // ============================================================
-
   Future<void> loadProducts() async {
     try {
-      final result =
-      await businessService.getProducts();
+      final result = await businessService.getProducts();
 
       if (!mounted) return;
-
       setState(() {
         products = result;
         loadingProducts = false;
       });
-
-      debugPrint(
-        'PRODUCTS COUNT: ${products.length}',
-      );
-    } catch (e) {
-      debugPrint(
-        'LOAD PRODUCTS ERROR: $e',
-      );
-
-      if (!mounted) return;
-
-      setState(() {
-        loadingProducts = false;
-      });
+    } catch (error) {
+      debugPrint('LOAD PRODUCTS ERROR: $error');
+      if (mounted) setState(() => loadingProducts = false);
     }
   }
-
-  // ============================================================
-  // LOAD BUSINESS ORDERS
-  // ============================================================
 
   Future<void> loadOrders() async {
     if (mounted) {
@@ -163,466 +97,230 @@ class _BusinessDashboardState
     }
 
     try {
-      debugPrint(
-        '========================================',
-      );
-
-      debugPrint(
-        'LOADING BUSINESS ORDERS',
-      );
-
-      final result =
-      await businessService.getBusinessOrders();
-
-      debugPrint(
-        'ORDERS API COUNT: ${result.length}',
-      );
-
-      final List<BusinessOrder> parsedOrders = [];
+      final result = await businessService.getBusinessOrders();
+      final parsedOrders = <BusinessOrder>[];
 
       for (final item in result) {
         try {
-          if (item is! Map) {
-            debugPrint(
-              'INVALID ORDER ITEM',
+          if (item is Map) {
+            parsedOrders.add(
+              BusinessOrder.fromJson(Map<String, dynamic>.from(item)),
             );
-
-            continue;
           }
-
-          final orderJson =
-          Map<String, dynamic>.from(item);
-
-          debugPrint(
-            '----------------------------------------',
-          );
-
-          debugPrint(
-            'ORDER ID: '
-                '${orderJson['_id'] ?? ''}',
-          );
-
-          debugPrint(
-            'ORDER NUMBER: '
-                '${orderJson['orderNumber'] ?? ''}',
-          );
-
-          debugPrint(
-            'ORDER STATUS: '
-                '${orderJson['status'] ?? ''}',
-          );
-
-          final businessOrder =
-          BusinessOrder.fromJson(
-            orderJson,
-          );
-
-          debugPrint(
-            'PARSED ORDER ID: '
-                '${businessOrder.id}',
-          );
-
-          debugPrint(
-            'PARSED ORDER NUMBER: '
-                '${businessOrder.orderNumber}',
-          );
-
-          debugPrint(
-            'PARSED ORDER STATUS: '
-                '${businessOrder.status}',
-          );
-
-          parsedOrders.add(
-            businessOrder,
-          );
-        } catch (e, stackTrace) {
-          debugPrint(
-            'PARSE ORDER ERROR: $e',
-          );
-
-          debugPrint(
-            'STACK: $stackTrace',
-          );
+        } catch (error) {
+          debugPrint('PARSE ORDER ERROR: $error');
         }
       }
 
       if (!mounted) return;
-
       setState(() {
         orders = parsedOrders;
         loadingOrders = false;
         ordersError = null;
       });
-
-      debugPrint(
-        '========================================',
-      );
-
-      debugPrint(
-        'BUSINESS ORDERS LOADED',
-      );
-
-      debugPrint(
-        'TOTAL PARSED ORDERS: ${orders.length}',
-      );
-
-      debugPrint(
-        '========================================',
-      );
-    } catch (e, stackTrace) {
-      debugPrint(
-        'LOAD BUSINESS ORDERS ERROR: $e',
-      );
-
-      debugPrint(
-        'STACK TRACE: $stackTrace',
-      );
-
+    } catch (error) {
+      debugPrint('LOAD BUSINESS ORDERS ERROR: $error');
       if (!mounted) return;
-
       setState(() {
         loadingOrders = false;
-        ordersError = e.toString();
+        ordersError = error.toString();
       });
     }
   }
 
-  // ============================================================
-  // USER DATA HELPERS
-  // ============================================================
-
   String get ownerName {
-    final name =
-    currentUser?['name']?.toString();
-
-    if (name != null && name.isNotEmpty) {
-      return name;
-    }
-
-    return 'Business Owner';
+    final name = currentUser?['name']?.toString();
+    return name != null && name.trim().isNotEmpty ? name : 'Business Owner';
   }
 
-  String get email {
-    return currentUser?['email']
-        ?.toString() ??
-        '';
-  }
+  String get email => currentUser?['email']?.toString() ?? '';
 
-  Map<String, dynamic>
-  get businessProfile {
-    final profile =
-    currentUser?['businessProfile'];
-
-    if (profile is Map) {
-      return Map<String, dynamic>.from(
-        profile,
-      );
-    }
-
-    return {};
+  Map<String, dynamic> get businessProfile {
+    final profile = currentUser?['businessProfile'];
+    return profile is Map ? Map<String, dynamic>.from(profile) : {};
   }
 
   String get businessName {
-    final name =
-    businessProfile['businessName']
-        ?.toString();
-
-    if (name != null && name.isNotEmpty) {
-      return name;
-    }
-
-    return 'My Pet Business';
+    final name = businessProfile['businessName']?.toString();
+    return name != null && name.trim().isNotEmpty ? name : 'My Pet Business';
   }
 
   String get businessType {
-    final type =
-    businessProfile['businessType']
-        ?.toString();
-
-    if (type == null || type.isEmpty) {
-      return 'Pet Business';
-    }
-
-    return formatBusinessType(type);
+    final type = businessProfile['businessType']?.toString();
+    return type == null || type.isEmpty
+        ? 'Pet Business'
+        : formatBusinessType(type);
   }
 
   String get businessAddress {
-    final address =
-    businessProfile['address']
-        ?.toString();
-
-    if (address != null &&
-        address.isNotEmpty) {
-      return address;
-    }
-
-    return 'Business location not set';
+    final address = businessProfile['address']?.toString();
+    return address != null && address.trim().isNotEmpty
+        ? address
+        : 'Business location not set';
   }
 
-  String formatBusinessType(
-      String type) {
+  String formatBusinessType(String type) {
     switch (type) {
       case 'vet_clinic':
         return 'Veterinary Clinic';
-
       case 'pet_shop':
         return 'Pet Shop';
-
       case 'grooming':
         return 'Pet Grooming';
-
       case 'other':
         return 'Pet Business';
-
       default:
         return type
             .replaceAll('_', ' ')
             .split(' ')
             .map(
               (word) => word.isEmpty
-              ? ''
-              : word[0]
-              .toUpperCase() +
-              word.substring(1),
-        )
+                  ? ''
+                  : '${word[0].toUpperCase()}${word.substring(1)}',
+            )
             .join(' ');
     }
   }
 
-  // ============================================================
-  // RECENT ORDERS
-  // ============================================================
-
-  List<BusinessOrder>
-  get recentOrders {
-    if (orders.length <= 5) {
-      return orders;
-    }
-
-    return orders.take(5).toList();
-  }
-
-  // ============================================================
-  // OPEN ADD PRODUCT
-  // ============================================================
+  List<BusinessOrder> get recentOrders =>
+      orders.length <= 4 ? orders : orders.take(4).toList();
 
   Future<void> openAddProduct() async {
     await Navigator.push(
       context,
-      MaterialPageRoute(
-        builder: (_) =>
-        const AddProductScreen(),
-      ),
+      MaterialPageRoute(builder: (_) => const AddProductScreen()),
     );
-
     await loadProducts();
   }
 
-  // ============================================================
-  // OPEN ALL ORDERS
-  // ============================================================
-
   void openOrders() {
-    setState(() {
-      currentIndex = 2;
-    });
-
+    setState(() => currentIndex = 2);
     loadOrders();
   }
 
-  // ============================================================
-  // PAGES
-  // ============================================================
-
-  List<Widget> get pages {
-    return [
-      // ========================================================
-      // PAGE 0 - DASHBOARD
-      // ========================================================
-
-      DashboardHome(
-        businessName: businessName,
-        businessType: businessType,
-        businessAddress:
-        businessAddress,
-        ownerName: ownerName,
-        email: email,
-        productCount:
-        products.length,
-        orderCount: orders.length,
-        recentOrders:
-        recentOrders,
-        loadingProducts:
-        loadingProducts,
-        loadingOrders:
-        loadingOrders,
-        onAddProduct:
-        openAddProduct,
-        onViewOrders:
-        openOrders,
-        onRefresh:
-        loadDashboardData,
-      ),
-
-      // ========================================================
-      // PAGE 1 - PRODUCTS
-      // ========================================================
-
-      const SellerProductsScreen(),
-
-      // ========================================================
-      // PAGE 2 - ORDERS
-      // ========================================================
-
-      SellerOrdersScreen(
-        orders: orders,
-        isLoading:
-        loadingOrders,
-        error: ordersError,
-        onRefresh:
-        loadOrders,
-      ),
-
-      // ========================================================
-      // PAGE 3 - PROFILE
-      // ========================================================
-
-      // SellerProfileScreen(),
-    ];
-  }
-
-  // ============================================================
-  // BUILD
-  // ============================================================
+  List<Widget> get pages => [
+        DashboardHome(
+          businessName: businessName,
+          businessType: businessType,
+          businessAddress: businessAddress,
+          ownerName: ownerName,
+          productCount: products.length,
+          orderCount: orders.length,
+          recentOrders: recentOrders,
+          loadingProducts: loadingProducts,
+          loadingOrders: loadingOrders,
+          onAddProduct: openAddProduct,
+          onViewOrders: openOrders,
+          onRefresh: loadDashboardData,
+        ),
+        const SellerProductsScreen(),
+        SellerOrdersScreen(
+          orders: orders,
+          isLoading: loadingOrders,
+          error: ordersError,
+          onRefresh: loadOrders,
+        ),
+        SellerProfileScreen(
+          ownerName: ownerName,
+          email: email,
+          businessName: businessName,
+          businessType: businessType,
+          businessAddress: businessAddress,
+        ),
+      ];
 
   @override
-  Widget build(
-      BuildContext context) {
+  Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: _page,
       body: loadingUser
           ? const Center(
-        child:
-        CircularProgressIndicator(),
-      )
+              child: CircularProgressIndicator(color: _emerald),
+            )
           : IndexedStack(
-        index: currentIndex,
-        children: pages,
-      ),
-
-      // ========================================================
-      // BOTTOM NAVIGATION
-      // ========================================================
-
-      bottomNavigationBar:
-      NavigationBar(
-        selectedIndex:
-        currentIndex,
-
-        onDestinationSelected:
-            (index) {
-          setState(() {
-            currentIndex = index;
-          });
-
-          // Dashboard
-          if (index == 0) {
-            loadDashboardData();
-          }
-
-          // Products
-          if (index == 1) {
-            loadProducts();
-          }
-
-          // Orders
-          if (index == 2) {
-            loadOrders();
-          }
-        },
-
-        indicatorColor:
-        Colors.green.shade100,
-
-        destinations: const [
-          NavigationDestination(
-            icon: Icon(
-              Icons
-                  .dashboard_outlined,
+              index: currentIndex,
+              children: pages,
             ),
-            selectedIcon:
-            Icon(
-              Icons.dashboard,
+      bottomNavigationBar: NavigationBarTheme(
+        data: NavigationBarThemeData(
+          backgroundColor: Colors.white,
+          indicatorColor: _mint.withOpacity(0.58),
+          labelTextStyle: MaterialStateProperty.resolveWith(
+            (states) => TextStyle(
+              color: states.contains(MaterialState.selected)
+                  ? _emerald
+                  : const Color(0xFF71847D),
+              fontSize: 11,
+              fontWeight: states.contains(MaterialState.selected)
+                  ? FontWeight.w900
+                  : FontWeight.w700,
             ),
-            label: 'Dashboard',
           ),
-
-          NavigationDestination(
-            icon: Icon(
-              Icons
-                  .inventory_2_outlined,
+          iconTheme: MaterialStateProperty.resolveWith(
+            (states) => IconThemeData(
+              color: states.contains(MaterialState.selected)
+                  ? _emerald
+                  : const Color(0xFF71847D),
             ),
-            selectedIcon:
-            Icon(
-              Icons.inventory_2,
-            ),
-            label: 'Products',
           ),
-
-          NavigationDestination(
-            icon: Icon(
-              Icons
-                  .shopping_bag_outlined,
+        ),
+        child: NavigationBar(
+          selectedIndex: currentIndex,
+          height: 70,
+          elevation: 0,
+          onDestinationSelected: (index) {
+            setState(() => currentIndex = index);
+            if (index == 0) loadDashboardData();
+            if (index == 1) loadProducts();
+            if (index == 2) loadOrders();
+          },
+          destinations: const [
+            NavigationDestination(
+              icon: Icon(Icons.dashboard_outlined),
+              selectedIcon: Icon(Icons.dashboard_rounded),
+              label: 'Dashboard',
             ),
-            selectedIcon:
-            Icon(
-              Icons.shopping_bag,
+            NavigationDestination(
+              icon: Icon(Icons.inventory_2_outlined),
+              selectedIcon: Icon(Icons.inventory_2_rounded),
+              label: 'Products',
             ),
-            label: 'Orders',
-          ),
-
-          NavigationDestination(
-            icon: Icon(
-              Icons.person_outline,
+            NavigationDestination(
+              icon: Icon(Icons.shopping_bag_outlined),
+              selectedIcon: Icon(Icons.shopping_bag_rounded),
+              label: 'Orders',
             ),
-            selectedIcon:
-            Icon(
-              Icons.person,
+            NavigationDestination(
+              icon: Icon(Icons.person_outline_rounded),
+              selectedIcon: Icon(Icons.person_rounded),
+              label: 'Profile',
             ),
-            label: 'Profile',
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
 }
 
-// ==================================================================
-// DASHBOARD HOME
-// ==================================================================
+class DashboardHome extends StatelessWidget {
+  static const Color _emerald = Color(0xFF065F46);
+  static const Color _mint = Color(0xFFA7F3D0);
+  static const Color _cream = Color(0xFFFFF8E7);
+  static const Color _ink = Color(0xFF102A24);
+  static const Color _page = Color(0xFFF7FAF6);
 
-class DashboardHome
-    extends StatelessWidget {
   final String businessName;
   final String businessType;
   final String businessAddress;
   final String ownerName;
-  final String email;
-
   final int productCount;
   final int orderCount;
-
-  final List<BusinessOrder>
-  recentOrders;
-
+  final List<BusinessOrder> recentOrders;
   final bool loadingProducts;
   final bool loadingOrders;
-
   final VoidCallback onAddProduct;
-
   final VoidCallback onViewOrders;
-
-  final Future<void> Function()
-  onRefresh;
+  final Future<void> Function() onRefresh;
 
   const DashboardHome({
     super.key,
@@ -630,7 +328,6 @@ class DashboardHome
     required this.businessType,
     required this.businessAddress,
     required this.ownerName,
-    required this.email,
     required this.productCount,
     required this.orderCount,
     required this.recentOrders,
@@ -642,719 +339,160 @@ class DashboardHome
   });
 
   @override
-  Widget build(
-      BuildContext context) {
+  Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor:
-      const Color(0xffF6FAF7),
-
+      backgroundColor: _page,
       appBar: AppBar(
+        backgroundColor: _page,
+        surfaceTintColor: _page,
         elevation: 0,
-        backgroundColor:
-        const Color(0xffF6FAF7),
-
         title: const Text(
           'Seller Center',
-          style: TextStyle(
-            fontWeight:
-            FontWeight.bold,
-          ),
+          style: TextStyle(color: _ink, fontWeight: FontWeight.w900),
         ),
-
         actions: [
-          IconButton(
-            onPressed: () {},
-            icon: const Icon(
-              Icons
-                  .notifications_none_rounded,
-            ),
-          ),
-
-          const SizedBox(
-            width: 8,
-          ),
-        ],
-      ),
-
-      body: RefreshIndicator(
-        onRefresh: onRefresh,
-
-        child:
-        SingleChildScrollView(
-          physics:
-          const AlwaysScrollableScrollPhysics(),
-
-          padding:
-          const EdgeInsets.fromLTRB(
-            16,
-            8,
-            16,
-            30,
-          ),
-
-          child: Column(
-            crossAxisAlignment:
-            CrossAxisAlignment.start,
-
-            children: [
-              // ==================================================
-              // WELCOME
-              // ==================================================
-
-              Text(
-                'Welcome back, '
-                    '$ownerName 👋',
-
-                style:
-                const TextStyle(
-                  fontSize: 16,
-                  color: Colors.grey,
-                ),
-              ),
-
-              const SizedBox(
-                height: 5,
-              ),
-
-              const Text(
-                'Manage your business',
-
-                style:
-                TextStyle(
-                  fontSize: 25,
-                  fontWeight:
-                  FontWeight.bold,
-                ),
-              ),
-
-              const SizedBox(
-                height: 20,
-              ),
-
-              // ==================================================
-              // BUSINESS CARD
-              // ==================================================
-
-              Container(
-                width:
-                double.infinity,
-
-                padding:
-                const EdgeInsets.all(
-                  20,
-                ),
-
-                decoration:
-                BoxDecoration(
-                  gradient:
-                  LinearGradient(
-                    colors: [
-                      Colors.green
-                          .shade800,
-                      Colors.green
-                          .shade600,
-                    ],
-                    begin:
-                    Alignment.topLeft,
-                    end: Alignment
-                        .bottomRight,
-                  ),
-
-                  borderRadius:
-                  BorderRadius.circular(
-                    24,
-                  ),
-
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.green
-                          .withOpacity(
-                        0.25,
-                      ),
-                      blurRadius: 18,
-                      offset:
-                      const Offset(
-                        0,
-                        8,
-                      ),
-                    ),
-                  ],
-                ),
-
-                child: Column(
-                  crossAxisAlignment:
-                  CrossAxisAlignment.start,
-
-                  children: [
-                    Row(
-                      children: [
-                        Container(
-                          width: 58,
-                          height: 58,
-
-                          decoration:
-                          BoxDecoration(
-                            color:
-                            Colors.white,
-                            borderRadius:
-                            BorderRadius
-                                .circular(
-                              18,
-                            ),
-                          ),
-
-                          child:
-                          const Icon(
-                            Icons
-                                .store_rounded,
-                            color:
-                            Colors.green,
-                            size: 32,
-                          ),
-                        ),
-
-                        const SizedBox(
-                          width: 15,
-                        ),
-
-                        Expanded(
-                          child:
-                          Column(
-                            crossAxisAlignment:
-                            CrossAxisAlignment
-                                .start,
-
-                            children: [
-                              Text(
-                                businessName,
-
-                                maxLines: 1,
-
-                                overflow:
-                                TextOverflow
-                                    .ellipsis,
-
-                                style:
-                                const TextStyle(
-                                  color:
-                                  Colors.white,
-                                  fontSize: 21,
-                                  fontWeight:
-                                  FontWeight
-                                      .bold,
-                                ),
-                              ),
-
-                              const SizedBox(
-                                height: 4,
-                              ),
-
-                              Text(
-                                businessType,
-
-                                style:
-                                const TextStyle(
-                                  color:
-                                  Colors.white70,
-                                  fontSize: 14,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ],
-                    ),
-
-                    const SizedBox(
-                      height: 20,
-                    ),
-
-                    Container(
-                      padding:
-                      const EdgeInsets
-                          .symmetric(
-                        horizontal: 12,
-                        vertical: 10,
-                      ),
-
-                      decoration:
-                      BoxDecoration(
-                        color: Colors.white
-                            .withOpacity(
-                          0.12,
-                        ),
-
-                        borderRadius:
-                        BorderRadius
-                            .circular(
-                          12,
-                        ),
-                      ),
-
-                      child: Row(
-                        children: [
-                          const Icon(
-                            Icons
-                                .location_on_outlined,
-                            color:
-                            Colors.white,
-                            size: 20,
-                          ),
-
-                          const SizedBox(
-                            width: 8,
-                          ),
-
-                          Expanded(
-                            child: Text(
-                              businessAddress,
-
-                              maxLines: 2,
-
-                              overflow:
-                              TextOverflow
-                                  .ellipsis,
-
-                              style:
-                              const TextStyle(
-                                color:
-                                Colors.white,
-                                fontSize: 13,
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-
-              const SizedBox(
-                height: 28,
-              ),
-
-              // ==================================================
-              // OVERVIEW
-              // ==================================================
-
-              const Text(
-                'Business Overview',
-
-                style:
-                TextStyle(
-                  fontSize: 20,
-                  fontWeight:
-                  FontWeight.bold,
-                ),
-              ),
-
-              const SizedBox(
-                height: 15,
-              ),
-
-              GridView.count(
-                crossAxisCount: 2,
-
-                crossAxisSpacing: 12,
-
-                mainAxisSpacing: 12,
-
-                childAspectRatio: 1.35,
-
-                shrinkWrap: true,
-
-                physics:
-                const NeverScrollableScrollPhysics(),
-
-                children: [
-                  DashboardStatCard(
-                    icon: Icons
-                        .inventory_2_outlined,
-                    title: 'Products',
-                    value:
-                    loadingProducts
-                        ? '...'
-                        : productCount
-                        .toString(),
-                    iconColor:
-                    Colors.green,
-                  ),
-
-                  DashboardStatCard(
-                    icon: Icons
-                        .shopping_bag_outlined,
-                    title: 'Orders',
-                    value:
-                    loadingOrders
-                        ? '...'
-                        : orderCount
-                        .toString(),
-                    iconColor:
-                    Colors.blue,
-                  ),
-
-                  const DashboardStatCard(
-                    icon: Icons
-                        .payments_outlined,
-                    title: 'Revenue',
-                    value: '0 MMK',
-                    iconColor:
-                    Colors.orange,
-                  ),
-
-                  const DashboardStatCard(
-                    icon:
-                    Icons.star_outline,
-                    title: 'Rating',
-                    value: '0.0',
-                    iconColor:
-                    Colors.amber,
-                  ),
-                ],
-              ),
-
-              const SizedBox(
-                height: 28,
-              ),
-
-              // ==================================================
-              // QUICK ACTIONS
-              // ==================================================
-
-              const Text(
-                'Quick Actions',
-
-                style:
-                TextStyle(
-                  fontSize: 20,
-                  fontWeight:
-                  FontWeight.bold,
-                ),
-              ),
-
-              const SizedBox(
-                height: 15,
-              ),
-
-              Row(
-                children: [
-                  Expanded(
-                    child:
-                    QuickActionCard(
-                      icon: Icons
-                          .add_box_outlined,
-                      title:
-                      'Add Product',
-                      subtitle:
-                      'Create new product',
-                      onTap:
-                      onAddProduct,
-                    ),
-                  ),
-
-                  const SizedBox(
-                    width: 12,
-                  ),
-
-                  Expanded(
-                    child:
-                    QuickActionCard(
-                      icon: Icons
-                          .inventory_2_outlined,
-                      title:
-                      'My Products',
-                      subtitle:
-                      'Manage products',
-                      onTap: () {},
-                    ),
-                  ),
-                ],
-              ),
-
-              const SizedBox(
-                height: 28,
-              ),
-
-              // ==================================================
-              // RECENT ORDERS HEADER
-              // ==================================================
-
-              Row(
-                mainAxisAlignment:
-                MainAxisAlignment
-                    .spaceBetween,
-
-                children: [
-                  const Text(
-                    'Recent Orders',
-
-                    style:
-                    TextStyle(
-                      fontSize: 20,
-                      fontWeight:
-                      FontWeight.bold,
-                    ),
-                  ),
-
-                  TextButton(
-                    onPressed:
-                    onViewOrders,
-
-                    child:
-                    const Text(
-                      'View All',
-                    ),
-                  ),
-                ],
-              ),
-
-              const SizedBox(
-                height: 10,
-              ),
-
-              // ==================================================
-              // ORDERS
-              // ==================================================
-
-              if (loadingOrders)
-                const Center(
-                  child: Padding(
-                    padding:
-                    EdgeInsets.all(
-                      30,
-                    ),
-                    child:
-                    CircularProgressIndicator(),
-                  ),
-                )
-              else if (recentOrders
-                  .isEmpty)
-                const EmptyOrdersCard()
-              else
-                Column(
-                  children:
-                  recentOrders
-                      .map(
-                        (
-                        order,
-                        ) =>
-                        RecentOrderCard(
-                          order:
-                          order,
-                        ),
-                  )
-                      .toList(),
-                ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-// ==================================================================
-// STAT CARD
-// ==================================================================
-
-class DashboardStatCard
-    extends StatelessWidget {
-  final IconData icon;
-  final String title;
-  final String value;
-  final Color iconColor;
-
-  const DashboardStatCard({
-    super.key,
-    required this.icon,
-    required this.title,
-    required this.value,
-    required this.iconColor,
-  });
-
-  @override
-  Widget build(
-      BuildContext context) {
-    return Container(
-      padding:
-      const EdgeInsets.all(16),
-
-      decoration:
-      BoxDecoration(
-        color: Colors.white,
-
-        borderRadius:
-        BorderRadius.circular(
-          18,
-        ),
-
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black
-                .withOpacity(
-              0.05,
-            ),
-            blurRadius: 10,
-            offset:
-            const Offset(0, 4),
-          ),
-        ],
-      ),
-
-      child: Column(
-        crossAxisAlignment:
-        CrossAxisAlignment.start,
-
-        mainAxisAlignment:
-        MainAxisAlignment.center,
-
-        children: [
           Container(
+            margin: const EdgeInsets.only(right: 14),
             width: 42,
             height: 42,
-
-            decoration:
-            BoxDecoration(
-              color: iconColor
-                  .withOpacity(
-                0.1,
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(14),
+              border: Border.all(color: const Color(0xFFE2ECE7)),
+            ),
+            child: IconButton(
+              padding: EdgeInsets.zero,
+              onPressed: onRefresh,
+              icon: const Icon(
+                Icons.refresh_rounded,
+                color: _emerald,
+                size: 21,
               ),
-
-              borderRadius:
-              BorderRadius.circular(
-                12,
-              ),
-            ),
-
-            child: Icon(
-              icon,
-              color: iconColor,
-            ),
-          ),
-
-          const SizedBox(
-            height: 10,
-          ),
-
-          Text(
-            value,
-
-            style:
-            const TextStyle(
-              fontSize: 19,
-              fontWeight:
-              FontWeight.bold,
-            ),
-          ),
-
-          const SizedBox(
-            height: 2,
-          ),
-
-          Text(
-            title,
-
-            style:
-            const TextStyle(
-              color: Colors.grey,
-              fontSize: 13,
             ),
           ),
         ],
       ),
-    );
-  }
-}
-
-// ==================================================================
-// QUICK ACTION CARD
-// ==================================================================
-
-class QuickActionCard
-    extends StatelessWidget {
-  final IconData icon;
-  final String title;
-  final String subtitle;
-  final VoidCallback onTap;
-
-  const QuickActionCard({
-    super.key,
-    required this.icon,
-    required this.title,
-    required this.subtitle,
-    required this.onTap,
-  });
-
-  @override
-  Widget build(
-      BuildContext context) {
-    return InkWell(
-      onTap: onTap,
-
-      borderRadius:
-      BorderRadius.circular(
-        18,
-      ),
-
-      child: Container(
-        padding:
-        const EdgeInsets.all(16),
-
-        decoration:
-        BoxDecoration(
-          color: Colors.white,
-
-          borderRadius:
-          BorderRadius.circular(
-            18,
-          ),
-
-          border: Border.all(
-            color: Colors.green
-                .shade100,
-          ),
-        ),
-
-        child: Column(
-          crossAxisAlignment:
-          CrossAxisAlignment.start,
-
+      body: RefreshIndicator(
+        onRefresh: onRefresh,
+        color: _emerald,
+        child: ListView(
+          physics: const AlwaysScrollableScrollPhysics(),
+          padding: const EdgeInsets.fromLTRB(16, 8, 16, 32),
           children: [
-            Icon(
-              icon,
-              color: Colors.green,
-              size: 30,
-            ),
-
-            const SizedBox(
-              height: 12,
-            ),
-
             Text(
-              title,
-
-              style:
-              const TextStyle(
-                fontWeight:
-                FontWeight.bold,
-                fontSize: 15,
+              'Welcome back, $ownerName',
+              style: const TextStyle(
+                color: Color(0xFF71847D),
+                fontSize: 14,
+                fontWeight: FontWeight.w700,
               ),
             ),
-
-            const SizedBox(
-              height: 4,
-            ),
-
-            Text(
-              subtitle,
-
-              style:
-              const TextStyle(
-                color: Colors.grey,
-                fontSize: 12,
+            const SizedBox(height: 4),
+            const Text(
+              'Manage your business',
+              style: TextStyle(
+                color: _ink,
+                fontSize: 26,
+                fontWeight: FontWeight.w900,
+                height: 1.2,
               ),
             ),
+            const SizedBox(height: 19),
+            _BusinessHeroCard(
+              businessName: businessName,
+              businessType: businessType,
+              businessAddress: businessAddress,
+            ),
+            const SizedBox(height: 16),
+            Row(
+              children: [
+                Expanded(
+                  child: _DashboardStatCard(
+                    icon: Icons.inventory_2_outlined,
+                    label: 'Products',
+                    value: loadingProducts ? '—' : '$productCount',
+                    accent: _emerald,
+                    background: _mint.withOpacity(0.38),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: _DashboardStatCard(
+                    icon: Icons.shopping_bag_outlined,
+                    label: 'Orders',
+                    value: loadingOrders ? '—' : '$orderCount',
+                    accent: const Color(0xFF9A6500),
+                    background: _cream,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 24),
+            const Text(
+              'Quick actions',
+              style: TextStyle(
+                color: _ink,
+                fontSize: 18,
+                fontWeight: FontWeight.w900,
+              ),
+            ),
+            const SizedBox(height: 12),
+            Row(
+              children: [
+                Expanded(
+                  child: _QuickActionCard(
+                    icon: Icons.add_business_rounded,
+                    title: 'Add product',
+                    subtitle: 'Create a new listing',
+                    onTap: onAddProduct,
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: _QuickActionCard(
+                    icon: Icons.receipt_long_rounded,
+                    title: 'View orders',
+                    subtitle: 'Manage customer orders',
+                    onTap: onViewOrders,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 25),
+            Row(
+              children: [
+                const Expanded(
+                  child: Text(
+                    'Recent orders',
+                    style: TextStyle(
+                      color: _ink,
+                      fontSize: 18,
+                      fontWeight: FontWeight.w900,
+                    ),
+                  ),
+                ),
+                TextButton(
+                  onPressed: onViewOrders,
+                  style: TextButton.styleFrom(foregroundColor: _emerald),
+                  child: const Text(
+                    'View all',
+                    style: TextStyle(fontWeight: FontWeight.w800),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 8),
+            if (loadingOrders)
+              const _DashboardLoadingCard()
+            else if (recentOrders.isEmpty)
+              const _NoRecentOrders()
+            else
+              ...recentOrders.map(
+                (order) => _RecentOrderCard(
+                  order: order,
+                  onTap: onViewOrders,
+                ),
+              ),
           ],
         ),
       ),
@@ -1362,133 +500,138 @@ class QuickActionCard
   }
 }
 
-// ==================================================================
-// RECENT ORDER CARD
-// ==================================================================
+class _BusinessHeroCard extends StatelessWidget {
+  final String businessName;
+  final String businessType;
+  final String businessAddress;
 
-class RecentOrderCard
-    extends StatelessWidget {
-  final BusinessOrder order;
-
-  const RecentOrderCard({
-    super.key,
-    required this.order,
+  const _BusinessHeroCard({
+    required this.businessName,
+    required this.businessType,
+    required this.businessAddress,
   });
 
   @override
-  Widget build(
-      BuildContext context) {
+  Widget build(BuildContext context) {
     return Container(
-      width:
-      double.infinity,
-
-      margin:
-      const EdgeInsets.only(
-        bottom: 12,
-      ),
-
-      padding:
-      const EdgeInsets.all(16),
-
-      decoration:
-      BoxDecoration(
-        color: Colors.white,
-
-        borderRadius:
-        BorderRadius.circular(
-          18,
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        gradient: const LinearGradient(
+          colors: [Color(0xFF065F46), Color(0xFF0B7A5B)],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
         ),
-
-        border: Border.all(
-          color:
-          Colors.grey.shade200,
-        ),
+        borderRadius: BorderRadius.circular(26),
+        boxShadow: [
+          BoxShadow(
+            color: const Color(0xFF065F46).withOpacity(0.22),
+            blurRadius: 25,
+            offset: const Offset(0, 12),
+          ),
+        ],
       ),
-
       child: Column(
         children: [
           Row(
             children: [
+              Container(
+                width: 60,
+                height: 60,
+                decoration: BoxDecoration(
+                  color: const Color(0xFFFFF8E7),
+                  borderRadius: BorderRadius.circular(19),
+                ),
+                child: const Icon(
+                  Icons.storefront_rounded,
+                  color: Color(0xFF065F46),
+                  size: 32,
+                ),
+              ),
+              const SizedBox(width: 14),
               Expanded(
-                child: Text(
-                  order.orderNumber,
-
-                  style:
-                  const TextStyle(
-                    fontWeight:
-                    FontWeight.bold,
-                    fontSize: 15,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      businessName,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 21,
+                        fontWeight: FontWeight.w900,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      businessType,
+                      style: const TextStyle(
+                        color: Color(0xFFD9FFF1),
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 10,
+                  vertical: 6,
+                ),
+                decoration: BoxDecoration(
+                  color: Colors.white.withOpacity(0.15),
+                  borderRadius: BorderRadius.circular(99),
+                ),
+                child: const Row(
+                  children: [
+                    Icon(
+                      Icons.verified_rounded,
+                      color: Color(0xFFA7F3D0),
+                      size: 17,
+                    ),
+                    SizedBox(width: 5),
+                    Text(
+                      'Verified',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 11,
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 18),
+          Container(
+            padding: const EdgeInsets.all(13),
+            decoration: BoxDecoration(
+              color: Colors.white.withOpacity(0.12),
+              borderRadius: BorderRadius.circular(16),
+            ),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Icon(
+                  Icons.location_on_outlined,
+                  color: Colors.white,
+                  size: 20,
+                ),
+                const SizedBox(width: 9),
+                Expanded(
+                  child: Text(
+                    businessAddress,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                      color: Colors.white,
+                      height: 1.35,
+                    ),
                   ),
                 ),
-              ),
-
-              OrderStatusBadge(
-                status:
-                order.status,
-              ),
-            ],
-          ),
-
-          const SizedBox(
-            height: 12,
-          ),
-
-          Row(
-            children: [
-              const Icon(
-                Icons
-                    .person_outline,
-                size: 20,
-                color:
-                Colors.grey,
-              ),
-
-              const SizedBox(
-                width: 8,
-              ),
-
-              Expanded(
-                child: Text(
-                  order.customer.name,
-                ),
-              ),
-
-              Text(
-                '${order.totalAmount.toStringAsFixed(0)} MMK',
-
-                style:
-                const TextStyle(
-                  fontWeight:
-                  FontWeight.bold,
-                  color:
-                  Colors.green,
-                ),
-              ),
-            ],
-          ),
-
-          const SizedBox(
-            height: 8,
-          ),
-
-          Row(
-            children: [
-              const Icon(
-                Icons
-                    .inventory_2_outlined,
-                size: 20,
-                color:
-                Colors.grey,
-              ),
-
-              const SizedBox(
-                width: 8,
-              ),
-
-              Text(
-                '${order.items.length} item(s)',
-              ),
-            ],
+              ],
+            ),
           ),
         ],
       ),
@@ -1496,166 +639,284 @@ class RecentOrderCard
   }
 }
 
-// ==================================================================
-// ORDER STATUS BADGE
-// ==================================================================
+class _DashboardStatCard extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final String value;
+  final Color accent;
+  final Color background;
 
-class OrderStatusBadge
-    extends StatelessWidget {
-  final String status;
-
-  const OrderStatusBadge({
-    super.key,
-    required this.status,
+  const _DashboardStatCard({
+    required this.icon,
+    required this.label,
+    required this.value,
+    required this.accent,
+    required this.background,
   });
 
   @override
-  Widget build(
-      BuildContext context) {
-    Color color;
-
-    switch (
-    status.toLowerCase()) {
-      case 'pending':
-        color = Colors.orange;
-        break;
-
-      case 'confirmed':
-        color = Colors.blue;
-        break;
-
-      case 'processing':
-        color = Colors.indigo;
-        break;
-
-      case 'shipped':
-        color = Colors.purple;
-        break;
-
-      case 'delivered':
-      case 'completed':
-        color = Colors.green;
-        break;
-
-      case 'cancelled':
-      case 'canceled':
-        color = Colors.red;
-        break;
-
-      default:
-        color = Colors.grey;
-    }
-
+  Widget build(BuildContext context) {
     return Container(
-      padding:
-      const EdgeInsets.symmetric(
-        horizontal: 10,
-        vertical: 6,
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(21),
+        border: Border.all(color: const Color(0xFFE2ECE7)),
       ),
-
-      decoration:
-      BoxDecoration(
-        color: color.withOpacity(
-          0.1,
-        ),
-
-        borderRadius:
-        BorderRadius.circular(
-          20,
-        ),
+      child: Row(
+        children: [
+          Container(
+            width: 45,
+            height: 45,
+            decoration: BoxDecoration(
+              color: background,
+              borderRadius: BorderRadius.circular(14),
+            ),
+            child: Icon(icon, color: accent, size: 23),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  value,
+                  style: const TextStyle(
+                    color: Color(0xFF102A24),
+                    fontSize: 22,
+                    fontWeight: FontWeight.w900,
+                  ),
+                ),
+                Text(
+                  label,
+                  style: const TextStyle(
+                    color: Color(0xFF71847D),
+                    fontSize: 12,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
       ),
+    );
+  }
+}
 
-      child: Text(
-        status.toUpperCase(),
+class _QuickActionCard extends StatelessWidget {
+  final IconData icon;
+  final String title;
+  final String subtitle;
+  final VoidCallback onTap;
 
-        style:
-        TextStyle(
-          color: color,
-          fontSize: 10,
-          fontWeight:
-          FontWeight.bold,
+  const _QuickActionCard({
+    required this.icon,
+    required this.title,
+    required this.subtitle,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: Colors.white,
+      borderRadius: BorderRadius.circular(21),
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(21),
+        child: Container(
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(21),
+            border: Border.all(color: const Color(0xFFE2ECE7)),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Container(
+                width: 47,
+                height: 47,
+                decoration: BoxDecoration(
+                  color: const Color(0xFFA7F3D0).withOpacity(0.40),
+                  borderRadius: BorderRadius.circular(15),
+                ),
+                child: Icon(
+                  icon,
+                  color: const Color(0xFF065F46),
+                  size: 24,
+                ),
+              ),
+              const SizedBox(height: 14),
+              Text(
+                title,
+                style: const TextStyle(
+                  color: Color(0xFF102A24),
+                  fontWeight: FontWeight.w900,
+                ),
+              ),
+              const SizedBox(height: 4),
+              Text(
+                subtitle,
+                maxLines: 2,
+                style: const TextStyle(
+                  color: Color(0xFF71847D),
+                  fontSize: 12,
+                  height: 1.3,
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );
   }
 }
 
-// ==================================================================
-// EMPTY ORDERS
-// ==================================================================
+class _RecentOrderCard extends StatelessWidget {
+  final BusinessOrder order;
+  final VoidCallback onTap;
 
-class EmptyOrdersCard
-    extends StatelessWidget {
-  const EmptyOrdersCard({
-    super.key,
+  const _RecentOrderCard({
+    required this.order,
+    required this.onTap,
   });
 
   @override
-  Widget build(
-      BuildContext context) {
-    return Container(
-      width:
-      double.infinity,
-
-      padding:
-      const EdgeInsets.all(28),
-
-      decoration:
-      BoxDecoration(
-        color: Colors.white,
-
-        borderRadius:
-        BorderRadius.circular(
-          18,
-        ),
-
-        border: Border.all(
-          color:
-          Colors.grey.shade200,
+  Widget build(BuildContext context) {
+    return Material(
+      color: Colors.white,
+      borderRadius: BorderRadius.circular(19),
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(19),
+        child: Container(
+          margin: const EdgeInsets.only(bottom: 10),
+          padding: const EdgeInsets.all(14),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(19),
+            border: Border.all(color: const Color(0xFFE2ECE7)),
+          ),
+          child: Row(
+            children: [
+              Container(
+                width: 45,
+                height: 45,
+                decoration: BoxDecoration(
+                  color: const Color(0xFFFFF8E7),
+                  borderRadius: BorderRadius.circular(14),
+                ),
+                child: const Icon(
+                  Icons.shopping_bag_outlined,
+                  color: Color(0xFF065F46),
+                  size: 22,
+                ),
+              ),
+              const SizedBox(width: 11),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      order.orderNumber,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        color: Color(0xFF102A24),
+                        fontWeight: FontWeight.w900,
+                      ),
+                    ),
+                    const SizedBox(height: 3),
+                    Text(
+                      order.customer.name,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        color: Color(0xFF71847D),
+                        fontSize: 12,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 8),
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.end,
+                children: [
+                  Text(
+                    '${order.totalAmount.toStringAsFixed(0)} MMK',
+                    style: const TextStyle(
+                      color: Color(0xFF065F46),
+                      fontWeight: FontWeight.w900,
+                      fontSize: 13,
+                    ),
+                  ),
+                  const SizedBox(height: 5),
+                  OrderStatusBadge(status: order.status),
+                ],
+              ),
+            ],
+          ),
         ),
       ),
+    );
+  }
+}
 
-      child: Column(
+class _DashboardLoadingCard extends StatelessWidget {
+  const _DashboardLoadingCard();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      height: 92,
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(19),
+        border: Border.all(color: const Color(0xFFE2ECE7)),
+      ),
+      child: const Center(
+        child: CircularProgressIndicator(
+          color: Color(0xFF065F46),
+          strokeWidth: 2.2,
+        ),
+      ),
+    );
+  }
+}
+
+class _NoRecentOrders extends StatelessWidget {
+  const _NoRecentOrders();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(vertical: 30, horizontal: 18),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(21),
+        border: Border.all(color: const Color(0xFFE2ECE7)),
+      ),
+      child: const Column(
         children: [
           Icon(
-            Icons
-                .shopping_bag_outlined,
-            size: 48,
-            color:
-            Colors.grey.shade400,
+            Icons.receipt_long_outlined,
+            color: Color(0xFF065F46),
+            size: 39,
           ),
-
-          const SizedBox(
-            height: 12,
-          ),
-
-          const Text(
-            'No orders yet',
-
-            style:
-            TextStyle(
-              fontSize: 16,
-              fontWeight:
-              FontWeight.bold,
-            ),
-          ),
-
-          const SizedBox(
-            height: 5,
-          ),
-
+          SizedBox(height: 10),
           Text(
-            'Your recent customer orders will appear here.',
-
-            textAlign:
-            TextAlign.center,
-
-            style:
-            TextStyle(
-              color:
-              Colors.grey.shade600,
-              fontSize: 13,
+            'No recent orders',
+            style: TextStyle(
+              color: Color(0xFF102A24),
+              fontWeight: FontWeight.w900,
             ),
+          ),
+          SizedBox(height: 4),
+          Text(
+            'Customer orders will appear here.',
+            textAlign: TextAlign.center,
+            style: TextStyle(color: Color(0xFF71847D)),
           ),
         ],
       ),
