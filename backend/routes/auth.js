@@ -10,17 +10,39 @@ const router = express.Router();
 // JWT TOKEN
 // ==========================
 const generateToken = (id) =>
-  jwt.sign({ id }, process.env.JWT_SECRET, {
-    expiresIn: process.env.JWT_EXPIRE,
-  });
+  jwt.sign(
+    { id },
+    process.env.JWT_SECRET,
+    {
+      expiresIn: process.env.JWT_EXPIRE,
+    }
+  );
 
-//register route
+// ==========================
+// REGISTER
+// ==========================
 router.post('/register', async (req, res) => {
- console.log("REGISTER HIT");
-  const { name, email, password, phone, role, businessProfile } = req.body;
+
+  console.log("=================================");
+  console.log("REGISTER HIT");
+
+  const {
+    name,
+    email,
+    password,
+    phone,
+    role,
+    businessProfile,
+  } = req.body;
 
   try {
-    const existingUser = await User.findOne({ email });
+
+    // ==========================
+    // CHECK EXISTING USER
+    // ==========================
+
+    const existingUser =
+      await User.findOne({ email });
 
     if (existingUser) {
       return res.status(400).json({
@@ -29,6 +51,10 @@ router.post('/register', async (req, res) => {
       });
     }
 
+    // ==========================
+    // PREVENT ADMIN REGISTER
+    // ==========================
+
     if (role === 'admin') {
       return res.status(403).json({
         success: false,
@@ -36,53 +62,138 @@ router.post('/register', async (req, res) => {
       });
     }
 
-    const otp = Math.floor(100000 + Math.random() * 900000).toString();
+    // ==========================
+    // GENERATE OTP
+    // ==========================
+
+    const otp =
+      Math.floor(
+        100000 +
+        Math.random() * 900000
+      ).toString();
+
+    console.log(
+      "GENERATED OTP =>",
+      otp
+    );
+
+    // ==========================
+    // CREATE USER
+    // ==========================
 
     const user = await User.create({
+
       name,
+
       email,
+
       password,
+
       phone,
-      role: role || 'user',
+
+      role:
+        role || 'user',
 
       businessProfile:
         role === 'business_owner'
           ? {
-              businessName: businessProfile?.businessName || '',
-              businessType: businessProfile?.businessType || '',
-              address: businessProfile?.address || '',
-              latitude: businessProfile?.latitude || null,
-              longitude: businessProfile?.longitude || null,
-              description: businessProfile?.description || '',
+              businessName:
+                businessProfile?.businessName || '',
 
-              agreementAccepted: false,
-              verificationStatus: 'draft',
-              rejectReason: '',
+              businessType:
+                businessProfile?.businessType || '',
+
+              address:
+                businessProfile?.address || '',
+
+              latitude:
+                businessProfile?.latitude || null,
+
+              longitude:
+                businessProfile?.longitude || null,
+
+              description:
+                businessProfile?.description || '',
+
+              agreementAccepted:
+                false,
+
+              verificationStatus:
+                'draft',
+
+              rejectReason:
+                '',
             }
           : {},
 
       otp,
-      otpExpiresAt: Date.now() + 5 * 60 * 1000,
-      lastOtpSentAt: Date.now(),
-      isVerified: false,
+
+      otpExpiresAt:
+        Date.now() +
+        5 * 60 * 1000,
+
+      lastOtpSentAt:
+        Date.now(),
+
+      isVerified:
+        false,
     });
 
-    sendEmail(email, otp)
-      .catch(err => console.log("Email error:", err.message));
+    console.log(
+      "USER CREATED =>",
+      user._id
+    );
+
+    // ==========================
+    // SEND OTP EMAIL
+    // ==========================
+
+    console.log(
+      "SENDING OTP EMAIL..."
+    );
+
+    await sendEmail(
+      email,
+      otp
+    );
+
+    console.log(
+      "✅ OTP EMAIL SENT"
+    );
+
+    // ==========================
+    // SUCCESS
+    // ==========================
 
     return res.status(201).json({
+
       success: true,
-      message: 'OTP sent to email. Please verify account.',
-      userId: user._id,
+
+      message:
+        'OTP sent to email. Please verify account.',
+
+      userId:
+        user._id,
+
     });
 
   } catch (err) {
 
-    console.error(err);
+    console.error(
+      "❌ REGISTER ERROR =>",
+      err
+    );
 
     return res.status(500).json({
+
       success: false,
-      message: err.message,
+
+      message:
+        'Registration failed. Unable to send verification email.',
+
+      error:
+        err.message,
+
     });
   }
 });
@@ -90,201 +201,462 @@ router.post('/register', async (req, res) => {
 // ==========================
 // VERIFY EMAIL
 // ==========================
-router.post('/verify-email', async (req, res) => {
-  try {
+router.post(
+  '/verify-email',
+  async (req, res) => {
 
-    const { email, otp } = req.body;
+    try {
 
-    const user = await User.findOne({ email });
+      const {
+        email,
+        otp,
+      } = req.body;
 
-    if (!user) {
+      // ==========================
+      // FIND USER
+      // ==========================
+
+      const user =
+        await User.findOne({
+          email,
+        });
+
+      if (!user) {
+        return res.status(404).json({
+
+          success: false,
+
+          message:
+            'User not found',
+
+        });
+      }
+
+      // ==========================
+      // ALREADY VERIFIED
+      // ==========================
+
+      if (user.isVerified) {
+        return res.status(400).json({
+
+          success: false,
+
+          message:
+            'Already verified',
+
+        });
+      }
+
+      // ==========================
+      // CHECK OTP
+      // ==========================
+
+      if (
+        !user.otp ||
+        !user.otpExpiresAt
+      ) {
+        return res.status(400).json({
+
+          success: false,
+
+          message:
+            'No OTP found',
+
+        });
+      }
+
+      // ==========================
+      // CHECK OTP VALUE
+      // ==========================
+
+      if (
+        user.otp !== otp
+      ) {
+        return res.status(400).json({
+
+          success: false,
+
+          message:
+            'Invalid OTP',
+
+        });
+      }
+
+      // ==========================
+      // CHECK OTP EXPIRATION
+      // ==========================
+
+      if (
+        user.otpExpiresAt <
+        Date.now()
+      ) {
+        return res.status(400).json({
+
+          success: false,
+
+          message:
+            'OTP expired',
+
+        });
+      }
+
+      // ==========================
+      // VERIFY USER
+      // ==========================
+
+      user.isVerified =
+        true;
+
+      user.otp =
+        null;
+
+      user.otpExpiresAt =
+        null;
+
+      await user.save();
+
+      // ==========================
+      // SUCCESS
+      // ==========================
+
       return res.json({
+
+        success: true,
+
+        message:
+          'Email verified successfully',
+
+      });
+
+    } catch (err) {
+
+      console.error(
+        "VERIFY EMAIL ERROR =>",
+        err
+      );
+
+      return res.status(500).json({
+
         success: false,
-        message: 'User not found',
+
+        message:
+          err.message,
+
       });
     }
-
-    if (user.isVerified) {
-      return res.json({
-        success: false,
-        message: 'Already verified',
-      });
-    }
-
-    if (!user.otp || !user.otpExpiresAt) {
-      return res.json({
-        success: false,
-        message: 'No OTP found',
-      });
-    }
-
-    if (user.otp !== otp) {
-      return res.json({
-        success: false,
-        message: 'Invalid OTP',
-      });
-    }
-
-    if (user.otpExpiresAt < Date.now()) {
-      return res.json({
-        success: false,
-        message: 'OTP expired',
-      });
-    }
-
-    user.isVerified = true;
-    user.otp = null;
-    user.otpExpiresAt = null;
-
-    await user.save();
-
-    return res.json({
-      success: true,
-      message: 'Email verified successfully',
-    });
-
-  } catch (err) {
-
-    return res.status(500).json({
-      success: false,
-      message: err.message,
-    });
   }
-});
+);
 
 // ==========================
 // LOGIN
 // ==========================
-router.post('/login', async (req, res) => {
+router.post(
+  '/login',
+  async (req, res) => {
 
-  const { email, password } = req.body;
+    const {
+      email,
+      password,
+    } = req.body;
 
-  try {
+    try {
 
-    const user = await User.findOne({ email });
+      const user =
+        await User.findOne({
+          email,
+        });
 
-    if (!user || !(await user.matchPassword(password))) {
-      return res.status(401).json({
+      // ==========================
+      // CHECK CREDENTIALS
+      // ==========================
+
+      if (
+        !user ||
+        !(await user.matchPassword(password))
+      ) {
+        return res.status(401).json({
+
+          success: false,
+
+          message:
+            'Invalid credentials',
+
+        });
+      }
+
+      // ==========================
+      // CHECK BLOCKED
+      // ==========================
+
+      if (
+        user.isBlocked
+      ) {
+        return res.status(403).json({
+
+          success: false,
+
+          message:
+            'Account blocked',
+
+        });
+      }
+
+      // ==========================
+      // CHECK EMAIL VERIFIED
+      // ==========================
+
+      if (
+        !user.isVerified
+      ) {
+        return res.status(403).json({
+
+          success: false,
+
+          code:
+            'NOT_VERIFIED',
+
+          message:
+            'Please verify your email first',
+
+        });
+      }
+
+      // ==========================
+      // LOGIN SUCCESS
+      // ==========================
+
+      return res.json({
+
+        success: true,
+
+        token:
+          generateToken(
+            user._id
+          ),
+
+        user: {
+
+          id:
+            user._id,
+
+          name:
+            user.name,
+
+          email:
+            user.email,
+
+          role:
+            user.role,
+
+          avatar:
+            user.avatar,
+
+          businessProfile:
+            user.businessProfile,
+
+        },
+
+      });
+
+    } catch (err) {
+
+      console.error(
+        "LOGIN ERROR =>",
+        err
+      );
+
+      return res.status(500).json({
+
         success: false,
-        message: 'Invalid credentials',
+
+        message:
+          err.message,
+
       });
     }
-
-    // blocked
-    if (user.isBlocked) {
-      return res.status(403).json({
-        success: false,
-        message: 'Account blocked',
-      });
-    }
-
-    // email verification
-    if (!user.isVerified) {
-      return res.status(403).json({
-        success: false,
-        code: 'NOT_VERIFIED',
-        message: 'Please verify your email first',
-      });
-    }
-
-
-    return res.json({
-      success: true,
-      token: generateToken(user._id),
-
-      user: {
-        id: user._id,
-        name: user.name,
-        email: user.email,
-        role: user.role,
-        avatar: user.avatar,
-        businessProfile: user.businessProfile,
-      },
-    });
-
-  } catch (err) {
-
-    return res.status(500).json({
-      success: false,
-      message: err.message,
-    });
   }
-});
+);
 
 // ==========================
 // RESEND OTP
 // ==========================
-router.post('/resend-otp', async (req, res) => {
+router.post(
+  '/resend-otp',
+  async (req, res) => {
 
-  try {
+    try {
 
-    const { email } = req.body;
+      const {
+        email,
+      } = req.body;
 
-    const user = await User.findOne({ email });
+      // ==========================
+      // FIND USER
+      // ==========================
 
-    if (!user) {
-      return res.json({
-        success: false,
-        message: 'User not found',
-      });
-    }
+      const user =
+        await User.findOne({
+          email,
+        });
 
-    const cooldown = 60 * 1000;
+      if (!user) {
+        return res.status(404).json({
 
-    if (
-      user.lastOtpSentAt &&
-      Date.now() - user.lastOtpSentAt < cooldown
-    ) {
-      return res.status(429).json({
-        success: false,
-        message: 'Please wait before requesting another OTP',
-      });
-    }
+          success: false,
 
-    const otp = Math.floor(100000 + Math.random() * 900000).toString();
+          message:
+            'User not found',
 
-    user.otp = otp;
-    user.otpExpiresAt = Date.now() + 5 * 60 * 1000;
-    user.lastOtpSentAt = Date.now();
+        });
+      }
 
-    await user.save();
+      // ==========================
+      // CHECK VERIFIED
+      // ==========================
 
-    await sendEmail(
+      if (
+        user.isVerified
+      ) {
+        return res.status(400).json({
+
+          success: false,
+
+          message:
+            'Email already verified',
+
+        });
+      }
+
+      // ==========================
+      // COOLDOWN
+      // ==========================
+
+      const cooldown =
+        60 * 1000;
+
+      if (
+        user.lastOtpSentAt &&
+        Date.now() -
+          user.lastOtpSentAt <
+          cooldown
+      ) {
+
+        return res.status(429).json({
+
+          success: false,
+
+          message:
+            'Please wait before requesting another OTP',
+
+        });
+      }
+
+      // ==========================
+      // GENERATE NEW OTP
+      // ==========================
+
+      const otp =
+        Math.floor(
+          100000 +
+          Math.random() * 900000
+        ).toString();
+
+      // ==========================
+      // UPDATE OTP
+      // ==========================
+
+      user.otp =
+        otp;
+
+      user.otpExpiresAt =
+        Date.now() +
+        5 * 60 * 1000;
+
+      user.lastOtpSentAt =
+        Date.now();
+
+      await user.save();
+
+      // ==========================
+      // SEND EMAIL
+      // ==========================
+
+      await sendEmail(
         user.email,
         otp
-    );
+      );
 
-    return res.json({
-      success: true,
-      message: 'OTP resent successfully',
-    });
+      // ==========================
+      // SUCCESS
+      // ==========================
 
-  } catch (err) {
+      return res.json({
 
-    return res.status(500).json({
-      success: false,
-      message: err.message,
-    });
+        success: true,
+
+        message:
+          'OTP resent successfully',
+
+      });
+
+    } catch (err) {
+
+      console.error(
+        "RESEND OTP ERROR =>",
+        err
+      );
+
+      return res.status(500).json({
+
+        success: false,
+
+        message:
+          'Failed to resend OTP',
+
+        error:
+          err.message,
+
+      });
+    }
   }
-});
+);
 
 // ==========================
 // GET CURRENT USER
 // ==========================
-router.get("/me", protect, async (req, res) => {
-  try {
-    res.json({
-      success: true,
-      user: req.user,
-    });
-  } catch (err) {
-    console.error("GET ME ERROR:", err);
+router.get(
+  "/me",
+  protect,
+  async (req, res) => {
 
-    res.status(500).json({
-      success: false,
-      message: err.message,
-    });
+    try {
+
+      res.json({
+
+        success: true,
+
+        user:
+          req.user,
+
+      });
+
+    } catch (err) {
+
+      console.error(
+        "GET ME ERROR:",
+        err
+      );
+
+      res.status(500).json({
+
+        success: false,
+
+        message:
+          err.message,
+
+      });
+    }
   }
-});
+);
 
 module.exports = router;

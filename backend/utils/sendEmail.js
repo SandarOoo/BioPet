@@ -3,8 +3,14 @@ const axios = require("axios");
 const sendEmail = async (to, otp) => {
   const senderEmail = process.env.BREVO_SENDER_EMAIL;
 
-  console.log("SENDER BEFORE SEND =>", senderEmail);
-  console.log("RECIPIENT =>", to);
+  console.log("=================================");
+  console.log("SENDING OTP EMAIL");
+  console.log("TO =>", to);
+  console.log("FROM =>", senderEmail);
+  console.log(
+    "BREVO KEY EXISTS =>",
+    !!process.env.BREVO_API_KEY
+  );
 
   try {
     const response = await axios.post(
@@ -29,17 +35,10 @@ const sendEmail = async (to, otp) => {
 
             <p>Your verification code is:</p>
 
-            <h1 style="letter-spacing: 5px;">
-              ${otp}
-            </h1>
+            <h1>${otp}</h1>
 
             <p>
               This OTP will expire in 5 minutes.
-            </p>
-
-            <p>
-              If you did not request this code,
-              please ignore this email.
             </p>
           </div>
         `,
@@ -54,11 +53,11 @@ const sendEmail = async (to, otp) => {
     );
 
     console.log(
-      "✅ Brevo email sent successfully"
+      "✅ BREVO EMAIL SENT"
     );
 
     console.log(
-      "Brevo response =>",
+      "BREVO RESPONSE =>",
       response.data
     );
 
@@ -70,23 +69,26 @@ const sendEmail = async (to, otp) => {
   } catch (error) {
 
     console.error(
-      "❌ Brevo email error =>",
+      "❌ BREVO EMAIL FAILED"
+    );
+
+    console.error(
+      "STATUS =>",
       error.response?.status
     );
 
     console.error(
-      "Brevo error data =>",
+      "DATA =>",
       error.response?.data
     );
 
     console.error(
-      "Brevo error message =>",
+      "MESSAGE =>",
       error.message
     );
 
-    throw new Error(
-      "Failed to send verification email"
-    );
+    // IMPORTANT
+    throw error;
   }
 };
 
