@@ -1,547 +1,196 @@
-
-const express = require("express");
-const jwt = require("jsonwebtoken");
-const User = require("../models/User");
-const { protect } = require("../middleware/auth");
-const supabase = require("../utils/supabase");
+const express = require('express');
+const jwt = require('jsonwebtoken');
+const User = require('../models/User');
+const { protect } = require('../middleware/auth');
+const sendEmail = require('../utils/sendEmail');
 
 const router = express.Router();
 
-// =====================================================
+// ==========================
 // JWT TOKEN
-// =====================================================
-
+// ==========================
 const generateToken = (id) =>
-  jwt.sign(
-    { id },
-    process.env.JWT_SECRET,
-    {
-      expiresIn: process.env.JWT_EXPIRE,
-    }
-  );
+  jwt.sign({ id }, process.env.JWT_SECRET, {
+    expiresIn: process.env.JWT_EXPIRE,
+  });
 
-// =====================================================
-// REGISTER
-// POST /api/auth/register
-// =====================================================
-
-router.post("/register", async (req, res) => {
-
-  console.log("=================================");
-  console.log("REGISTER HIT");
-
-  const {
-    name,
-    email,
-    password,
-    phone,
-    role,
-    businessProfile,
-  } = req.body;
+//register route
+router.post('/register', async (req, res) => {
+ console.log("REGISTER HIT");
+  const { name, email, password, phone, role, businessProfile } = req.body;
 
   try {
-
-    // =================================================
-    // VALIDATE INPUT
-    // =================================================
-
-    if (
-      !name ||
-      !email ||
-      !password
-    ) {
-      return res.status(400).json({
-        success: false,
-        message:
-          "Name, email and password are required",
-      });
-    }
-
-    const cleanEmail =
-      email.trim().toLowerCase();
-
-    // =================================================
-    // PREVENT ADMIN REGISTER
-    // =================================================
-
-    if (role === "admin") {
-      return res.status(403).json({
-        success: false,
-        message:
-          "Cannot register as admin",
-      });
-    }
-
-    // =================================================
-    // CHECK MONGODB USER
-    // =================================================
-
-    const existingUser =
-      await User.findOne({
-        email: cleanEmail,
-      });
+    const existingUser = await User.findOne({ email });
 
     if (existingUser) {
       return res.status(400).json({
         success: false,
-        message:
-          "Email already exists",
+        message: 'Email already exists',
       });
     }
 
-    // =================================================
-    // CREATE SUPABASE AUTH USER
-    // =================================================
-
-    console.log(
-      "CREATING SUPABASE USER..."
-    );
-
-    const {
-      data: supabaseData,
-      error: supabaseError,
-    } =
-      await supabase.auth.admin.createUser({
-
-        email: cleanEmail,
-
-        password: password,
-
-        email_confirm: false,
-
-        user_metadata: {
-          name: name,
-          phone: phone || "",
-          role: role || "user",
-        },
-
-      });
-
-    if (supabaseError) {
-
-      console.error(
-        "SUPABASE CREATE USER ERROR =>",
-        supabaseError
-      );
-
-      return res.status(400).json({
+    if (role === 'admin') {
+      return res.status(403).json({
         success: false,
-        message:
-          "Supabase registration failed",
-        error:
-          supabaseError.message,
+        message: 'Cannot register as admin',
       });
-
     }
 
-    console.log(
-      "SUPABASE USER CREATED =>",
-      supabaseData.user.id
-    );
+    const otp = Math.floor(100000 + Math.random() * 900000).toString();
 
-    // =================================================
-    // SEND SUPABASE VERIFICATION EMAIL
-    // =================================================
+    const user = await User.create({
+      name,
+      email,
+      password,
+      phone,
+      role: role || 'user',
 
-    console.log(
-      "SENDING SUPABASE VERIFICATION EMAIL..."
-    );
+      businessProfile:
+        role === 'business_owner'
+          ? {
+              businessName: businessProfile?.businessName || '',
+              businessType: businessProfile?.businessType || '',
+              address: businessProfile?.address || '',
+              latitude: businessProfile?.latitude || null,
+              longitude: businessProfile?.longitude || null,
+              description: businessProfile?.description || '',
 
-    const {
-      error: emailError,
-    } =
-      await supabase.auth.resend({
-        type: "signup",
-        email: cleanEmail,
-        options: {
-          emailRedirectTo:
-            process.env.SUPABASE_REDIRECT_URL,
-        },
-      });
+              agreementAccepted: false,
+              verificationStatus: 'draft',
+              rejectReason: '',
+            }
+          : {},
 
-    if (emailError) {
+      otp,
+      otpExpiresAt: Date.now() + 5 * 60 * 1000,
+      lastOtpSentAt: Date.now(),
+      isVerified: false,
+    });
 
-      console.error(
-        "SUPABASE EMAIL ERROR =>",
-        emailError
-      );
-
-      // Delete Supabase account
-      // if email sending fails
-
-      await supabase.auth.admin.deleteUser(
-        supabaseData.user.id
-      );
-
-      return res.status(500).json({
-        success: false,
-        message:
-          "Unable to send verification email",
-        error:
-          emailError.message,
-      });
-
-    }
-
-    console.log(
-      "✅ SUPABASE VERIFICATION EMAIL SENT"
-    );
-
-    // =================================================
-    // CREATE MONGODB USER
-    // =================================================
-
-    const user =
-      await User.create({
-
-        name: name,
-
-        email: cleanEmail,
-
-        password: password,
-
-        phone: phone,
-
-        role:
-          role || "user",
-
-        businessProfile:
-          role === "business_owner"
-            ? {
-
-                businessName:
-                  businessProfile?.businessName ||
-                  "",
-
-                businessType:
-                  businessProfile?.businessType ||
-                  "",
-
-                address:
-                  businessProfile?.address ||
-                  "",
-
-                latitude:
-                  businessProfile?.latitude ||
-                  null,
-
-                longitude:
-                  businessProfile?.longitude ||
-                  null,
-
-                description:
-                  businessProfile?.description ||
-                  "",
-
-                agreementAccepted:
-                  false,
-
-                verificationStatus:
-                  "draft",
-
-                rejectReason:
-                  "",
-
-              }
-            : {},
-
-        // Email verification status
-        isVerified: false,
-
-        // Supabase User ID
-        supabaseUserId:
-          supabaseData.user.id,
-
-      });
-
-    console.log(
-      "MONGODB USER CREATED =>",
-      user._id
-    );
-
-    // =================================================
-    // SUCCESS
-    // =================================================
+    sendEmail(email, otp)
+      .catch(err => console.log("Email error:", err.message));
 
     return res.status(201).json({
-
       success: true,
-
-      message:
-        "Registration successful. Please check your email and click the verification link.",
-
-      userId:
-        user._id,
-
-      supabaseUserId:
-        supabaseData.user.id,
-
+      message: 'OTP sent to email. Please verify account.',
+      userId: user._id,
     });
 
   } catch (err) {
 
-    console.error(
-      "❌ REGISTER ERROR =>",
-      err
-    );
+    console.error(err);
 
     return res.status(500).json({
-
       success: false,
-
-      message:
-        "Registration failed",
-
-      error:
-        err.message,
-
+      message: err.message,
     });
-
   }
-
 });
 
-// =====================================================
+// ==========================
 // VERIFY EMAIL
-// GET /api/auth/verify-email
-// =====================================================
-
-router.get(
-  "/verify-email",
-  async (req, res) => {
-
-    try {
-
-      const {
-        email,
-      } = req.query;
-
-      console.log(
-        "================================="
-      );
-
-      console.log(
-        "VERIFY EMAIL REQUEST"
-      );
-
-      console.log(
-        "EMAIL =>",
-        email
-      );
-
-      // =================================================
-      // VALIDATE EMAIL
-      // =================================================
-
-      if (!email) {
-
-        return res.status(400).json({
-
-          success: false,
-
-          message:
-            "Email is missing",
-
-        });
-
-      }
-
-      const cleanEmail =
-        email.trim().toLowerCase();
-
-      // =================================================
-      // FIND USER
-      // =================================================
-
-      const user =
-        await User.findOne({
-
-          email:
-            cleanEmail,
-
-        });
-
-      if (!user) {
-
-        return res.status(404).json({
-
-          success: false,
-
-          message:
-            "User not found",
-
-        });
-
-      }
-
-      // =================================================
-      // ALREADY VERIFIED
-      // =================================================
-
-      if (user.isVerified) {
-
-        return res.json({
-
-          success: true,
-
-          message:
-            "Email is already verified",
-
-        });
-
-      }
-
-      // =================================================
-      // UPDATE MONGODB
-      // =================================================
-
-      user.isVerified =
-        true;
-
-      await user.save();
-
-      console.log(
-        "✅ EMAIL VERIFIED"
-      );
-
-      console.log(
-        "USER =>",
-        user.email
-      );
-
-      // =================================================
-      // SUCCESS
-      // =================================================
-
-      return res.json({
-
-        success: true,
-
-        message:
-          "Email verified successfully. You can now login.",
-
-      });
-
-    } catch (err) {
-
-      console.error(
-        "❌ VERIFY EMAIL ERROR =>",
-        err
-      );
-
-      return res.status(500).json({
-
-        success: false,
-
-        message:
-          "Email verification failed",
-
-        error:
-          err.message,
-
-      });
-
-    }
-
-  }
-);
-
-// =====================================================
-// LOGIN
-// POST /api/auth/login
-// =====================================================
-
-router.post("/login", async (req, res) => {
-  console.log("=================================");
-  console.log("LOGIN HIT");
-
+// ==========================
+router.post('/verify-email', async (req, res) => {
   try {
-    console.log("BODY =>", req.body);
 
-    const { email, password } = req.body;
+    const { email, otp } = req.body;
 
-    if (!email || !password) {
-      console.log("MISSING EMAIL OR PASSWORD");
-
-      return res.status(400).json({
-        success: false,
-        message: "Email and password are required",
-      });
-    }
-
-    const cleanEmail = email.trim().toLowerCase();
-
-    console.log("CLEAN EMAIL =>", cleanEmail);
-    console.log("FINDING USER...");
-
-    const user = await User.findOne({
-      email: cleanEmail,
-    });
-
-    console.log(
-      "USER FOUND =>",
-      user ? user._id.toString() : "NO USER"
-    );
+    const user = await User.findOne({ email });
 
     if (!user) {
-      return res.status(401).json({
+      return res.json({
         success: false,
-        message: "Invalid credentials",
+        message: 'User not found',
       });
     }
 
-    console.log("CHECKING PASSWORD...");
-
-    const passwordMatch =
-      await user.matchPassword(password);
-
-    console.log(
-      "PASSWORD MATCH =>",
-      passwordMatch
-    );
-
-    if (!passwordMatch) {
-      return res.status(401).json({
+    if (user.isVerified) {
+      return res.json({
         success: false,
-        message: "Invalid credentials",
+        message: 'Already verified',
       });
     }
 
-    console.log(
-      "BLOCKED =>",
-      user.isBlocked
-    );
+    if (!user.otp || !user.otpExpiresAt) {
+      return res.json({
+        success: false,
+        message: 'No OTP found',
+      });
+    }
 
+    if (user.otp !== otp) {
+      return res.json({
+        success: false,
+        message: 'Invalid OTP',
+      });
+    }
+
+    if (user.otpExpiresAt < Date.now()) {
+      return res.json({
+        success: false,
+        message: 'OTP expired',
+      });
+    }
+
+    user.isVerified = true;
+    user.otp = null;
+    user.otpExpiresAt = null;
+
+    await user.save();
+
+    return res.json({
+      success: true,
+      message: 'Email verified successfully',
+    });
+
+  } catch (err) {
+
+    return res.status(500).json({
+      success: false,
+      message: err.message,
+    });
+  }
+});
+
+// ==========================
+// LOGIN
+// ==========================
+router.post('/login', async (req, res) => {
+
+  const { email, password } = req.body;
+
+  try {
+
+    const user = await User.findOne({ email });
+
+    if (!user || !(await user.matchPassword(password))) {
+      return res.status(401).json({
+        success: false,
+        message: 'Invalid credentials',
+      });
+    }
+
+    // blocked
     if (user.isBlocked) {
       return res.status(403).json({
         success: false,
-        message: "Account blocked",
+        message: 'Account blocked',
       });
     }
 
-    console.log(
-      "IS VERIFIED =>",
-      user.isVerified
-    );
-
+    // email verification
     if (!user.isVerified) {
       return res.status(403).json({
         success: false,
-        code: "NOT_VERIFIED",
-        message: "Please verify your email first",
+        code: 'NOT_VERIFIED',
+        message: 'Please verify your email first',
       });
     }
 
-    console.log("GENERATING JWT...");
 
-    const token = generateToken(user._id);
-
-    console.log("JWT GENERATED");
-
-    return res.status(200).json({
+    return res.json({
       success: true,
-
-      token: token,
+      token: generateToken(user._id),
 
       user: {
         id: user._id,
@@ -555,10 +204,62 @@ router.post("/login", async (req, res) => {
 
   } catch (err) {
 
-    console.error(
-      "❌ LOGIN ERROR =>",
-      err
+    return res.status(500).json({
+      success: false,
+      message: err.message,
+    });
+  }
+});
+
+// ==========================
+// RESEND OTP
+// ==========================
+router.post('/resend-otp', async (req, res) => {
+
+  try {
+
+    const { email } = req.body;
+
+    const user = await User.findOne({ email });
+
+    if (!user) {
+      return res.json({
+        success: false,
+        message: 'User not found',
+      });
+    }
+
+    const cooldown = 60 * 1000;
+
+    if (
+      user.lastOtpSentAt &&
+      Date.now() - user.lastOtpSentAt < cooldown
+    ) {
+      return res.status(429).json({
+        success: false,
+        message: 'Please wait before requesting another OTP',
+      });
+    }
+
+    const otp = Math.floor(100000 + Math.random() * 900000).toString();
+
+    user.otp = otp;
+    user.otpExpiresAt = Date.now() + 5 * 60 * 1000;
+    user.lastOtpSentAt = Date.now();
+
+    await user.save();
+
+    await sendEmail(
+        user.email,
+        otp
     );
+
+    return res.json({
+      success: true,
+      message: 'OTP resent successfully',
+    });
+
+  } catch (err) {
 
     return res.status(500).json({
       success: false,
@@ -566,225 +267,24 @@ router.post("/login", async (req, res) => {
     });
   }
 });
-// RESEND VERIFICATION EMAIL
-// POST /api/auth/resend-otp
-// =====================================================
-//
-// NOTE:
-// This route name is kept as /resend-otp so your existing
-// Flutter code does not need to change immediately.
-// It now resends a Supabase verification email instead
-// of sending an OTP.
-// =====================================================
 
-router.post(
-  "/resend-otp",
-  async (req, res) => {
-
-    try {
-
-      const {
-        email,
-      } = req.body;
-
-      // =================================================
-      // VALIDATE EMAIL
-      // =================================================
-
-      if (!email) {
-
-        return res.status(400).json({
-
-          success: false,
-
-          message:
-            "Email is required",
-
-        });
-
-      }
-
-      const cleanEmail =
-        email.trim().toLowerCase();
-
-      // =================================================
-      // FIND MONGODB USER
-      // =================================================
-
-      const user =
-        await User.findOne({
-
-          email:
-            cleanEmail,
-
-        });
-
-      if (!user) {
-
-        return res.status(404).json({
-
-          success: false,
-
-          message:
-            "User not found",
-
-        });
-
-      }
-
-      // =================================================
-      // CHECK VERIFIED
-      // =================================================
-
-      if (
-        user.isVerified
-      ) {
-
-        return res.status(400).json({
-
-          success: false,
-
-          message:
-            "Email already verified",
-
-        });
-
-      }
-
-      // =================================================
-      // RESEND SUPABASE EMAIL
-      // =================================================
-
-      console.log(
-        "RESENDING SUPABASE VERIFICATION EMAIL..."
-      );
-
-      const {
-        error,
-      } =
-        await supabase.auth.resend({
-
-          type:
-            "signup",
-
-          email:
-            cleanEmail,
-
-          options: {
-
-            emailRedirectTo:
-              process.env.SUPABASE_REDIRECT_URL,
-
-          },
-
-        });
-
-      if (error) {
-
-        console.error(
-          "RESEND EMAIL ERROR =>",
-          error
-        );
-
-        return res.status(500).json({
-
-          success: false,
-
-          message:
-            "Failed to resend verification email",
-
-          error:
-            error.message,
-
-        });
-
-      }
-
-      console.log(
-        "✅ VERIFICATION EMAIL RESENT"
-      );
-
-      // =================================================
-      // SUCCESS
-      // =================================================
-
-      return res.json({
-
-        success: true,
-
-        message:
-          "Verification email resent successfully",
-
-      });
-
-    } catch (err) {
-
-      console.error(
-        "❌ RESEND VERIFICATION ERROR =>",
-        err
-      );
-
-      return res.status(500).json({
-
-        success: false,
-
-        message:
-          "Failed to resend verification email",
-
-        error:
-          err.message,
-
-      });
-
-    }
-
-  }
-);
-
-// =====================================================
+// ==========================
 // GET CURRENT USER
-// GET /api/auth/me
-// =====================================================
+// ==========================
+router.get("/me", protect, async (req, res) => {
+  try {
+    res.json({
+      success: true,
+      user: req.user,
+    });
+  } catch (err) {
+    console.error("GET ME ERROR:", err);
 
-router.get(
-  "/me",
-  protect,
-  async (req, res) => {
-
-    try {
-
-      return res.json({
-
-        success: true,
-
-        user:
-          req.user,
-
-      });
-
-    } catch (err) {
-
-      console.error(
-        "GET ME ERROR =>",
-        err
-      );
-
-      return res.status(500).json({
-
-        success: false,
-
-        message:
-          err.message,
-
-      });
-
-    }
-
+    res.status(500).json({
+      success: false,
+      message: err.message,
+    });
   }
-);
-
-// =====================================================
-// EXPORT
-// =====================================================
+});
 
 module.exports = router;
