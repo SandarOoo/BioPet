@@ -1,26 +1,10 @@
-// =====================================================
-// ENV
-// =====================================================
-
 require("dotenv").config({
   path: "../.env",
 });
 
-
-
-
-// =====================================================
-// IMPORTS
-// =====================================================
-
 const express = require("express");
 const mongoose = require("mongoose");
 const cors = require("cors");
-
-// =====================================================
-// ROUTES
-// =====================================================
-
 
 const authRoute = require("./routes/auth");
 const classifyRoute = require("./routes/classifyRoute");
@@ -29,17 +13,13 @@ const orderRoutes = require("./routes/orderRoutes");
 const adminRoutes = require("./routes/admin");
 const postRoutes = require("./routes/postRoutes");
 
-
-// =====================================================
-// APP
-// =====================================================
-
 const app = express();
 
+const PORT = process.env.PORT || 3000;
 
-// =====================================================
+// ===============================
 // MIDDLEWARE
-// =====================================================
+// ===============================
 
 app.use(cors());
 
@@ -56,10 +36,9 @@ app.use(
   })
 );
 
-
-// =====================================================
+// ===============================
 // ENV CHECK
-// =====================================================
+// ===============================
 
 console.log("=================================");
 console.log("ENVIRONMENT CHECK");
@@ -80,117 +59,101 @@ console.log(
   process.env.JWT_EXPIRE
 );
 
-
-
 console.log(
   "BREVO KEY EXISTS:",
   !!process.env.BREVO_API_KEY
 );
 
+// ===============================
+// HEALTH CHECK
+// ===============================
 
-// =====================================================
-// REGISTER ROUTES
-// =====================================================
+app.get("/", (req, res) => {
+  console.log("HEALTH CHECK HIT");
 
-app.use(
-  "/api/posts",
-  postRoutes
-);
+  res.status(200).json({
+    success: true,
+    message: "🐶 BioPet API Running",
+  });
+});
 
+// ===============================
+// API ROUTES
+// ===============================
 
-
-
-// AUTH
 app.use(
   "/api/auth",
   authRoute
 );
 
-// CLASSIFICATION / HISTORY
 app.use(
   "/api/classify",
   classifyRoute
 );
 
-// BUSINESS / PRODUCTS
 app.use(
   "/api/business",
   productRoutes
 );
 
-// ORDERS
 app.use(
   "/api/orders",
   orderRoutes
 );
 
-// ADMIN
 app.use(
   "/api/admin",
   adminRoutes
 );
 
-// NEWS FEED
 app.use(
   "/api/posts",
   postRoutes
 );
 
+// ===============================
+// 404
+// ===============================
 
+app.use((req, res) => {
+  res.status(404).json({
+    success: false,
+    message: "Route not found",
+    path: req.originalUrl,
+  });
+});
 
-// =====================================================
-// HEALTH CHECK
-// =====================================================
-
-app.get(
-  "/",
-  (req, res) => {
-
-    res.json({
-      success: true,
-      message: "🐶 BioPet API Running",
-    });
-
-  }
-);
-
-
-// =====================================================
+// ===============================
 // GLOBAL ERROR
-// =====================================================
+// ===============================
 
-app.use(
-  (err, req, res, next) => {
+app.use((err, req, res, next) => {
+  console.error("GLOBAL ERROR:", err);
 
-    console.error(
-      "GLOBAL ERROR:",
-      err
+  res.status(500).json({
+    success: false,
+    message:
+      err.message ||
+      "Server error",
+  });
+});
+
+// ===============================
+// START SERVER
+// ===============================
+
+const startServer = async () => {
+  try {
+
+    if (!process.env.MONGO_URI) {
+      throw new Error(
+        "MONGO_URI is missing"
+      );
+    }
+
+    await mongoose.connect(
+      process.env.MONGO_URI
     );
-
-    res.status(500).json({
-      success: false,
-      message:
-        err.message ||
-        "Server error",
-    });
-
-  }
-);
-
-
-// =====================================================
-// MONGODB + SERVER
-// =====================================================
-
-const PORT =
-  process.env.PORT ||
-  3000;
-
-mongoose
-  .connect(
-    process.env.MONGO_URI
-  )
-  .then(() => {
 
     console.log(
       "✅ MongoDB Connected"
@@ -213,14 +176,15 @@ mongoose
       }
     );
 
-  })
-  .catch(
-    (error) => {
+  } catch (error) {
 
-      console.error(
-        "❌ MongoDB Error:",
-        error.message
-      );
+    console.error(
+      "❌ SERVER START ERROR:",
+      error
+    );
 
-    }
-  );
+    process.exit(1);
+  }
+};
+
+startServer();

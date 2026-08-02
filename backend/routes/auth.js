@@ -1,30 +1,33 @@
-const express = require('express');
-const jwt = require('jsonwebtoken');
-const User = require('../models/User');
-const { protect } = require('../middleware/auth');
-const sendEmail = require('../utils/sendEmail');
+
+const express = require("express");
+const jwt = require("jsonwebtoken");
+
+const User = require("../models/User");
+const { protect } = require("../middleware/auth");
+const sendEmail = require("../utils/sendEmail");
 
 const router = express.Router();
 
-// ==========================
+// ==================================================
 // JWT TOKEN
-// ==========================
-const generateToken = (id) =>
-  jwt.sign(
+// ==================================================
+const generateToken = (id) => {
+  return jwt.sign(
     { id },
     process.env.JWT_SECRET,
     {
-      expiresIn: process.env.JWT_EXPIRE,
+      expiresIn: process.env.JWT_EXPIRE || "7d",
     }
   );
+};
 
-// ==========================
+// ==================================================
 // REGISTER
-// ==========================
-router.post('/register', async (req, res) => {
-
+// ==================================================
+router.post("/register", async (req, res) => {
   console.log("=================================");
   console.log("REGISTER HIT");
+  console.log("=================================");
 
   const {
     name,
@@ -36,173 +39,179 @@ router.post('/register', async (req, res) => {
   } = req.body;
 
   try {
+    // ----------------------------------------------
+    // VALIDATION
+    // ----------------------------------------------
+    if (!name || !email || !password) {
+      return res.status(400).json({
+        success: false,
+        message: "Name, email and password are required",
+      });
+    }
 
-    // ==========================
-    // CHECK EXISTING USER
-    // ==========================
-
-    const existingUser =
-      await User.findOne({ email });
+    // ----------------------------------------------
+    // CHECK EMAIL
+    // ----------------------------------------------
+    const existingUser = await User.findOne({
+      email: email.toLowerCase().trim(),
+    });
 
     if (existingUser) {
       return res.status(400).json({
         success: false,
-        message: 'Email already exists',
+        message: "Email already exists",
       });
     }
 
-    // ==========================
-    // PREVENT ADMIN REGISTER
-    // ==========================
-
-    if (role === 'admin') {
+    // ----------------------------------------------
+    // ADMIN REGISTRATION NOT ALLOWED
+    // ----------------------------------------------
+    if (role === "admin") {
       return res.status(403).json({
         success: false,
-        message: 'Cannot register as admin',
+        message: "Cannot register as admin",
       });
     }
 
-    // ==========================
+    // ----------------------------------------------
     // GENERATE OTP
-    // ==========================
+    // ----------------------------------------------
+    const otp = Math.floor(
+      100000 + Math.random() * 900000
+    ).toString();
 
-    const otp =
-      Math.floor(
-        100000 +
-        Math.random() * 900000
-      ).toString();
-
-    console.log(
-      "GENERATED OTP =>",
-      otp
-    );
-
-    // ==========================
+    // ----------------------------------------------
     // CREATE USER
-    // ==========================
-
+    // ----------------------------------------------
     const user = await User.create({
+      name: name.trim(),
 
-      name,
-
-      email,
+      email: email.toLowerCase().trim(),
 
       password,
 
-      phone,
+      phone: phone || "",
 
-      role:
-        role || 'user',
+      role: role || "user",
 
+      // --------------------------------------------
+      // BUSINESS PROFILE
+      // --------------------------------------------
       businessProfile:
-        role === 'business_owner'
+        role === "business_owner"
           ? {
               businessName:
-                businessProfile?.businessName || '',
+                businessProfile?.businessName || "",
 
               businessType:
-                businessProfile?.businessType || '',
+                businessProfile?.businessType || "",
 
               address:
-                businessProfile?.address || '',
+                businessProfile?.address || "",
 
               latitude:
-                businessProfile?.latitude || null,
+                businessProfile?.latitude ?? null,
 
               longitude:
-                businessProfile?.longitude || null,
+                businessProfile?.longitude ?? null,
 
               description:
-                businessProfile?.description || '',
+                businessProfile?.description || "",
 
-              agreementAccepted:
-                false,
+              agreementAccepted: false,
 
-              verificationStatus:
-                'draft',
+              verificationStatus: "draft",
 
-              rejectReason:
-                '',
+              rejectReason: "",
             }
           : {},
 
+      // --------------------------------------------
+      // EMAIL VERIFICATION
+      // --------------------------------------------
       otp,
 
       otpExpiresAt:
-        Date.now() +
-        5 * 60 * 1000,
+        Date.now() + 5 * 60 * 1000,
 
-      lastOtpSentAt:
-        Date.now(),
+      lastOtpSentAt: Date.now(),
 
-      isVerified:
-        false,
+      isVerified: false,
     });
 
     console.log(
-      "USER CREATED =>",
-      user._id
+      "USER CREATED:",
+      user._id.toString()
     );
 
-    // ==========================
+    // ----------------------------------------------
     // SEND OTP EMAIL
-    // ==========================
+    // ----------------------------------------------
+    try {
+      await sendEmail(
+        user.email,
+        otp
+      );
 
-    console.log(
-      "SENDING OTP EMAIL..."
-    );
+      console.log(
+        "✅ OTP EMAIL SENT:",
+        user.email
+      );
 
-    await sendEmail(
-      email,
-      otp
-    );
+    } catch (emailError) {
 
-    console.log(
-      "✅ OTP EMAIL SENT"
-    );
+      console.error(
+        "❌ OTP EMAIL FAILED:",
+        emailError.message
+      );
 
-    // ==========================
+      // --------------------------------------------
+      // DELETE USER IF EMAIL FAILED
+      // --------------------------------------------
+      await User.findByIdAndDelete(
+        user._id
+      );
+
+      return res.status(500).json({
+        success: false,
+        message:
+          "Unable to send verification email. Please try again.",
+      });
+    }
+
+    // ----------------------------------------------
     // SUCCESS
-    // ==========================
-
+    // ----------------------------------------------
     return res.status(201).json({
-
       success: true,
 
       message:
-        'OTP sent to email. Please verify account.',
+        "OTP sent to email. Please verify your account.",
 
-      userId:
-        user._id,
-
+      userId: user._id,
     });
 
   } catch (err) {
 
     console.error(
-      "❌ REGISTER ERROR =>",
+      "❌ REGISTER ERROR:",
       err
     );
 
     return res.status(500).json({
-
       success: false,
-
       message:
-        'Registration failed. Unable to send verification email.',
-
-      error:
-        err.message,
-
+        err.message ||
+        "Registration failed",
     });
   }
 });
 
-// ==========================
-// VERIFY EMAIL
-// ==========================
+// ==================================================
+// VERIFY EMAIL OTP
+// ==================================================
 router.post(
-  '/verify-email',
+  "/verify-email",
   async (req, res) => {
 
     try {
@@ -212,146 +221,138 @@ router.post(
         otp,
       } = req.body;
 
-      // ==========================
-      // FIND USER
-      // ==========================
-
-      const user =
-        await User.findOne({
-          email,
+      // --------------------------------------------
+      // VALIDATION
+      // --------------------------------------------
+      if (!email || !otp) {
+        return res.status(400).json({
+          success: false,
+          message:
+            "Email and OTP are required",
         });
+      }
+
+      // --------------------------------------------
+      // FIND USER
+      // --------------------------------------------
+      const user = await User.findOne({
+        email: email.toLowerCase().trim(),
+      });
 
       if (!user) {
         return res.status(404).json({
-
           success: false,
-
-          message:
-            'User not found',
-
+          message: "User not found",
         });
       }
 
-      // ==========================
+      // --------------------------------------------
       // ALREADY VERIFIED
-      // ==========================
-
+      // --------------------------------------------
       if (user.isVerified) {
         return res.status(400).json({
-
           success: false,
-
           message:
-            'Already verified',
-
+            "Email is already verified",
         });
       }
 
-      // ==========================
-      // CHECK OTP
-      // ==========================
-
+      // --------------------------------------------
+      // OTP EXISTS
+      // --------------------------------------------
       if (
         !user.otp ||
         !user.otpExpiresAt
       ) {
         return res.status(400).json({
-
           success: false,
-
           message:
-            'No OTP found',
-
+            "No OTP found. Please request a new OTP.",
         });
       }
 
-      // ==========================
-      // CHECK OTP VALUE
-      // ==========================
-
+      // --------------------------------------------
+      // OTP EXPIRED
+      // --------------------------------------------
       if (
-        user.otp !== otp
+        user.otpExpiresAt.getTime
+          ? user.otpExpiresAt.getTime() < Date.now()
+          : user.otpExpiresAt < Date.now()
       ) {
         return res.status(400).json({
-
           success: false,
-
           message:
-            'Invalid OTP',
-
+            "OTP expired. Please request a new OTP.",
         });
       }
 
-      // ==========================
-      // CHECK OTP EXPIRATION
-      // ==========================
-
+      // --------------------------------------------
+      // INVALID OTP
+      // --------------------------------------------
       if (
-        user.otpExpiresAt <
-        Date.now()
+        String(user.otp).trim() !==
+        String(otp).trim()
       ) {
         return res.status(400).json({
-
           success: false,
-
           message:
-            'OTP expired',
-
+            "Invalid OTP",
         });
       }
 
-      // ==========================
+      // --------------------------------------------
       // VERIFY USER
-      // ==========================
+      // --------------------------------------------
+      user.isVerified = true;
 
-      user.isVerified =
-        true;
+      // Clear OTP
+      user.otp = null;
 
-      user.otp =
-        null;
+      user.otpExpiresAt = null;
 
-      user.otpExpiresAt =
-        null;
+      user.lastOtpSentAt = null;
 
       await user.save();
 
-      // ==========================
+      console.log(
+        "✅ EMAIL VERIFIED:",
+        user.email
+      );
+
+      // --------------------------------------------
       // SUCCESS
-      // ==========================
-
+      // --------------------------------------------
       return res.json({
-
         success: true,
 
         message:
-          'Email verified successfully',
+          "Email verified successfully",
 
+        userId: user._id,
       });
 
     } catch (err) {
 
       console.error(
-        "VERIFY EMAIL ERROR =>",
+        "❌ VERIFY EMAIL ERROR:",
         err
       );
 
       return res.status(500).json({
-
         success: false,
-
         message:
-          err.message,
-
+          err.message ||
+          "Email verification failed",
       });
     }
   }
 );
 
-// ==========================
+// ==================================================
 // LOGIN
-// ==========================
+// ==================================================
 router.post(
-  '/login',
+  "/login",
   async (req, res) => {
 
     const {
@@ -361,127 +362,120 @@ router.post(
 
     try {
 
+      // --------------------------------------------
+      // VALIDATION
+      // --------------------------------------------
+      if (!email || !password) {
+        return res.status(400).json({
+          success: false,
+          message:
+            "Email and password are required",
+        });
+      }
+
+      // --------------------------------------------
+      // FIND USER
+      // --------------------------------------------
       const user =
         await User.findOne({
-          email,
+          email:
+            email.toLowerCase().trim(),
         });
 
-      // ==========================
-      // CHECK CREDENTIALS
-      // ==========================
-
+      // --------------------------------------------
+      // CHECK PASSWORD
+      // --------------------------------------------
       if (
         !user ||
         !(await user.matchPassword(password))
       ) {
         return res.status(401).json({
-
           success: false,
-
           message:
-            'Invalid credentials',
-
+            "Invalid credentials",
         });
       }
 
-      // ==========================
-      // CHECK BLOCKED
-      // ==========================
-
-      if (
-        user.isBlocked
-      ) {
+      // --------------------------------------------
+      // BLOCKED ACCOUNT
+      // --------------------------------------------
+      if (user.isBlocked) {
         return res.status(403).json({
-
           success: false,
-
           message:
-            'Account blocked',
-
+            "Account blocked",
         });
       }
 
-      // ==========================
-      // CHECK EMAIL VERIFIED
-      // ==========================
-
-      if (
-        !user.isVerified
-      ) {
+      // --------------------------------------------
+      // EMAIL VERIFICATION
+      // --------------------------------------------
+      if (!user.isVerified) {
         return res.status(403).json({
-
           success: false,
 
           code:
-            'NOT_VERIFIED',
+            "NOT_VERIFIED",
 
           message:
-            'Please verify your email first',
-
+            "Please verify your email first",
         });
       }
 
-      // ==========================
+      // --------------------------------------------
+      // GENERATE JWT
+      // --------------------------------------------
+      const token =
+        generateToken(user._id);
+
+      // --------------------------------------------
       // LOGIN SUCCESS
-      // ==========================
-
+      // --------------------------------------------
       return res.json({
-
         success: true,
 
-        token:
-          generateToken(
-            user._id
-          ),
+        token,
 
         user: {
+          id: user._id,
 
-          id:
-            user._id,
+          name: user.name,
 
-          name:
-            user.name,
+          email: user.email,
 
-          email:
-            user.email,
+          role: user.role,
 
-          role:
-            user.role,
+          avatar: user.avatar,
 
-          avatar:
-            user.avatar,
+          phone: user.phone,
 
           businessProfile:
             user.businessProfile,
-
         },
-
       });
 
     } catch (err) {
 
       console.error(
-        "LOGIN ERROR =>",
+        "❌ LOGIN ERROR:",
         err
       );
 
       return res.status(500).json({
-
         success: false,
-
         message:
-          err.message,
-
+          err.message ||
+          "Login failed",
       });
     }
   }
 );
 
-// ==========================
+// ==================================================
 // RESEND OTP
-// ==========================
+// ==================================================
 router.post(
-  '/resend-otp',
+  "/resend-otp",
   async (req, res) => {
 
     try {
@@ -490,83 +484,96 @@ router.post(
         email,
       } = req.body;
 
-      // ==========================
-      // FIND USER
-      // ==========================
+      // --------------------------------------------
+      // VALIDATION
+      // --------------------------------------------
+      if (!email) {
+        return res.status(400).json({
+          success: false,
+          message:
+            "Email is required",
+        });
+      }
 
+      // --------------------------------------------
+      // FIND USER
+      // --------------------------------------------
       const user =
         await User.findOne({
-          email,
+          email:
+            email.toLowerCase().trim(),
         });
 
       if (!user) {
         return res.status(404).json({
-
           success: false,
-
           message:
-            'User not found',
-
+            "User not found",
         });
       }
 
-      // ==========================
-      // CHECK VERIFIED
-      // ==========================
-
-      if (
-        user.isVerified
-      ) {
+      // --------------------------------------------
+      // ALREADY VERIFIED
+      // --------------------------------------------
+      if (user.isVerified) {
         return res.status(400).json({
-
           success: false,
-
           message:
-            'Email already verified',
-
+            "Email is already verified",
         });
       }
 
-      // ==========================
-      // COOLDOWN
-      // ==========================
-
+      // --------------------------------------------
+      // OTP COOLDOWN
+      // 60 SECONDS
+      // --------------------------------------------
       const cooldown =
         60 * 1000;
 
       if (
         user.lastOtpSentAt &&
         Date.now() -
-          user.lastOtpSentAt <
+          new Date(
+            user.lastOtpSentAt
+          ).getTime() <
           cooldown
       ) {
 
-        return res.status(429).json({
+        const remainingSeconds =
+          Math.ceil(
+            (
+              cooldown -
+              (
+                Date.now() -
+                new Date(
+                  user.lastOtpSentAt
+                ).getTime()
+              )
+            ) / 1000
+          );
 
+        return res.status(429).json({
           success: false,
 
           message:
-            'Please wait before requesting another OTP',
-
+            `Please wait ${remainingSeconds} seconds before requesting another OTP`,
         });
       }
 
-      // ==========================
+      // --------------------------------------------
       // GENERATE NEW OTP
-      // ==========================
-
+      // --------------------------------------------
       const otp =
         Math.floor(
           100000 +
-          Math.random() * 900000
+          Math.random() *
+            900000
         ).toString();
 
-      // ==========================
+      // --------------------------------------------
       // UPDATE OTP
-      // ==========================
-
-      user.otp =
-        otp;
+      // --------------------------------------------
+      user.otp = otp;
 
       user.otpExpiresAt =
         Date.now() +
@@ -577,53 +584,69 @@ router.post(
 
       await user.save();
 
-      // ==========================
+      // --------------------------------------------
       // SEND EMAIL
-      // ==========================
+      // --------------------------------------------
+      try {
 
-      await sendEmail(
-        user.email,
-        otp
-      );
+        await sendEmail(
+          user.email,
+          otp
+        );
 
-      // ==========================
+        console.log(
+          "✅ OTP RESENT:",
+          user.email
+        );
+
+      } catch (emailError) {
+
+        console.error(
+          "❌ RESEND EMAIL ERROR:",
+          emailError.message
+        );
+
+        // Do not delete user.
+        // Restore old OTP is optional.
+        return res.status(500).json({
+          success: false,
+
+          message:
+            "Unable to resend OTP. Please try again.",
+        });
+      }
+
+      // --------------------------------------------
       // SUCCESS
-      // ==========================
-
+      // --------------------------------------------
       return res.json({
-
         success: true,
 
         message:
-          'OTP resent successfully',
-
+          "OTP resent successfully",
       });
 
     } catch (err) {
 
       console.error(
-        "RESEND OTP ERROR =>",
+        "❌ RESEND OTP ERROR:",
         err
       );
 
       return res.status(500).json({
-
         success: false,
 
         message:
-          'Failed to resend OTP',
-
-        error:
-          err.message,
-
+          err.message ||
+          "Failed to resend OTP",
       });
     }
   }
 );
 
-// ==========================
+// ==================================================
 // GET CURRENT USER
-// ==========================
+// ==================================================
 router.get(
   "/me",
   protect,
@@ -631,32 +654,31 @@ router.get(
 
     try {
 
-      res.json({
-
+      return res.json({
         success: true,
 
-        user:
-          req.user,
-
+        user: req.user,
       });
 
     } catch (err) {
 
       console.error(
-        "GET ME ERROR:",
+        "❌ GET ME ERROR:",
         err
       );
 
-      res.status(500).json({
-
+      return res.status(500).json({
         success: false,
 
         message:
-          err.message,
-
+          err.message ||
+          "Failed to get current user",
       });
     }
   }
 );
 
+// ==================================================
+// EXPORT ROUTER
+// ==================================================
 module.exports = router;
