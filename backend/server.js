@@ -12,6 +12,7 @@ const productRoutes = require("./routes/productRoutes");
 const orderRoutes = require("./routes/orderRoutes");
 const adminRoutes = require("./routes/admin");
 const postRoutes = require("./routes/postRoutes");
+const businessRoutes = require("./routes/businessRoutes");
 
 const app = express();
 
@@ -94,6 +95,10 @@ app.use(
 app.use(
   "/api/business",
   productRoutes
+);
+app.use(
+  "/api/business",
+  businessRoutes
 );
 
 app.use(
