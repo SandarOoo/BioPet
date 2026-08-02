@@ -1,22 +1,8 @@
-// =====================================================
-// ENV
-// =====================================================
-
-require("dotenv").config({
-  path: "../.env",
-});
-
-// =====================================================
-// IMPORTS
-// =====================================================
+require("dotenv").config();
 
 const express = require("express");
 const mongoose = require("mongoose");
 const cors = require("cors");
-
-// =====================================================
-// ROUTES
-// =====================================================
 
 const authRoute = require("./routes/auth");
 const classifyRoute = require("./routes/classifyRoute");
@@ -25,15 +11,13 @@ const orderRoutes = require("./routes/orderRoutes");
 const adminRoutes = require("./routes/admin");
 const postRoutes = require("./routes/postRoutes");
 
-// =====================================================
-// APP
-// =====================================================
-
 const app = express();
 
-// =====================================================
+const PORT = process.env.PORT || 3000;
+
+// ===============================
 // MIDDLEWARE
-// =====================================================
+// ===============================
 
 app.use(cors());
 
@@ -50,21 +34,9 @@ app.use(
   })
 );
 
-// =====================================================
-// REQUEST LOGGER
-// =====================================================
-
-app.use((req, res, next) => {
-  console.log(
-    `${new Date().toISOString()} ${req.method} ${req.originalUrl}`
-  );
-
-  next();
-});
-
-// =====================================================
+// ===============================
 // ENV CHECK
-// =====================================================
+// ===============================
 
 console.log("=================================");
 console.log("ENVIRONMENT CHECK");
@@ -90,12 +62,12 @@ console.log(
   !!process.env.BREVO_API_KEY
 );
 
-// =====================================================
+// ===============================
 // HEALTH CHECK
-// =====================================================
+// ===============================
 
 app.get("/", (req, res) => {
-  console.log("🏥 HEALTH CHECK");
+  console.log("HEALTH CHECK HIT");
 
   res.status(200).json({
     success: true,
@@ -103,57 +75,45 @@ app.get("/", (req, res) => {
   });
 });
 
-// =====================================================
+// ===============================
 // API ROUTES
-// =====================================================
+// ===============================
 
-// AUTH
 app.use(
   "/api/auth",
   authRoute
 );
 
-// CLASSIFICATION / HISTORY
 app.use(
   "/api/classify",
   classifyRoute
 );
 
-// BUSINESS / PRODUCTS
 app.use(
   "/api/business",
   productRoutes
 );
 
-// ORDERS
 app.use(
   "/api/orders",
   orderRoutes
 );
 
-// ADMIN
 app.use(
   "/api/admin",
   adminRoutes
 );
 
-// POSTS / NEWS FEED
 app.use(
   "/api/posts",
   postRoutes
 );
 
-// =====================================================
-// 404 HANDLER
-// =====================================================
+// ===============================
+// 404
+// ===============================
 
 app.use((req, res) => {
-  console.log(
-    "❌ ROUTE NOT FOUND:",
-    req.method,
-    req.originalUrl
-  );
-
   res.status(404).json({
     success: false,
     message: "Route not found",
@@ -161,15 +121,12 @@ app.use((req, res) => {
   });
 });
 
-// =====================================================
+// ===============================
 // GLOBAL ERROR
-// =====================================================
+// ===============================
 
 app.use((err, req, res, next) => {
-  console.error("=================================");
-  console.error("❌ GLOBAL ERROR");
-  console.error(err);
-  console.error("=================================");
+  console.error("GLOBAL ERROR:", err);
 
   res.status(500).json({
     success: false,
@@ -179,26 +136,21 @@ app.use((err, req, res, next) => {
   });
 });
 
-// =====================================================
-// MONGODB + SERVER
-// =====================================================
-
-const PORT =
-  process.env.PORT ||
-  3000;
+// ===============================
+// START SERVER
+// ===============================
 
 const startServer = async () => {
   try {
 
-    console.log(
-      "🔌 Connecting to MongoDB..."
-    );
+    if (!process.env.MONGO_URI) {
+      throw new Error(
+        "MONGO_URI is missing"
+      );
+    }
 
     await mongoose.connect(
-      process.env.MONGO_URI,
-      {
-        serverSelectionTimeoutMS: 10000,
-      }
+      process.env.MONGO_URI
     );
 
     console.log(
@@ -219,20 +171,13 @@ const startServer = async () => {
           `🚀 Server running on port ${PORT}`
         );
 
-        console.log(
-          `🌐 Port: ${PORT}`
-        );
-
       }
     );
 
   } catch (error) {
 
     console.error(
-      "❌ SERVER STARTUP ERROR:"
-    );
-
-    console.error(
+      "❌ SERVER START ERROR:",
       error
     );
 
