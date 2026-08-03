@@ -3,6 +3,8 @@ import 'package:flutter/services.dart';
 import 'package:biopet/services/api_service.dart';
 import 'Login_Screen.dart';
 import 'email_verification_screen.dart';
+import 'dart:io';
+import 'package:image_picker/image_picker.dart';
 
 enum UserRole { user, shopOwner }
 
@@ -27,6 +29,10 @@ class _RegisterScreenState extends State<RegisterScreen>
   final _shopNameController = TextEditingController();
   final _phoneController = TextEditingController();
   final _shopAddressController = TextEditingController();
+
+  XFile? _nrcCardPhoto;
+
+  final ImagePicker _imagePicker = ImagePicker();
 
   UserRole _selectedRole = UserRole.user;
   bool _obscurePassword = true;
@@ -74,11 +80,46 @@ class _RegisterScreenState extends State<RegisterScreen>
     super.dispose();
   }
 
+
+  Future<void> _pickNrcCardPhoto() async {
+    try {
+      final XFile? image = await _imagePicker.pickImage(
+        source: ImageSource.gallery,
+        imageQuality: 80,
+        maxWidth: 1600,
+      );
+
+      if (image != null) {
+        setState(() {
+          _nrcCardPhoto = image;
+        });
+      }
+    } catch (e) {
+      debugPrint('NRC PHOTO PICK ERROR => $e');
+
+      if (mounted) {
+        _showMessage(
+          'Unable to select NRC card photo.',
+          isError: true,
+        );
+      }
+    }
+  }
+
+
   Future<void> _handleRegister() async {
     FocusScope.of(context).unfocus();
 
     if (!_formKey.currentState!.validate()) return;
 
+    if (_selectedRole == UserRole.shopOwner &&
+        _nrcCardPhoto == null) {
+      _showMessage(
+        'Please upload your NRC card photo.',
+        isError: true,
+      );
+      return;
+    }
     setState(() => _isLoading = true);
 
     try {
@@ -100,6 +141,7 @@ class _RegisterScreenState extends State<RegisterScreen>
           phone: _phoneController.text.trim(),
           shopAddress: _shopAddressController.text.trim(),
           password: _passwordController.text,
+          nrcCardPhoto: _nrcCardPhoto,
         );
       }
 
@@ -563,8 +605,160 @@ class _RegisterScreenState extends State<RegisterScreen>
           maxLines: 2,
           validator: _requiredValidator('Shop address'),
         ),
-        const SizedBox(height: 17),
+
+    const SizedBox(height: 17),
+
+    _buildNrcCardPhotoField(),
+
+
+    const SizedBox(height: 17),
         _buildPasswordFields(),
+      ],
+    );
+  }
+
+
+  Widget _buildNrcCardPhotoField() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _buildFieldLabel('NRC card photo'),
+
+        const SizedBox(height: 8),
+
+        GestureDetector(
+          onTap: _isLoading ? null : _pickNrcCardPhoto,
+          child: AnimatedContainer(
+            duration: const Duration(milliseconds: 200),
+            width: double.infinity,
+            height: 190,
+            decoration: BoxDecoration(
+              color: _mintSoft.withOpacity(0.56),
+              borderRadius: BorderRadius.circular(15),
+              border: Border.all(
+                color: _nrcCardPhoto != null
+                    ? _emerald
+                    : _border,
+                width: _nrcCardPhoto != null
+                    ? 1.6
+                    : 1,
+              ),
+            ),
+            child: _nrcCardPhoto == null
+                ? Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Container(
+                  width: 52,
+                  height: 52,
+                  decoration: const BoxDecoration(
+                    color: _mintSoft,
+                    shape: BoxShape.circle,
+                  ),
+                  child: const Icon(
+                    Icons.badge_outlined,
+                    color: _emerald,
+                    size: 28,
+                  ),
+                ),
+
+                const SizedBox(height: 12),
+
+                const Text(
+                  'Upload NRC card photo',
+                  style: TextStyle(
+                    color: _textDark,
+                    fontSize: 14,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+
+                const SizedBox(height: 5),
+
+                const Text(
+                  'Tap to select your NRC card',
+                  style: TextStyle(
+                    color: _textMuted,
+                    fontSize: 12,
+                  ),
+                ),
+              ],
+            )
+                : ClipRRect(
+              borderRadius: BorderRadius.circular(14),
+              child: Stack(
+                fit: StackFit.expand,
+                children: [
+                  Image.file(
+                    File(_nrcCardPhoto!.path),
+                    fit: BoxFit.cover,
+                  ),
+
+                  Positioned(
+                    top: 10,
+                    right: 10,
+                    child: Container(
+                      decoration: BoxDecoration(
+                        color: Colors.black.withOpacity(0.55),
+                        shape: BoxShape.circle,
+                      ),
+                      child: IconButton(
+                        onPressed: _isLoading
+                            ? null
+                            : () {
+                          setState(() {
+                            _nrcCardPhoto = null;
+                          });
+                        },
+                        icon: const Icon(
+                          Icons.close_rounded,
+                          color: Colors.white,
+                          size: 20,
+                        ),
+                      ),
+                    ),
+                  ),
+
+                  Positioned(
+                    bottom: 0,
+                    left: 0,
+                    right: 0,
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                        vertical: 8,
+                        horizontal: 12,
+                      ),
+                      color: Colors.black.withOpacity(0.55),
+                      child: const Text(
+                        'NRC card photo selected',
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontSize: 12,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+
+        if (_nrcCardPhoto == null)
+          Padding(
+            padding: const EdgeInsets.only(
+              top: 6,
+              left: 4,
+            ),
+            child: Text(
+              'NRC card photo is required for Shop Owner registration.',
+              style: TextStyle(
+                color: const Color(0xFF6C7E77),
+                fontSize: 11.5,
+              ),
+            ),
+          ),
       ],
     );
   }

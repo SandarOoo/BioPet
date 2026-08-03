@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:http/http.dart' as http;
+import 'package:image_picker/image_picker.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 class ApiService {
@@ -145,40 +146,41 @@ class ApiService {
     required String phone,
     required String shopAddress,
     required String password,
+    required XFile? nrcCardPhoto,
   }) async {
-    try {
-      final res = await http
-          .post(
-        Uri.parse('$baseUrl/api/auth/register'),
-        headers: _headers,
-        body: jsonEncode({
-          'name': ownerName.trim(),
-          'email': email.trim(),
-          'password': password,
-          'phone': phone.trim(),
-          'role': 'business_owner',
-          'businessProfile': {
-            'businessName': shopName.trim(),
-            'address': shopAddress.trim(),
-          },
-        }),
-      )
-          .timeout(const Duration(seconds: 15));
+    final uri = Uri.parse('$baseUrl/auth/register');
 
-      print('SHOP OWNER REGISTER STATUS => ${res.statusCode}');
-      print('SHOP OWNER REGISTER RESPONSE => ${res.body}');
+    final request = http.MultipartRequest(
+      'POST',
+      uri,
+    );
 
-      final data = jsonDecode(res.body);
+    request.fields['name'] = ownerName;
+    request.fields['email'] = email;
+    request.fields['password'] = password;
+    request.fields['phone'] = phone;
+    request.fields['role'] = 'business_owner';
 
-      return Map<String, dynamic>.from(data);
-    } catch (e) {
-      print('SHOP OWNER REGISTER ERROR => $e');
+    request.fields['businessProfile'] = jsonEncode({
+      'businessName': shopName,
+      'address': shopAddress,
+    });
 
-      return {
-        'success': false,
-        'message': e.toString(),
-      };
+    if (nrcCardPhoto != null) {
+      request.files.add(
+        await http.MultipartFile.fromPath(
+          'nrcCardPhoto',
+          nrcCardPhoto.path,
+        ),
+      );
     }
+
+    final streamedResponse = await request.send();
+
+    final response =
+    await http.Response.fromStream(streamedResponse);
+
+    return jsonDecode(response.body);
   }
   // ─────────────────────────────
   // VERIFY EMAIL (OTP)

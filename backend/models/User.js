@@ -92,6 +92,8 @@ const userSchema = new mongoose.Schema(
         default: '',
       },
 
+      nrcCardPhoto: { type: String, default: '', },
+
       agreementAccepted: {
         type: Boolean,
         default: false,

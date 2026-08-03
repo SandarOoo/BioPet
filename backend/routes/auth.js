@@ -117,6 +117,69 @@ const generateToken = (id) =>
        });
      }
 
+
+     // ========================================================
+     // SHOP OWNER VALIDATION
+     // ========================================================
+
+     if (role === 'business_owner') {
+
+       // ======================================================
+       // PHONE REQUIRED
+       // ======================================================
+
+       if (!phone || !phone.trim()) {
+         return res.status(400).json({
+           success: false,
+           code: 'PHONE_REQUIRED',
+           message: 'Phone number is required for shop owner registration.',
+         });
+       }
+
+       // ======================================================
+       // MYANMAR PHONE FORMAT
+       // ======================================================
+       // Examples:
+       // 09123456789     ✅
+       // 09791234567     ✅
+       // 09912345678     ✅
+       //
+       // 091234567       ❌
+       // 123456789       ❌
+       // +959123456789   ❌ (if only 09 format is allowed)
+       // ======================================================
+
+       const cleanPhone = phone.trim();
+
+       const phoneRegex = /^09\d{9}$/;
+
+       if (!phoneRegex.test(cleanPhone)) {
+         return res.status(400).json({
+           success: false,
+           code: 'INVALID_PHONE',
+           message:
+             'Please enter a valid Myanmar phone number starting with 09.',
+         });
+       }
+
+       // ======================================================
+       // NRC CARD PHOTO REQUIRED
+       // ======================================================
+
+       if (
+         !businessProfile?.nrcCardPhoto ||
+         !businessProfile.nrcCardPhoto.trim()
+       ) {
+         return res.status(400).json({
+           success: false,
+           code: 'NRC_PHOTO_REQUIRED',
+           message:
+             'NRC card photo is required for shop owner registration.',
+         });
+       }
+     }
+
+
      // ========================================================
      // ADMIN REGISTER BLOCK
      // ========================================================
@@ -195,6 +258,7 @@ const generateToken = (id) =>
 
                description:
                  businessProfile?.description?.trim() || '',
+                 nrcCardPhoto: businessProfile?.nrcCardPhoto?.trim() || '',
 
                agreementAccepted: false,
 
