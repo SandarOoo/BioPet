@@ -104,18 +104,34 @@ class ApiService {
     required String email,
     required String password,
   }) async {
-    final res = await http.post(
-      Uri.parse('$baseUrl/api/auth/register'),
-      headers: _headers,
-      body: jsonEncode({
-        'name': name,
-        'email': email,
-        'password': password,
-        'role': 'user',
-      }),
-    );
+    try {
+      final res = await http
+          .post(
+        Uri.parse('$baseUrl/api/auth/register'),
+        headers: _headers,
+        body: jsonEncode({
+          'name': name.trim(),
+          'email': email.trim(),
+          'password': password,
+          'role': 'user',
+        }),
+      )
+          .timeout(const Duration(seconds: 15));
 
-    return jsonDecode(res.body);
+      print('REGISTER STATUS => ${res.statusCode}');
+      print('REGISTER RESPONSE => ${res.body}');
+
+      final data = jsonDecode(res.body);
+
+      return Map<String, dynamic>.from(data);
+    } catch (e) {
+      print('REGISTER ERROR => $e');
+
+      return {
+        'success': false,
+        'message': e.toString(),
+      };
+    }
   }
 
   // ─────────────────────────────
@@ -130,25 +146,40 @@ class ApiService {
     required String shopAddress,
     required String password,
   }) async {
-    final res = await http.post(
-      Uri.parse('$baseUrl/api/auth/register'),
-      headers: _headers,
-      body: jsonEncode({
-        'name': ownerName,
-        'email': email,
-        'password': password,
-        'phone': phone,
-        'role': 'business_owner',
-        'businessProfile': {
-          'businessName': shopName,
-          'address': shopAddress,
-        }
-      }),
-    );
+    try {
+      final res = await http
+          .post(
+        Uri.parse('$baseUrl/api/auth/register'),
+        headers: _headers,
+        body: jsonEncode({
+          'name': ownerName.trim(),
+          'email': email.trim(),
+          'password': password,
+          'phone': phone.trim(),
+          'role': 'business_owner',
+          'businessProfile': {
+            'businessName': shopName.trim(),
+            'address': shopAddress.trim(),
+          },
+        }),
+      )
+          .timeout(const Duration(seconds: 15));
 
-    return jsonDecode(res.body);
+      print('SHOP OWNER REGISTER STATUS => ${res.statusCode}');
+      print('SHOP OWNER REGISTER RESPONSE => ${res.body}');
+
+      final data = jsonDecode(res.body);
+
+      return Map<String, dynamic>.from(data);
+    } catch (e) {
+      print('SHOP OWNER REGISTER ERROR => $e');
+
+      return {
+        'success': false,
+        'message': e.toString(),
+      };
+    }
   }
-
   // ─────────────────────────────
   // VERIFY EMAIL (OTP)
   // ─────────────────────────────

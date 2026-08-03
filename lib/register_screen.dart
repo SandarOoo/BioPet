@@ -84,17 +84,19 @@ class _RegisterScreenState extends State<RegisterScreen>
     try {
       late final Map<String, dynamic> data;
 
+      final email = _emailController.text.trim();
+
       if (_selectedRole == UserRole.user) {
         data = await ApiService.registerUser(
           name: _fullNameController.text.trim(),
-          email: _emailController.text.trim(),
+          email: email,
           password: _passwordController.text,
         );
       } else {
         data = await ApiService.registerShopOwner(
           ownerName: _ownerNameController.text.trim(),
           shopName: _shopNameController.text.trim(),
-          email: _emailController.text.trim(),
+          email: email,
           phone: _phoneController.text.trim(),
           shopAddress: _shopAddressController.text.trim(),
           password: _passwordController.text,
@@ -106,11 +108,25 @@ class _RegisterScreenState extends State<RegisterScreen>
       if (!mounted) return;
 
       if (data['success'] == true) {
+        // Get OTP returned from backend
+        final otp = data['otp']?.toString() ?? '';
+
+        debugPrint('OTP FROM SERVER => $otp');
+
+        if (otp.isEmpty) {
+          _showMessage(
+            'Registration successful, but OTP was not generated.',
+            isError: true,
+          );
+          return;
+        }
+
         Navigator.pushReplacement(
           context,
           MaterialPageRoute(
             builder: (_) => EmailVerificationScreen(
-              email: _emailController.text.trim(),
+              email: email,
+              otp: otp,
             ),
           ),
         );
@@ -125,7 +141,10 @@ class _RegisterScreenState extends State<RegisterScreen>
       debugPrint('STACK TRACE => $stackTrace');
 
       if (mounted) {
-        _showMessage('Error: $error', isError: true);
+        _showMessage(
+          'Error: $error',
+          isError: true,
+        );
       }
     } finally {
       if (mounted) {
@@ -133,7 +152,6 @@ class _RegisterScreenState extends State<RegisterScreen>
       }
     }
   }
-
   void _showMessage(String message, {bool isError = false}) {
     ScaffoldMessenger.of(context)
       ..hideCurrentSnackBar()

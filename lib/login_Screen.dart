@@ -357,6 +357,9 @@ class _LoginScreenState
             return;
           }
 
+          final String otp =
+              data['otp']?.toString() ?? '';
+
 
           Navigator.push(
 
@@ -371,6 +374,7 @@ class _LoginScreenState
                     email:
                     _emailController.text
                         .trim(),
+                    otp: otp,
 
                   ),
 

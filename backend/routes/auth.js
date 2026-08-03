@@ -85,8 +85,7 @@ const generateToken = (id) =>
 
      const cleanEmail = email.trim().toLowerCase();
 
-     const gmailRegex =
-         /^[a-zA-Z0-9._%+-]+@gmail\.com$/;
+     const gmailRegex = /^(?=.*[a-z])(?=.*\d)[a-z0-9._%+-]+@gmail\.com$/;
 
      if (!gmailRegex.test(cleanEmail)) {
        return res.status(400).json({

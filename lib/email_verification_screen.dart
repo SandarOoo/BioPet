@@ -13,10 +13,12 @@ import 'services/api_service.dart';
 
 class EmailVerificationScreen extends StatefulWidget {
   final String email;
+  final String otp;
 
   const EmailVerificationScreen({
     super.key,
-    this.email = 'user123@gmail.com',
+    required this.email,
+    required this.otp,
   });
 
   @override
@@ -80,6 +82,9 @@ class _EmailVerificationScreenState extends State<EmailVerificationScreen>
     ).animate(_fadeAnimation);
 
     _startCountdown();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _fillOtp(widget.otp);
+    });
   }
 
   @override
@@ -95,6 +100,26 @@ class _EmailVerificationScreenState extends State<EmailVerificationScreen>
     _countdownTimer?.cancel();
     _animationController.dispose();
     super.dispose();
+  }
+
+  void _fillOtp(String otp) {
+    if (otp.length != _otpLength) {
+      setState(() {
+        _otpError = 'Invalid OTP received from server';
+      });
+      return;
+    }
+
+    for (int i = 0; i < _otpLength; i++) {
+      _otpControllers[i].text = otp[i];
+    }
+
+    // Remove focus from OTP boxes
+    FocusScope.of(context).unfocus();
+
+    setState(() {
+      _otpError = null;
+    });
   }
 
   void _startCountdown() {
@@ -133,6 +158,8 @@ class _EmailVerificationScreenState extends State<EmailVerificationScreen>
     for (final controller in _otpControllers) {
       controller.clear();
     }
+
+
 
     if (_focusNodes.isNotEmpty) {
       _focusNodes.first.requestFocus();
