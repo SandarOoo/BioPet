@@ -14,13 +14,73 @@ const generateToken = (id) =>
     expiresIn: process.env.JWT_EXPIRE,
   });
 
-//register route
+  // Gmail must contain at least one letter and one number
+  const gmailRegex =
+    /^(?=[A-Za-z0-9._%+-]*[A-Za-z])(?=[A-Za-z0-9._%+-]*\d)[A-Za-z0-9._%+-]+@gmail\.com$/i;
+
+  // Password requirements:
+  // Minimum 8 characters
+  // At least one lowercase letter
+  // At least one uppercase letter
+  // At least one number
+  // At least one special character
+  // No spaces
+  const strongPasswordRegex =
+    /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[^A-Za-z0-9])(?!.*\s).{8,}$/;
+
+// ==========================
+// REGISTER
+// ==========================
 router.post('/register', async (req, res) => {
- console.log("REGISTER HIT");
-  const { name, email, password, phone, role, businessProfile } = req.body;
+  console.log('REGISTER HIT');
+
+  const {
+    name,
+    email,
+    password,
+    phone,
+    role,
+    businessProfile,
+  } = req.body;
 
   try {
-    const existingUser = await User.findOne({ email });
+    const normalizedEmail = String(email || '')
+      .trim()
+      .toLowerCase();
+
+    const normalizedName = String(name || '').trim();
+    const selectedRole = role || 'user';
+
+    // Required fields
+    if (!normalizedName  !normalizedEmail  !password) {
+      return res.status(400).json({
+        success: false,
+        message: 'Name, email and password are required',
+      });
+    }
+
+    // Gmail validation
+    if (!gmailRegex.test(normalizedEmail)) {
+      return res.status(400).json({
+        success: false,
+        message:
+          'Email must end with @gmail.com and contain both letters and numbers',
+      });
+    }
+
+    // Strong password validation
+    if (!strongPasswordRegex.test(password)) {
+      return res.status(400).json({
+        success: false,
+        message:
+          'Password must be at least 8 characters and contain uppercase, lowercase, number and special character without spaces',
+      });
+    }
+
+    // Check duplicate email
+    const existingUser = await User.findOne({
+      email: normalizedEmail,
+    });
 
     if (existingUser) {
       return res.status(400).json({
@@ -29,31 +89,40 @@ router.post('/register', async (req, res) => {
       });
     }
 
-    if (role === 'admin') {
+    // Admin registration is not allowed
+    if (selectedRole === 'admin') {
       return res.status(403).json({
         success: false,
         message: 'Cannot register as admin',
       });
     }
 
-    const otp = Math.floor(100000 + Math.random() * 900000).toString();
+    const otp = Math.floor(
+      100000 + Math.random() * 900000
+    ).toString();
 
     const user = await User.create({
-      name,
-      email,
+      name: normalizedName,
+      email: normalizedEmail,
       password,
       phone,
-      role: role || 'user',
+      role: selectedRole,
 
       businessProfile:
-        role === 'business_owner'
+        selectedRole === 'business_owner'
           ? {
-              businessName: businessProfile?.businessName || '',
-              businessType: businessProfile?.businessType || '',
-              address: businessProfile?.address || '',
-              latitude: businessProfile?.latitude || null,
-              longitude: businessProfile?.longitude || null,
-              description: businessProfile?.description || '',
+              businessName:
+                businessProfile?.businessName || '',
+              businessType:
+                businessProfile?.businessType || '',
+              address:
+                businessProfile?.address || '',
+              latitude:
+                businessProfile?.latitude ?? null,
+              longitude:
+                businessProfile?.longitude ?? null,
+              description:
+                businessProfile?.description || '',
 
               agreementAccepted: false,
               verificationStatus: 'draft',
@@ -67,18 +136,18 @@ router.post('/register', async (req, res) => {
       isVerified: false,
     });
 
-    sendEmail(email, otp)
-      .catch(err => console.log("Email error:", err.message));
+    // Existing email verification process
+    sendEmail(normalizedEmail, otp).catch((err) => {
+      console.log('Email error:', err.message);
+    });
 
     return res.status(201).json({
       success: true,
       message: 'OTP sent to email. Please verify account.',
       userId: user._id,
     });
-
   } catch (err) {
-
-    console.error(err);
+    console.error('REGISTER ERROR:', err);
 
     return res.status(500).json({
       success: false,
@@ -86,8 +155,6 @@ router.post('/register', async (req, res) => {
     });
   }
 });
-
-// ==========================
 // VERIFY EMAIL
 // ==========================
 router.post('/verify-email', async (req, res) => {
