@@ -37,7 +37,7 @@ class _NearbyPetsMapState extends State<NearbyPetsMap> {
   );
 
   // Search radius = 20 KM
-  static const int _searchRadius = 20000;
+  static const int _searchRadius = 100000;
 
   // Multiple Overpass servers
   final List<String> _overpassServers = [

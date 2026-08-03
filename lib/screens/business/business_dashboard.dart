@@ -220,14 +220,8 @@ class _BusinessDashboardState extends State<BusinessDashboard> {
           error: ordersError,
           onRefresh: loadOrders,
         ),
-        SellerProfileScreen(
-          ownerName: ownerName,
-          email: email,
-          businessName: businessName,
-          businessType: businessType,
-          businessAddress: businessAddress,
-        ),
-      ];
+    SellerProfileScreen( user: currentUser, onRefresh: loadCurrentUser, ),
+  ];
 
   @override
   Widget build(BuildContext context) {

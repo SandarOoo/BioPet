@@ -12,7 +12,8 @@ const productRoutes = require("./routes/productRoutes");
 const orderRoutes = require("./routes/orderRoutes");
 const adminRoutes = require("./routes/admin");
 const postRoutes = require("./routes/postRoutes");
-const businessRoutes = require("./routes/businessRoutes");
+const businessRoutes = require("./routes/business");
+
 
 const app = express();
 
@@ -115,6 +116,7 @@ app.use(
   "/api/posts",
   postRoutes
 );
+app.use("/api/pet-chat", petChatRoute);
 
 // ===============================
 // 404
