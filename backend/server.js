@@ -13,6 +13,7 @@ const orderRoutes = require("./routes/orderRoutes");
 const adminRoutes = require("./routes/admin");
 const postRoutes = require("./routes/postRoutes");
 const businessRoutes = require("./routes/business");
+const petChatRoute = require("./routes/petChatRoute");
 
 
 const app = express();
