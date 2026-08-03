@@ -24,328 +24,251 @@ const generateToken = (id) =>
 // REGISTER
 // ============================================================
 
-router.post('/register', async (req, res) => {
-
-  console.log('=================================');
-  console.log('REGISTER HIT');
-  console.log('=================================');
-
-  const {
-    name,
-    email,
-    password,
-    phone,
-    role,
-    businessProfile,
-  } = req.body;
-
-  try {
-
-    // ========================================================
-    // BASIC VALIDATION
-    // ========================================================
-
-    if (!name || !name.trim()) {
-      return res.status(400).json({
-        success: false,
-        code: 'INVALID_NAME',
-        message: 'Name is required',
-      });
-    }
-
-    if (!email || !email.trim()) {
-      return res.status(400).json({
-        success: false,
-        code: 'INVALID_EMAIL',
-        message: 'Email is required',
-      });
-    }
-
-    if (!password) {
-      return res.status(400).json({
-        success: false,
-        code: 'INVALID_PASSWORD',
-        message: 'Password is required',
-      });
-    }
-
-
-    // ========================================================
-    // CLEAN EMAIL
-    // ========================================================
-
-    const cleanEmail =
-      email.trim().toLowerCase();
-
-
-    // ========================================================
-    // GMAIL VALIDATION
-    //
-    // Valid:
-    // sandar@gmail.com
-    // sandar123@gmail.com
-    // sandar.oo@gmail.com
-    //
-    // Invalid:
-    // sandar_oo@gmail.com
-    // sandar-oo@gmail.com
-    // sandar@yahoo.com
-    // sandar@gmail.co
-    // ========================================================
-
-    const gmailRegex =
-      /^[a-zA-Z0-9]+(?:\.[a-zA-Z0-9]+)*@gmail\.com$/;
-
-    if (!gmailRegex.test(cleanEmail)) {
-      return res.status(400).json({
-        success: false,
-        code: 'INVALID_EMAIL',
-        message:
-          'Please enter a valid Gmail address. Example: example@gmail.com',
-      });
-    }
-
-
-    // ========================================================
-    // STRONG PASSWORD VALIDATION
-    //
-    // Minimum 8 characters
-    // At least 1 uppercase
-    // At least 1 lowercase
-    // At least 1 number
-    // At least 1 special character
-    // ========================================================
-
-    const strongPasswordRegex =
-      /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[!@#$%^&*(),.?":{}|<>_\-])[A-Za-z\d!@#$%^&*(),.?":{}|<>_\-]{8,}$/;
-
-    if (!strongPasswordRegex.test(password)) {
-      return res.status(400).json({
-        success: false,
-        code: 'WEAK_PASSWORD',
-        message:
-          'Password must be at least 8 characters and contain uppercase, lowercase, number, and special character.',
-      });
-    }
+ // ============================================================
+ // REGISTER
+ // ============================================================
+
+ router.post('/register', async (req, res) => {
+   console.log('=================================');
+   console.log('REGISTER HIT');
+   console.log('=================================');
+
+   const {
+     name,
+     email,
+     password,
+     phone,
+     role,
+     businessProfile,
+   } = req.body;
+
+   try {
+     // ========================================================
+     // BASIC VALIDATION
+     // ========================================================
+
+     if (!name || !name.trim()) {
+       return res.status(400).json({
+         success: false,
+         code: 'INVALID_NAME',
+         message: 'Name is required',
+       });
+     }
+
+     if (!email || !email.trim()) {
+       return res.status(400).json({
+         success: false,
+         code: 'INVALID_EMAIL',
+         message: 'Email is required',
+       });
+     }
+
+     if (!password) {
+       return res.status(400).json({
+         success: false,
+         code: 'INVALID_PASSWORD',
+         message: 'Password is required',
+       });
+     }
+
+     // ========================================================
+     // EMAIL FORMAT
+     // ========================================================
+     // Example:
+     // sandar@gmail.com       ✅
+     // sandar.oo@gmail.com    ✅
+     // sandar_oo@gmail.com    ✅
+     // sandar123@gmail.com    ✅
+     //
+     // Must be a valid Gmail-style address
+     // ========================================================
+
+     const cleanEmail = email.trim().toLowerCase();
+
+     const gmailRegex =
+         /^[a-zA-Z0-9._%+-]+@gmail\.com$/;
+
+     if (!gmailRegex.test(cleanEmail)) {
+       return res.status(400).json({
+         success: false,
+         code: 'INVALID_EMAIL',
+         message: 'Please enter a valid Gmail address.',
+       });
+     }
+
+     // ========================================================
+     // STRONG PASSWORD
+     // ========================================================
+     // Minimum 8 characters
+     // 1 uppercase
+     // 1 lowercase
+     // 1 number
+     // 1 special character
+     // ========================================================
+
+     const strongPasswordRegex =
+         /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[!@#$%^&*(),.?":{}|<>_\-]).{8,}$/;
+
+     if (!strongPasswordRegex.test(password)) {
+       return res.status(400).json({
+         success: false,
+         code: 'WEAK_PASSWORD',
+         message:
+           'Password must be at least 8 characters and contain uppercase, lowercase, number, and special character.',
+       });
+     }
+
+     // ========================================================
+     // ADMIN REGISTER BLOCK
+     // ========================================================
+
+     if (role === 'admin') {
+       return res.status(403).json({
+         success: false,
+         code: 'ADMIN_REGISTER_NOT_ALLOWED',
+         message: 'Cannot register as admin',
+       });
+     }
 
+     // ========================================================
+     // CHECK EXISTING USER
+     // ========================================================
 
-    // ========================================================
-    // ADMIN REGISTER BLOCK
-    // ========================================================
+     const existingUser = await User.findOne({
+       email: cleanEmail,
+     });
 
-    if (role === 'admin') {
-      return res.status(403).json({
-        success: false,
-        code: 'ADMIN_REGISTER_NOT_ALLOWED',
-        message:
-          'Cannot register as admin',
-      });
-    }
+     if (existingUser) {
+       return res.status(400).json({
+         success: false,
+         code: 'EMAIL_EXISTS',
+         message: 'Email already exists',
+       });
+     }
 
+     // ========================================================
+     // GENERATE OTP
+     // ========================================================
 
-    // ========================================================
-    // CHECK EXISTING USER
-    // ========================================================
+     const otp =
+       Math.floor(
+         100000 + Math.random() * 900000
+       ).toString();
 
-    const existingUser =
-      await User.findOne({
-        email: cleanEmail,
-      });
+     console.log('=================================');
+     console.log('GENERATED OTP:', otp);
+     console.log('EMAIL:', cleanEmail);
+     console.log('=================================');
 
-    if (existingUser) {
+     // ========================================================
+     // CREATE USER
+     // ========================================================
 
-      if (!existingUser.isVerified) {
-        return res.status(400).json({
-          success: false,
-          code: 'EMAIL_EXISTS_NOT_VERIFIED',
-          message:
-            'This email is already registered but not verified. Please use Resend OTP.',
-        });
-      }
+     const user = await User.create({
 
-      return res.status(400).json({
-        success: false,
-        code: 'EMAIL_EXISTS',
-        message:
-          'Email already exists',
-      });
-    }
+       name: name.trim(),
 
+       email: cleanEmail,
 
-    // ========================================================
-    // GENERATE OTP
-    // ========================================================
+       password,
 
-    const otp =
-      Math.floor(
-        100000 +
-        Math.random() * 900000
-      ).toString();
+       phone: phone?.trim() || '',
 
+       role: role || 'user',
 
-    // ========================================================
-    // CREATE USER
-    // ========================================================
+       businessProfile:
+         role === 'business_owner'
+           ? {
+               businessName:
+                 businessProfile?.businessName?.trim() || '',
 
-    const user =
-      await User.create({
+               businessType:
+                 businessProfile?.businessType || '',
 
-        name:
-          name.trim(),
+               address:
+                 businessProfile?.address?.trim() || '',
 
-        email:
-          cleanEmail,
+               latitude:
+                 businessProfile?.latitude ?? null,
 
-        password,
+               longitude:
+                 businessProfile?.longitude ?? null,
 
-        phone:
-          phone?.trim() || '',
+               description:
+                 businessProfile?.description?.trim() || '',
 
-        role:
-          role || 'user',
+               agreementAccepted: false,
 
+               verificationStatus: 'draft',
 
-        // ======================================================
-        // BUSINESS OWNER PROFILE
-        // ======================================================
+               rejectReason: '',
+             }
+           : {},
 
-        businessProfile:
-          role === 'business_owner'
-            ? {
+       // ======================================================
+       // OTP SAVED TO DATABASE
+       // ======================================================
 
-                businessName:
-                  businessProfile
-                    ?.businessName
-                    ?.trim() || '',
+       otp: otp,
 
-                businessType:
-                  businessProfile
-                    ?.businessType || '',
+       otpExpiresAt:
+         Date.now() + 5 * 60 * 1000,
 
-                address:
-                  businessProfile
-                    ?.address
-                    ?.trim() || '',
+       lastOtpSentAt:
+         Date.now(),
 
-                latitude:
-                  businessProfile
-                    ?.latitude ?? null,
+       isVerified: false,
+     });
 
-                longitude:
-                  businessProfile
-                    ?.longitude ?? null,
+     console.log(
+       '✅ USER CREATED:',
+       user._id
+     );
 
-                description:
-                  businessProfile
-                    ?.description
-                    ?.trim() || '',
+     // ========================================================
+     // NO EMAIL SENDING
+     // ========================================================
+     // OTP is returned directly to Flutter.
+     // Flutter can display it on Verify Email page.
+     // ========================================================
 
-                agreementAccepted:
-                  false,
+     return res.status(201).json({
 
-                verificationStatus:
-                  'draft',
+       success: true,
 
-                rejectReason:
-                  '',
-              }
-            : {},
+       message:
+         'Registration successful. Please verify your account.',
 
+       userId:
+         user._id,
 
-        // ======================================================
-        // OTP
-        // ======================================================
+       email:
+         user.email,
 
-        otp,
+       // DEMO / PROJECT OTP
+       otp:
+         otp,
 
-        otpExpiresAt:
-          Date.now() +
-          5 * 60 * 1000,
+     });
 
-        lastOtpSentAt:
-          Date.now(),
+   } catch (err) {
 
-        isVerified:
-          false,
-      });
+     console.error(
+       '❌ REGISTER ERROR:',
+       err
+     );
 
+     return res.status(500).json({
 
-    console.log(
-      '✅ USER CREATED:',
-      user._id
-    );
+       success: false,
 
+       message:
+         err.message ||
+         'Registration failed',
 
-    // ========================================================
-    // SEND OTP EMAIL
-    // ========================================================
-
-    try {
-
-      await sendEmail(
-        cleanEmail,
-        otp
-      );
-
-      console.log(
-        '✅ OTP EMAIL SENT TO:',
-        cleanEmail
-      );
-
-    } catch (emailError) {
-
-      console.error(
-        '❌ OTP EMAIL ERROR:',
-        emailError
-      );
-
-
-      // Delete user if email cannot be sent
-      await User.findByIdAndDelete(
-        user._id
-      );
-
-      return res.status(500).json({
-        success: false,
-        code: 'EMAIL_SEND_FAILED',
-        message:
-          'Unable to send verification email. Please try again.',
-      });
-    }
-
-
-    // ========================================================
-    // REGISTER SUCCESS
-    // ========================================================
-
-    return res.status(201).json({
-
-      success: true,
-
-      message:
-        'OTP sent to email. Please verify your account.',
-
-      userId:
-        user._id,
-
-    });
-
-
-  } catch (err) {
-
-    console.error(
-      '❌ REGISTER ERROR:',
-      err
-    );
-
-    return res.status(500).json({
-      success: false,
-      message:
-        err.message ||
-        'Registration failed',
-    });
-  }
-});
+     });
+   }
+ });
 
 
 // ============================================================
