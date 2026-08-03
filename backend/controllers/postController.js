@@ -42,32 +42,16 @@ const createPost = async (
         : 0
     );
 
-    if (
-      req.files &&
-      req.files.length > 0
-    ) {
-      req.files.forEach(
-        (file, index) => {
-          console.log(
-            FILE ${index + 1} =>,
-            {
-              fieldname:
-                file.fieldname,
-
-              originalname:
-                file.originalname,
-
-              mimetype:
-                file.mimetype,
-
-              size:
-                file.size,
-            }
-          );
-        }
-      );
-    }
-
+   if (req.files && req.files.length > 0) {
+     req.files.forEach((file, index) => {
+       console.log(`FILE ${index + 1} =>`, {
+         fieldname: file.fieldname,
+         originalname: file.originalname,
+         mimetype: file.mimetype,
+         size: file.size,
+       });
+     });
+   }
     console.log(
       "================================="
     );

@@ -5,7 +5,7 @@ const multer =
   require("multer");
 
 const upload =
-  require("../middleware/upload");
+  require("../utils/upload");
 
 const {
   createPost,
