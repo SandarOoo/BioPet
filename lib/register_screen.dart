@@ -5,7 +5,7 @@ import 'Login_Screen.dart';
 import 'email_verification_screen.dart';
 import 'dart:io';
 import 'package:image_picker/image_picker.dart';
-
+import 'dart:typed_data';
 enum UserRole { user, shopOwner }
 
 class RegisterScreen extends StatefulWidget {
@@ -31,6 +31,7 @@ class _RegisterScreenState extends State<RegisterScreen>
   final _shopAddressController = TextEditingController();
 
   XFile? _nrcCardPhoto;
+  Uint8List? _nrcCardPhotoBytes;
 
   final ImagePicker _imagePicker = ImagePicker();
 
@@ -90,8 +91,13 @@ class _RegisterScreenState extends State<RegisterScreen>
       );
 
       if (image != null) {
+        final bytes = await image.readAsBytes();
+
+        if (!mounted) return;
+
         setState(() {
           _nrcCardPhoto = image;
+          _nrcCardPhotoBytes = bytes;
         });
       }
     } catch (e) {
@@ -110,7 +116,17 @@ class _RegisterScreenState extends State<RegisterScreen>
   Future<void> _handleRegister() async {
     FocusScope.of(context).unfocus();
 
-    if (!_formKey.currentState!.validate()) return;
+    // ============================================
+    // VALIDATE FORM
+    // ============================================
+
+    if (!_formKey.currentState!.validate()) {
+      return;
+    }
+
+    // ============================================
+    // NRC REQUIRED FOR SHOP OWNER
+    // ============================================
 
     if (_selectedRole == UserRole.shopOwner &&
         _nrcCardPhoto == null) {
@@ -120,40 +136,100 @@ class _RegisterScreenState extends State<RegisterScreen>
       );
       return;
     }
-    setState(() => _isLoading = true);
+
+    setState(() {
+      _isLoading = true;
+    });
 
     try {
       late final Map<String, dynamic> data;
 
-      final email = _emailController.text.trim();
+      final email =
+      _emailController.text.trim();
+
+      // ============================================
+      // NORMAL PET OWNER
+      // ============================================
 
       if (_selectedRole == UserRole.user) {
         data = await ApiService.registerUser(
-          name: _fullNameController.text.trim(),
-          email: email,
-          password: _passwordController.text,
-        );
-      } else {
-        data = await ApiService.registerShopOwner(
-          ownerName: _ownerNameController.text.trim(),
-          shopName: _shopNameController.text.trim(),
-          email: email,
-          phone: _phoneController.text.trim(),
-          shopAddress: _shopAddressController.text.trim(),
-          password: _passwordController.text,
-          nrcCardPhoto: _nrcCardPhoto,
+          name:
+          _fullNameController.text.trim(),
+
+          email:
+          email,
+
+          password:
+          _passwordController.text,
         );
       }
 
-      debugPrint('REGISTER RESPONSE => $data');
+      // ============================================
+      // SHOP OWNER
+      // ============================================
 
-      if (!mounted) return;
+      else {
+        // IMPORTANT:
+        // Read image as bytes immediately.
+        // Do NOT send XFile.path directly.
+        final Uint8List nrcBytes =
+        await _nrcCardPhoto!.readAsBytes();
+
+        data =
+        await ApiService.registerShopOwner(
+          ownerName:
+          _ownerNameController.text.trim(),
+
+          shopName:
+          _shopNameController.text.trim(),
+
+          email:
+          email,
+
+          phone:
+          _phoneController.text.trim(),
+
+          shopAddress:
+          _shopAddressController.text.trim(),
+
+          password:
+          _passwordController.text,
+
+          // Send image bytes
+          nrcCardPhotoBytes:
+          nrcBytes,
+
+          // Send original filename
+          nrcFileName:
+          _nrcCardPhoto!.name,
+        );
+      }
+
+      debugPrint(
+        'REGISTER RESPONSE => $data',
+      );
+
+      if (!mounted) {
+        return;
+      }
+
+      // ============================================
+      // REGISTRATION SUCCESS
+      // ============================================
 
       if (data['success'] == true) {
-        // Get OTP returned from backend
-        final otp = data['otp']?.toString() ?? '';
+        final otp =
+            data['otp']
+                ?.toString() ??
+                '';
 
-        debugPrint('OTP FROM SERVER => $otp');
+        debugPrint(
+          'OTP FROM SERVER => $otp',
+        );
+
+        // ============================================
+        // OTP MISSING
+        // ============================================
 
         if (otp.isEmpty) {
           _showMessage(
@@ -163,24 +239,42 @@ class _RegisterScreenState extends State<RegisterScreen>
           return;
         }
 
+        // ============================================
+        // GO TO EMAIL VERIFICATION
+        // ============================================
+
         Navigator.pushReplacement(
           context,
           MaterialPageRoute(
-            builder: (_) => EmailVerificationScreen(
-              email: email,
-              otp: otp,
-            ),
+            builder: (_) =>
+                EmailVerificationScreen(
+                  email: email,
+                  otp: otp,
+                ),
           ),
         );
-      } else {
+      }
+
+      // ============================================
+      // REGISTRATION FAILED
+      // ============================================
+
+      else {
         _showMessage(
-          data['message']?.toString() ?? 'Registration failed.',
+          data['message']
+              ?.toString() ??
+              'Registration failed.',
           isError: true,
         );
       }
     } catch (error, stackTrace) {
-      debugPrint('REGISTER ERROR => $error');
-      debugPrint('STACK TRACE => $stackTrace');
+      debugPrint(
+        'REGISTER ERROR => $error',
+      );
+
+      debugPrint(
+        'STACK TRACE => $stackTrace',
+      );
 
       if (mounted) {
         _showMessage(
@@ -190,10 +284,14 @@ class _RegisterScreenState extends State<RegisterScreen>
       }
     } finally {
       if (mounted) {
-        setState(() => _isLoading = false);
+        setState(() {
+          _isLoading = false;
+        });
       }
     }
   }
+
+
   void _showMessage(String message, {bool isError = false}) {
     ScaffoldMessenger.of(context)
       ..hideCurrentSnackBar()
