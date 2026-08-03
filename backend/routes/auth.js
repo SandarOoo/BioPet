@@ -1,4 +1,9 @@
 const express = require('express');
+const multer = require('multer');
+
+const upload = multer({
+  storage: multer.memoryStorage(),
+});
 const jwt = require('jsonwebtoken');
 const User = require('../models/User');
 const { protect } = require('../middleware/auth');
@@ -19,319 +24,360 @@ const generateToken = (id) =>
     }
   );
 
-
-// ============================================================
-// REGISTER
-// ============================================================
-
- // ============================================================
- // REGISTER
- // ============================================================
-
- router.post('/register', async (req, res) => {
-   console.log('=================================');
-   console.log('REGISTER HIT');
-   console.log('=================================');
-
-   const {
-     name,
-     email,
-     password,
-     phone,
-     role,
-     businessProfile,
-   } = req.body;
-
-   try {
-     // ========================================================
-     // BASIC VALIDATION
-     // ========================================================
-
-     if (!name || !name.trim()) {
-       return res.status(400).json({
-         success: false,
-         code: 'INVALID_NAME',
-         message: 'Name is required',
-       });
-     }
-
-     if (!email || !email.trim()) {
-       return res.status(400).json({
-         success: false,
-         code: 'INVALID_EMAIL',
-         message: 'Email is required',
-       });
-     }
-
-     if (!password) {
-       return res.status(400).json({
-         success: false,
-         code: 'INVALID_PASSWORD',
-         message: 'Password is required',
-       });
-     }
-
-     // ========================================================
-     // EMAIL FORMAT
-     // ========================================================
-     // Example:
-     // sandar@gmail.com       ✅
-     // sandar.oo@gmail.com    ✅
-     // sandar_oo@gmail.com    ✅
-     // sandar123@gmail.com    ✅
-     //
-     // Must be a valid Gmail-style address
-     // ========================================================
-
-     const cleanEmail = email.trim().toLowerCase();
-
-     const gmailRegex = /^(?=.*[a-z])(?=.*\d)[a-z0-9._%+-]+@gmail\.com$/;
-
-     if (!gmailRegex.test(cleanEmail)) {
-       return res.status(400).json({
-         success: false,
-         code: 'INVALID_EMAIL',
-         message: 'Please enter a valid Gmail address.',
-       });
-     }
-
-     // ========================================================
-     // STRONG PASSWORD
-     // ========================================================
-     // Minimum 8 characters
-     // 1 uppercase
-     // 1 lowercase
-     // 1 number
-     // 1 special character
-     // ========================================================
-
-     const strongPasswordRegex =
-         /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[!@#$%^&*(),.?":{}|<>_\-]).{8,}$/;
-
-     if (!strongPasswordRegex.test(password)) {
-       return res.status(400).json({
-         success: false,
-         code: 'WEAK_PASSWORD',
-         message:
-           'Password must be at least 8 characters and contain uppercase, lowercase, number, and special character.',
-       });
-     }
-
-
-     // ========================================================
-     // SHOP OWNER VALIDATION
-     // ========================================================
-
-     if (role === 'business_owner') {
-
-       // ======================================================
-       // PHONE REQUIRED
-       // ======================================================
-
-       if (!phone || !phone.trim()) {
-         return res.status(400).json({
-           success: false,
-           code: 'PHONE_REQUIRED',
-           message: 'Phone number is required for shop owner registration.',
-         });
-       }
-
-       // ======================================================
-       // MYANMAR PHONE FORMAT
-       // ======================================================
-       // Examples:
-       // 09123456789     ✅
-       // 09791234567     ✅
-       // 09912345678     ✅
-       //
-       // 091234567       ❌
-       // 123456789       ❌
-       // +959123456789   ❌ (if only 09 format is allowed)
-       // ======================================================
-
-       const cleanPhone = phone.trim();
-
-       const phoneRegex = /^09\d{9}$/;
-
-       if (!phoneRegex.test(cleanPhone)) {
-         return res.status(400).json({
-           success: false,
-           code: 'INVALID_PHONE',
-           message:
-             'Please enter a valid Myanmar phone number starting with 09.',
-         });
-       }
-
-       // ======================================================
-       // NRC CARD PHOTO REQUIRED
-       // ======================================================
-
-       if (
-         !businessProfile?.nrcCardPhoto ||
-         !businessProfile.nrcCardPhoto.trim()
-       ) {
-         return res.status(400).json({
-           success: false,
-           code: 'NRC_PHOTO_REQUIRED',
-           message:
-             'NRC card photo is required for shop owner registration.',
-         });
-       }
-     }
-
-
-     // ========================================================
-     // ADMIN REGISTER BLOCK
-     // ========================================================
-
-     if (role === 'admin') {
-       return res.status(403).json({
-         success: false,
-         code: 'ADMIN_REGISTER_NOT_ALLOWED',
-         message: 'Cannot register as admin',
-       });
-     }
-
-     // ========================================================
-     // CHECK EXISTING USER
-     // ========================================================
-
-     const existingUser = await User.findOne({
-       email: cleanEmail,
-     });
-
-     if (existingUser) {
-       return res.status(400).json({
-         success: false,
-         code: 'EMAIL_EXISTS',
-         message: 'Email already exists',
-       });
-     }
-
-     // ========================================================
-     // GENERATE OTP
-     // ========================================================
-
-     const otp =
-       Math.floor(
-         100000 + Math.random() * 900000
-       ).toString();
-
-     console.log('=================================');
-     console.log('GENERATED OTP:', otp);
-     console.log('EMAIL:', cleanEmail);
-     console.log('=================================');
-
-     // ========================================================
-     // CREATE USER
-     // ========================================================
-
-     const user = await User.create({
-
-       name: name.trim(),
-
-       email: cleanEmail,
-
-       password,
-
-       phone: phone?.trim() || '',
-
-       role: role || 'user',
-
-       businessProfile:
-         role === 'business_owner'
-           ? {
-               businessName:
-                 businessProfile?.businessName?.trim() || '',
-
-               businessType:
-                 businessProfile?.businessType || '',
-
-               address:
-                 businessProfile?.address?.trim() || '',
-
-               latitude:
-                 businessProfile?.latitude ?? null,
-
-               longitude:
-                 businessProfile?.longitude ?? null,
-
-               description:
-                 businessProfile?.description?.trim() || '',
-                 nrcCardPhoto: businessProfile?.nrcCardPhoto?.trim() || '',
-
-               agreementAccepted: false,
-
-               verificationStatus: 'draft',
-
-               rejectReason: '',
-             }
-           : {},
-
-       // ======================================================
-       // OTP SAVED TO DATABASE
-       // ======================================================
-
-       otp: otp,
-
-       otpExpiresAt:
-         Date.now() + 5 * 60 * 1000,
-
-       lastOtpSentAt:
-         Date.now(),
-
-       isVerified: false,
-     });
-
-     console.log(
-       '✅ USER CREATED:',
-       user._id
-     );
-
-     // ========================================================
-     // NO EMAIL SENDING
-     // ========================================================
-     // OTP is returned directly to Flutter.
-     // Flutter can display it on Verify Email page.
-     // ========================================================
-
-     return res.status(201).json({
-
-       success: true,
-
-       message:
-         'Registration successful. Please verify your account.',
-
-       userId:
-         user._id,
-
-       email:
-         user.email,
-
-       // DEMO / PROJECT OTP
-       otp:
-         otp,
-
-     });
-
-   } catch (err) {
-
-     console.error(
-       '❌ REGISTER ERROR:',
-       err
-     );
-
-     return res.status(500).json({
-
-       success: false,
-
-       message:
-         err.message ||
-         'Registration failed',
-
-     });
-   }
- });
+router.post(
+  '/register',
+  upload.single('nrcCardPhoto'),
+  async (req, res) => {
+
+    console.log('=================================');
+    console.log('REGISTER HIT');
+    console.log('=================================');
+
+    console.log('BODY =>', req.body);
+    console.log('FILE =>', req.file ? req.file.originalname : 'NO FILE');
+
+    const {
+      name,
+      email,
+      password,
+      phone,
+      role,
+      businessProfile,
+    } = req.body;
+
+    try {
+
+      // ========================================================
+      // PARSE BUSINESS PROFILE
+      // ========================================================
+
+      let parsedBusinessProfile = {};
+
+      if (businessProfile) {
+        try {
+          parsedBusinessProfile =
+            typeof businessProfile === 'string'
+              ? JSON.parse(businessProfile)
+              : businessProfile;
+        } catch (error) {
+          return res.status(400).json({
+            success: false,
+            code: 'INVALID_BUSINESS_PROFILE',
+            message: 'Invalid business profile data',
+          });
+        }
+      }
+
+      // ========================================================
+      // BASIC VALIDATION
+      // ========================================================
+
+      if (!name || !name.trim()) {
+        return res.status(400).json({
+          success: false,
+          code: 'INVALID_NAME',
+          message: 'Name is required',
+        });
+      }
+
+      if (!email || !email.trim()) {
+        return res.status(400).json({
+          success: false,
+          code: 'INVALID_EMAIL',
+          message: 'Email is required',
+        });
+      }
+
+      if (!password) {
+        return res.status(400).json({
+          success: false,
+          code: 'INVALID_PASSWORD',
+          message: 'Password is required',
+        });
+      }
+
+      // ========================================================
+      // EMAIL FORMAT
+      // ========================================================
+
+      const cleanEmail =
+        email.trim().toLowerCase();
+
+      const gmailRegex =
+        /^(?=.*[a-z])(?=.*\d)[a-z0-9._%+-]+@gmail\.com$/;
+
+      if (!gmailRegex.test(cleanEmail)) {
+        return res.status(400).json({
+          success: false,
+          code: 'INVALID_EMAIL',
+          message:
+            'Please enter a valid Gmail address.',
+        });
+      }
+
+      // ========================================================
+      // STRONG PASSWORD
+      // ========================================================
+
+      const strongPasswordRegex =
+        /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[!@#$%^&*(),.?":{}|<>_\-]).{8,}$/;
+
+      if (!strongPasswordRegex.test(password)) {
+        return res.status(400).json({
+          success: false,
+          code: 'WEAK_PASSWORD',
+          message:
+            'Password must be at least 8 characters and contain uppercase, lowercase, number, and special character.',
+        });
+      }
+
+      // ========================================================
+      // SHOP OWNER VALIDATION
+      // ========================================================
+
+      if (role === 'business_owner') {
+
+        // ======================================================
+        // PHONE REQUIRED
+        // ======================================================
+
+        if (!phone || !phone.trim()) {
+          return res.status(400).json({
+            success: false,
+            code: 'PHONE_REQUIRED',
+            message:
+              'Phone number is required for shop owner registration.',
+          });
+        }
+
+        // ======================================================
+        // MYANMAR PHONE FORMAT
+        // ======================================================
+
+        const cleanPhone =
+          phone.trim();
+
+        const phoneRegex =
+          /^09\d{9}$/;
+
+        if (!phoneRegex.test(cleanPhone)) {
+          return res.status(400).json({
+            success: false,
+            code: 'INVALID_PHONE',
+            message:
+              'Please enter a valid Myanmar phone number starting with 09.',
+          });
+        }
+
+        // ======================================================
+        // NRC PHOTO REQUIRED
+        // ======================================================
+
+        if (!req.file) {
+          return res.status(400).json({
+            success: false,
+            code: 'NRC_PHOTO_REQUIRED',
+            message:
+              'NRC card photo is required for shop owner registration.',
+          });
+        }
+      }
+
+      // ========================================================
+      // ADMIN REGISTER BLOCK
+      // ========================================================
+
+      if (role === 'admin') {
+        return res.status(403).json({
+          success: false,
+          code: 'ADMIN_REGISTER_NOT_ALLOWED',
+          message:
+            'Cannot register as admin',
+        });
+      }
+
+      // ========================================================
+      // CHECK EXISTING USER
+      // ========================================================
+
+      const existingUser =
+        await User.findOne({
+          email: cleanEmail,
+        });
+
+      if (existingUser) {
+        return res.status(400).json({
+          success: false,
+          code: 'EMAIL_EXISTS',
+          message:
+            'Email already exists',
+        });
+      }
+
+      // ========================================================
+      // GENERATE OTP
+      // ========================================================
+
+      const otp =
+        Math.floor(
+          100000 +
+          Math.random() * 900000
+        ).toString();
+
+      console.log('=================================');
+      console.log('GENERATED OTP:', otp);
+      console.log('EMAIL:', cleanEmail);
+      console.log('=================================');
+
+      // ========================================================
+      // NRC PHOTO
+      // ========================================================
+
+      let nrcCardPhoto = '';
+
+      if (req.file) {
+
+        nrcCardPhoto =
+          `data:${req.file.mimetype};base64,${req.file.buffer.toString('base64')}`;
+
+        console.log(
+          'NRC PHOTO SAVED',
+          req.file.originalname
+        );
+      }
+
+      // ========================================================
+      // CREATE USER
+      // ========================================================
+
+      const user =
+        await User.create({
+
+          name:
+            name.trim(),
+
+          email:
+            cleanEmail,
+
+          password,
+
+          phone:
+            phone?.trim() || '',
+
+          role:
+            role || 'user',
+
+          businessProfile:
+            role === 'business_owner'
+              ? {
+
+                  businessName:
+                    parsedBusinessProfile
+                      ?.businessName
+                      ?.trim() || '',
+
+                  businessType:
+                    parsedBusinessProfile
+                      ?.businessType || '',
+
+                  address:
+                    parsedBusinessProfile
+                      ?.address
+                      ?.trim() || '',
+
+                  latitude:
+                    parsedBusinessProfile
+                      ?.latitude ?? null,
+
+                  longitude:
+                    parsedBusinessProfile
+                      ?.longitude ?? null,
+
+                  description:
+                    parsedBusinessProfile
+                      ?.description
+                      ?.trim() || '',
+
+                  nrcCardPhoto:
+                    nrcCardPhoto,
+
+                  agreementAccepted:
+                    false,
+
+                  verificationStatus:
+                    'draft',
+
+                  rejectReason:
+                    '',
+                }
+
+              : {},
+
+          // ======================================================
+          // OTP
+          // ======================================================
+
+          otp:
+            otp,
+
+          otpExpiresAt:
+            Date.now() +
+            5 * 60 * 1000,
+
+          lastOtpSentAt:
+            Date.now(),
+
+          isVerified:
+            false,
+        });
+
+      console.log(
+        '✅ USER CREATED:',
+        user._id
+      );
+
+      // ========================================================
+      // SUCCESS
+      // ========================================================
+
+      return res.status(201).json({
+
+        success:
+          true,
+
+        message:
+          'Registration successful. Please verify your account.',
+
+        userId:
+          user._id,
+
+        email:
+          user.email,
+
+        otp:
+          otp,
+      });
+
+    } catch (err) {
+
+      console.error(
+        '❌ REGISTER ERROR:',
+        err
+      );
+
+      return res.status(500).json({
+
+        success:
+          false,
+
+        message:
+          err.message ||
+          'Registration failed',
+
+      });
+    }
+  }
+);
 
 
 // ============================================================

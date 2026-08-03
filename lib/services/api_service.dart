@@ -141,133 +141,177 @@ return {
 // BUSINESS OWNER
 // =====================================================
 
-static Future<Map<String, dynamic>> registerShopOwner({
-required String ownerName,
-required String shopName,
-required String email,
-required String phone,
-required String shopAddress,
-required String password,
-required Uint8List? nrcCardPhotoBytes,
-required String? nrcFileName,
-}) async {
-try {
-// IMPORTANT:
-// Normal register uses:
-// $baseUrl/api/auth/register
-//
-// So Shop Owner Register must also use:
-// $baseUrl/api/auth/register
+// ─────────────────────────────
+// SHOP OWNER REGISTER
+// ─────────────────────────────
 
-final uri = Uri.parse(
-'$baseUrl/api/auth/register',
-);
+  static Future<Map<String, dynamic>> registerShopOwner({
+    required String ownerName,
+    required String shopName,
+    required String email,
+    required String phone,
+    required String shopAddress,
+    required String password,
+    required Uint8List? nrcCardPhotoBytes,
+    required String? nrcFileName,
+  }) async {
+    try {
+      final uri = Uri.parse(
+        '$baseUrl/api/auth/register',
+      );
 
-print('================================');
-print('SHOP OWNER REGISTER');
-print('REGISTER URL => $uri');
-print('================================');
+      print('================================');
+      print('SHOP OWNER REGISTER');
+      print('REGISTER URL => $uri');
+      print('================================');
 
-final request = http.MultipartRequest(
-'POST',
-uri,
-);
+      final request = http.MultipartRequest(
+        'POST',
+        uri,
+      );
 
-// =================================================
-// TEXT FIELDS
-// =================================================
+      // ==========================================
+      // TEXT FIELDS
+      // ==========================================
 
-request.fields['name'] = ownerName.trim();
-request.fields['email'] = email.trim();
-request.fields['password'] = password;
-request.fields['phone'] = phone.trim();
-request.fields['role'] = 'business_owner';
+      request.fields['name'] =
+          ownerName.trim();
 
-// =================================================
-// BUSINESS PROFILE
-// =================================================
+      request.fields['email'] =
+          email.trim();
 
-request.fields['businessProfile'] = jsonEncode({
-'businessName': shopName.trim(),
-'address': shopAddress.trim(),
-});
+      request.fields['password'] =
+          password;
 
-// =================================================
-// NRC IMAGE
-// IMPORTANT:
-// Use bytes instead of XFile.path
-// because temporary cache path may disappear.
-// =================================================
+      request.fields['phone'] =
+          phone.trim();
 
-if (nrcCardPhotoBytes != null &&
-nrcCardPhotoBytes.isNotEmpty) {
-request.files.add(
-http.MultipartFile.fromBytes(
-'nrcCardPhoto',
-nrcCardPhotoBytes,
-filename: nrcFileName ?? 'nrc_card.jpg',
-),
-);
+      request.fields['role'] =
+      'business_owner';
 
-print(
-'NRC FILE => ${nrcFileName ?? 'nrc_card.jpg'}',
-);
+      // ==========================================
+      // BUSINESS PROFILE
+      // ==========================================
 
-print(
-'NRC BYTES => ${nrcCardPhotoBytes.length}',
-);
-} else {
-print('NRC FILE => No file selected');
-}
+      request.fields['businessProfile'] =
+          jsonEncode({
+            'businessName':
+            shopName.trim(),
 
-// =================================================
-// SEND REQUEST
-// =================================================
+            'address':
+            shopAddress.trim(),
+          });
 
-print('Sending Shop Owner Register Request...');
+      // ==========================================
+      // NRC IMAGE
+      // ==========================================
 
-final streamedResponse = await request
-    .send()
-    .timeout(
-const Duration(seconds: 30),
-);
+      if (nrcCardPhotoBytes != null &&
+          nrcCardPhotoBytes.isNotEmpty) {
+        request.files.add(
+          http.MultipartFile.fromBytes(
+            'nrcCardPhoto',
+            nrcCardPhotoBytes,
+            filename:
+            nrcFileName ??
+                'nrc_card.jpg',
+          ),
+        );
+      }
 
-final response = await http.Response.fromStream(
-streamedResponse,
-);
+      // ==========================================
+      // DEBUG
+      // ==========================================
 
-print(
-'REGISTER STATUS => ${response.statusCode}',
-);
+      print(
+        'OWNER NAME => ${request.fields['name']}',
+      );
 
-print(
-'REGISTER BODY => ${response.body}',
-);
+      print(
+        'SHOP NAME => $shopName',
+      );
 
-// =================================================
-// PARSE RESPONSE
-// =================================================
+      print(
+        'EMAIL => ${request.fields['email']}',
+      );
 
-if (response.body.isEmpty) {
-return {
-'success': false,
-'message': 'Empty response from server',
-};
-}
+      print(
+        'PHONE => ${request.fields['phone']}',
+      );
 
-final data = jsonDecode(response.body);
+      print(
+        'ROLE => ${request.fields['role']}',
+      );
 
-return Map<String, dynamic>.from(data);
-} catch (e) {
-print('SHOP OWNER REGISTER ERROR => $e');
+      print(
+        'BUSINESS PROFILE => '
+            '${request.fields['businessProfile']}',
+      );
 
-return {
-'success': false,
-'message': e.toString(),
-};
-}
-}
+      print(
+        'NRC FILE => $nrcFileName',
+      );
 
+      print(
+        'NRC BYTES => '
+            '${nrcCardPhotoBytes?.length}',
+      );
+
+      print(
+        'Sending Shop Owner Register Request...',
+      );
+
+      // ==========================================
+      // SEND REQUEST
+      // ==========================================
+
+      final streamedResponse =
+      await request.send();
+
+      final response =
+      await http.Response.fromStream(
+        streamedResponse,
+      );
+
+      // ==========================================
+      // RESPONSE DEBUG
+      // ==========================================
+
+      print(
+        'REGISTER STATUS => '
+            '${response.statusCode}',
+      );
+
+      print(
+        'REGISTER BODY => '
+            '${response.body}',
+      );
+
+      // ==========================================
+      // PARSE RESPONSE
+      // ==========================================
+
+      final data =
+      jsonDecode(response.body);
+
+      return Map<String, dynamic>.from(
+        data,
+      );
+    } catch (e, stackTrace) {
+      print(
+        'SHOP OWNER REGISTER ERROR => $e',
+      );
+
+      print(
+        'STACK TRACE => $stackTrace',
+      );
+
+      return {
+        'success': false,
+        'message': e.toString(),
+      };
+    }
+  }
 // =====================================================
 // VERIFY EMAIL (OTP)
 // =====================================================
