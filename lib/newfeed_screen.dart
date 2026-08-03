@@ -3,6 +3,7 @@ import 'dart:convert';
 
 import 'dart:io';
 import 'dart:typed_data';
+import 'dart:ui' as ui;
 import 'package:biopet/Login_Screen.dart';
 import 'package:biopet/models/post.dart';
 import 'package:biopet/services/api_service.dart';
@@ -17,22 +18,22 @@ import 'package:image_picker/image_picker.dart';
 // =====================================================
 
 class _T {
-static const Color bg = Color(0xFFF4FAF5);
-static const Color surface = Color(0xFFFFFFFF);
+  static const Color bg = Color(0xFFFFF8E7); // Cream
+  static const Color surface = Color(0xFFFFFFFF); // White
 
-static const Color primary = Color(0xFF3A8C5C);
-static const Color primaryLight = Color(0xFFD6EDDF);
+  static const Color primary = Color(0xFF065F46); // Emerald
+  static const Color primaryLight = Color(0xFFA7F3D0); // Mint
 
-static const Color accent = Color(0xFFFF6B6B);
+  static const Color accent = Color(0xFF10B981); // Fresh green
 
-static const Color textPrimary = Color(0xFF1A1A2E);
-static const Color textSecondary = Color(0xFF6B7280);
+  static const Color textPrimary = Color(0xFF071426); // Dark navy
+  static const Color textSecondary = Color(0xFF64748B); // Soft grey
 
-static const Color divider = Color(0xFFE8F0EA);
+  static const Color divider = Color(0xFFDDEDE5); // Light mint divider
 
-static const double cardRadius = 16;
-static const double chipRadius = 24;
-static const double pagePad = 16;
+  static const double cardRadius = 16;
+  static const double chipRadius = 24;
+  static const double pagePad = 16;
 }
 
 
@@ -1468,6 +1469,10 @@ ImagePicker();
 
 List<File> _selectedImages = [];
 
+static const int _maxImageCount = 10;
+static const int _maxImageBytes =
+5 * 1024 * 1024;
+
 bool _isPosting = false;
 
 String? _error;
@@ -1498,6 +1503,239 @@ setState(() {});
 // PICK IMAGES
 // =====================================================
 
+bool _isJpeg(
+Uint8List bytes,
+) {
+return bytes.length >= 3 &&
+bytes[0] == 0xFF &&
+bytes[1] == 0xD8 &&
+bytes[2] == 0xFF;
+}
+
+
+bool _isPng(
+Uint8List bytes,
+) {
+return bytes.length >= 8 &&
+bytes[0] == 0x89 &&
+bytes[1] == 0x50 &&
+bytes[2] == 0x4E &&
+bytes[3] == 0x47 &&
+bytes[4] == 0x0D &&
+bytes[5] == 0x0A &&
+bytes[6] == 0x1A &&
+bytes[7] == 0x0A;
+}
+
+
+bool _isWebp(
+Uint8List bytes,
+) {
+return bytes.length >= 12 &&
+String.fromCharCodes(
+bytes.sublist(0, 4),
+) == 'RIFF' &&
+String.fromCharCodes(
+bytes.sublist(8, 12),
+) == 'WEBP';
+}
+
+
+String? _supportedExtension(
+Uint8List bytes,
+) {
+if (_isJpeg(bytes)) {
+return 'jpg';
+}
+
+if (_isPng(bytes)) {
+return 'png';
+}
+
+if (_isWebp(bytes)) {
+return 'webp';
+}
+
+return null;
+}
+
+
+Future<void> _verifyDecodable(
+Uint8List bytes,
+) async {
+ui.Codec? codec;
+ui.FrameInfo? frame;
+
+try {
+codec = await ui.instantiateImageCodec(
+bytes,
+);
+
+frame = await codec.getNextFrame();
+} finally {
+frame?.image.dispose();
+codec?.dispose();
+}
+}
+
+
+Future<Uint8List> _convertToPng(
+Uint8List bytes, {
+required int maxDimension,
+}) async {
+ui.Codec? sourceCodec;
+ui.FrameInfo? sourceFrame;
+ui.Codec? resizedCodec;
+ui.FrameInfo? resizedFrame;
+
+try {
+sourceCodec = await ui.instantiateImageCodec(
+bytes,
+);
+
+sourceFrame =
+await sourceCodec.getNextFrame();
+
+final int originalWidth =
+sourceFrame.image.width;
+
+final int originalHeight =
+sourceFrame.image.height;
+
+int targetWidth = originalWidth;
+int targetHeight = originalHeight;
+
+if (originalWidth > maxDimension ||
+originalHeight > maxDimension) {
+if (originalWidth >= originalHeight) {
+targetWidth = maxDimension;
+targetHeight =
+(originalHeight * maxDimension /
+originalWidth)
+.round()
+.clamp(1, maxDimension)
+.toInt();
+} else {
+targetHeight = maxDimension;
+targetWidth =
+(originalWidth * maxDimension /
+originalHeight)
+.round()
+.clamp(1, maxDimension)
+.toInt();
+}
+}
+
+sourceFrame.image.dispose();
+sourceFrame = null;
+sourceCodec.dispose();
+sourceCodec = null;
+
+resizedCodec =
+await ui.instantiateImageCodec(
+bytes,
+targetWidth: targetWidth,
+targetHeight: targetHeight,
+);
+
+resizedFrame =
+await resizedCodec.getNextFrame();
+
+final ByteData? pngData =
+await resizedFrame.image.toByteData(
+format: ui.ImageByteFormat.png,
+);
+
+if (pngData == null) {
+throw Exception(
+'Could not convert the selected image.',
+);
+}
+
+return pngData.buffer.asUint8List(
+pngData.offsetInBytes,
+pngData.lengthInBytes,
+);
+} finally {
+sourceFrame?.image.dispose();
+sourceCodec?.dispose();
+resizedFrame?.image.dispose();
+resizedCodec?.dispose();
+}
+}
+
+
+Future<File> _preparePickedImage(
+XFile image,
+int index,
+) async {
+Uint8List bytes =
+await image.readAsBytes();
+
+if (bytes.isEmpty) {
+throw Exception(
+'ပုံဖိုင်အလွတ် ဖြစ်နေပါသည်။',
+);
+}
+
+try {
+await _verifyDecodable(
+bytes,
+);
+} catch (_) {
+throw Exception(
+'ဒီပုံအမျိုးအစားကို ဖတ်၍မရပါ။ JPG သို့မဟုတ် PNG ပုံကို ရွေးပါ။',
+);
+}
+
+String? extension =
+_supportedExtension(
+bytes,
+);
+
+if (extension == null) {
+try {
+bytes = await _convertToPng(
+bytes,
+maxDimension: 1200,
+);
+
+if (bytes.length > _maxImageBytes) {
+bytes = await _convertToPng(
+await image.readAsBytes(),
+maxDimension: 900,
+);
+}
+
+extension = 'png';
+} catch (_) {
+throw Exception(
+'ဒီပုံကို upload တင်နိုင်သော format သို့ ပြောင်း၍မရပါ။',
+);
+}
+}
+
+if (bytes.length > _maxImageBytes) {
+throw Exception(
+'ပုံတစ်ပုံလျှင် 5 MB ထက် မကြီးရပါ။',
+);
+}
+
+final String outputPath =
+'${image.path}.biopet_${DateTime.now().microsecondsSinceEpoch}_$index.$extension';
+
+final File outputFile =
+File(outputPath);
+
+await outputFile.writeAsBytes(
+bytes,
+flush: true,
+);
+
+return outputFile;
+}
+
+
 Future<void> _pickImages() async {
 if (_isPosting) {
 return;
@@ -1506,7 +1744,11 @@ return;
 try {
 final List<XFile> pickedImages =
 await _picker.pickMultiImage(
-limit: 10,
+maxWidth: 1600,
+maxHeight: 1600,
+imageQuality: 82,
+limit: _maxImageCount,
+requestFullMetadata: false,
 );
 
 if (!mounted) {
@@ -1518,16 +1760,51 @@ return;
 }
 
 setState(() {
-_selectedImages =
-pickedImages
-    .take(10)
-    .map(
-(image) =>
-File(
-image.path,
+_error = null;
+});
+
+final List<File> preparedImages = [];
+final List<String> rejectedMessages = [];
+
+for (int index = 0;
+index < pickedImages.length &&
+preparedImages.length < _maxImageCount;
+index++) {
+try {
+final File prepared =
+await _preparePickedImage(
+pickedImages[index],
+index,
+);
+
+preparedImages.add(
+prepared,
+);
+} catch (e) {
+rejectedMessages.add(
+e.toString().replaceFirst(
+'Exception: ',
+'',
 ),
-)
-    .toList();
+);
+}
+}
+
+if (!mounted) {
+return;
+}
+
+setState(() {
+_selectedImages = preparedImages;
+
+if (preparedImages.isEmpty) {
+_error = rejectedMessages.isNotEmpty
+? rejectedMessages.first
+: 'ပုံကို ရွေး၍မရပါ။';
+} else if (rejectedMessages.isNotEmpty) {
+_error =
+'ဖတ်၍မရသောပုံ ${rejectedMessages.length} ပုံကို မထည့်ထားပါ။';
+}
 });
 } catch (e) {
 debugPrint(
@@ -1540,11 +1817,18 @@ return;
 
 setState(() {
 _error =
-'Could not select images.';
+e.toString()
+.replaceFirst(
+'Exception: ',
+'',
+)
+.replaceFirst(
+'PlatformException(',
+'',
+);
 });
 }
 }
-
 
 // =====================================================
 // REMOVE IMAGE
@@ -1559,11 +1843,22 @@ _selectedImages.length) {
 return;
 }
 
+final File removedFile =
+_selectedImages[index];
+
 setState(() {
 _selectedImages.removeAt(
 index,
 );
 });
+
+if (removedFile.path.contains(
+'.biopet_',
+)) {
+removedFile.delete().catchError(
+(_) => removedFile,
+);
+}
 }
 
 
@@ -1678,6 +1973,17 @@ _onTextChanged,
 );
 
 _controller.dispose();
+
+for (final File image in
+_selectedImages) {
+if (image.path.contains(
+'.biopet_',
+)) {
+image.delete().catchError(
+(_) => image,
+);
+}
+}
 
 super.dispose();
 }
@@ -1994,6 +2300,25 @@ height:
 
 fit:
 BoxFit.cover,
+
+errorBuilder:
+(
+context,
+error,
+stackTrace,
+) {
+return Container(
+width: 100,
+height: 100,
+color: _T.bg,
+alignment: Alignment.center,
+child: const Icon(
+Icons.broken_image_outlined,
+color: _T.accent,
+size: 32,
+),
+);
+},
 ),
 ),
 

@@ -10,24 +10,14 @@ android {
     ndkVersion = "28.2.13676358"
 
     compileOptions {
-        sourceCompatibility = JavaVersion.VERSION_17
-        targetCompatibility = JavaVersion.VERSION_17
+        sourceCompatibility =
+            JavaVersion.VERSION_17
+        targetCompatibility =
+            JavaVersion.VERSION_17
     }
 
     kotlinOptions {
         jvmTarget = "17"
-    }
-
-    java {
-        toolchain {
-            languageVersion.set(JavaLanguageVersion.of(17))
-        }
-    }
-
-
-
-    kotlin {
-        jvmToolchain(17)
     }
 
     defaultConfig {
@@ -40,7 +30,8 @@ android {
 
     buildTypes {
         release {
-            signingConfig = signingConfigs.getByName("debug")
+            signingConfig =
+                signingConfigs.getByName("debug")
         }
     }
 }

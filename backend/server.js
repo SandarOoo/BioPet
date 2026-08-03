@@ -203,3 +203,37 @@ const startServer = async () => {
 };
 
 startServer();
+console.log("=================================");
+console.log("ENVIRONMENT CHECK");
+console.log("=================================");
+
+console.log(
+  "MONGO_URI EXISTS:",
+  !!process.env.MONGO_URI
+);
+
+console.log(
+  "JWT_SECRET EXISTS:",
+  !!process.env.JWT_SECRET
+);
+
+console.log(
+  "JWT_EXPIRE:",
+  process.env.JWT_EXPIRE
+);
+
+console.log(
+  "BREVO KEY EXISTS:",
+  !!process.env.BREVO_API_KEY
+);
+
+console.log(
+  "OPENAI_API_KEY EXISTS:",
+  !!process.env.OPENAI_API_KEY
+);
+
+console.log(
+  "OPENAI_VISION_MODEL:",
+  process.env.OPENAI_VISION_MODEL ||
+    "gpt-4.1-mini"
+);
