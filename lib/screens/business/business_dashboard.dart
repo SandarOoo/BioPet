@@ -48,6 +48,17 @@ class _BusinessDashboardState extends State<BusinessDashboard> {
     ]);
   }
 
+  Future<void> logout() async {
+    await ApiService.logout();
+
+    if (!mounted) return;
+
+    Navigator.of(context).pushNamedAndRemoveUntil(
+      '/login',
+          (route) => false,
+    );
+  }
+
   Future<void> loadCurrentUser() async {
     try {
       final response = await ApiService.getCurrentUser();
@@ -199,20 +210,20 @@ class _BusinessDashboardState extends State<BusinessDashboard> {
   }
 
   List<Widget> get pages => [
-        DashboardHome(
-          businessName: businessName,
-          businessType: businessType,
-          businessAddress: businessAddress,
-          ownerName: ownerName,
-          productCount: products.length,
-          orderCount: orders.length,
-          recentOrders: recentOrders,
-          loadingProducts: loadingProducts,
-          loadingOrders: loadingOrders,
-          onAddProduct: openAddProduct,
-          onViewOrders: openOrders,
-          onRefresh: loadDashboardData,
-        ),
+    DashboardHome(
+      businessName: businessName,
+      businessType: businessType,
+      businessAddress: businessAddress,
+      ownerName: ownerName,
+      productCount: products.length,
+      orderCount: orders.length,
+      recentOrders: recentOrders,
+      loadingProducts: loadingProducts,
+      loadingOrders: loadingOrders,
+      onAddProduct: openAddProduct,
+      onViewOrders: openOrders,
+      onLogout: logout,
+    ),
         const SellerProductsScreen(),
         SellerOrdersScreen(
           orders: orders,
@@ -314,7 +325,7 @@ class DashboardHome extends StatelessWidget {
   final bool loadingOrders;
   final VoidCallback onAddProduct;
   final VoidCallback onViewOrders;
-  final Future<void> Function() onRefresh;
+  final VoidCallback onLogout;
 
   const DashboardHome({
     super.key,
@@ -329,8 +340,10 @@ class DashboardHome extends StatelessWidget {
     required this.loadingOrders,
     required this.onAddProduct,
     required this.onViewOrders,
-    required this.onRefresh,
+    required this.onLogout,
   });
+
+
 
   @override
   Widget build(BuildContext context) {
@@ -352,13 +365,16 @@ class DashboardHome extends StatelessWidget {
             decoration: BoxDecoration(
               color: Colors.white,
               borderRadius: BorderRadius.circular(14),
-              border: Border.all(color: const Color(0xFFE2ECE7)),
+              border: Border.all(
+                color: const Color(0xFFE2ECE7),
+              ),
             ),
             child: IconButton(
               padding: EdgeInsets.zero,
-              onPressed: onRefresh,
+              tooltip: 'Logout',
+              onPressed: onLogout,
               icon: const Icon(
-                Icons.refresh_rounded,
+                Icons.logout_rounded,
                 color: _emerald,
                 size: 21,
               ),
@@ -366,10 +382,7 @@ class DashboardHome extends StatelessWidget {
           ),
         ],
       ),
-      body: RefreshIndicator(
-        onRefresh: onRefresh,
-        color: _emerald,
-        child: ListView(
+      body: ListView(
           physics: const AlwaysScrollableScrollPhysics(),
           padding: const EdgeInsets.fromLTRB(16, 8, 16, 32),
           children: [
@@ -489,7 +502,6 @@ class DashboardHome extends StatelessWidget {
               ),
           ],
         ),
-      ),
     );
   }
 }
