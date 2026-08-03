@@ -2,7 +2,10 @@ const express = require("express");
 const router = express.Router();
 
 const { protect } = require("../middleware/auth");
-const upload = require("../middleware/upload");
+
+// =====================================================
+// CONTROLLERS
+// =====================================================
 
 const {
   acceptAgreement,
@@ -14,113 +17,145 @@ const {
 } = require("../controllers/businessController");
 
 const {
-  addProduct,
-  getBusinessProducts,
-  deleteProduct,
+  createProduct,
+  getMyProducts,
+  getAllProducts,
   updateProduct,
-  getShopProducts,
+  deleteProduct,
 } = require("../controllers/productController");
 
-// ============================================================
-// BUSINESS PROFILE
-// ============================================================
+// =====================================================
+// MULTER UPLOAD
+// =====================================================
 
+const multer = require("multer");
+
+// Store uploaded image in memory.
+// This is suitable if we save image as Base64 in MongoDB.
+const storage = multer.memoryStorage();
+
+const upload = multer({
+  storage: storage,
+
+  limits: {
+    fileSize: 5 * 1024 * 1024, // 5 MB
+  },
+
+  fileFilter: (req, file, cb) => {
+    // Accept only image MIME types
+    if (file.mimetype && file.mimetype.startsWith("image/")) {
+      cb(null, true);
+    } else {
+      cb(new Error("Only image files are allowed."));
+    }
+  },
+});
+
+// =====================================================
+// BUSINESS PROFILE
+// =====================================================
+
+// Update business profile
 router.put(
   "/profile",
   protect,
   updateBusinessProfile
 );
 
-// ============================================================
-// BUSINESS AGREEMENT
-// ============================================================
-
+// Accept business agreement
 router.put(
   "/agreement",
   protect,
   acceptAgreement
 );
 
-// ============================================================
-// BUSINESS LOCATION
-// ============================================================
-
+// Update business location
 router.put(
   "/location",
   protect,
   updateLocation
 );
 
-// ============================================================
-// SUBMIT BUSINESS
-// ============================================================
-
+// Submit business application
 router.put(
   "/submit",
   protect,
   submitBusiness
 );
 
-// ============================================================
-// MY SELLER PROFILE
-// ============================================================
+// =====================================================
+// SELLER PROFILE
+// =====================================================
 
+// Business owner views own profile
 router.get(
   "/my-profile",
   protect,
   getMySellerProfile
 );
 
-// ============================================================
-// PUBLIC SELLER PROFILE
-// ============================================================
-
+// Customer views public seller profile
 router.get(
   "/seller/:sellerId",
   getSellerProfile
 );
 
-// ============================================================
-// ADD PRODUCT
+// =====================================================
+// PRODUCTS
+// =====================================================
+
+// -----------------------------------------------------
+// BUSINESS OWNER
+// GET MY PRODUCTS
+// GET /api/business/products
+// -----------------------------------------------------
+
+router.get(
+  "/products",
+  protect,
+  getMyProducts
+);
+
+// -----------------------------------------------------
+// BUSINESS OWNER
+// CREATE PRODUCT
 // POST /api/business/products
 //
-// Flutter:
-// Multipart field name = image
-// ============================================================
+// Multipart form-data:
+//
+// name
+// category
+// price
+// stock
+// description
+// image
+// -----------------------------------------------------
 
 router.post(
   "/products",
   protect,
   upload.single("image"),
-  addProduct
+  createProduct
 );
 
-// ============================================================
-// GET BUSINESS OWNER PRODUCTS
-// GET /api/business/products
-// ============================================================
+// -----------------------------------------------------
+// CUSTOMER
+// GET ALL PRODUCTS
+//
+// GET /api/business/shop/products
+// -----------------------------------------------------
 
 router.get(
-  "/products",
-  protect,
-  getBusinessProducts
+  "/shop/products",
+  getAllProducts
 );
 
-// ============================================================
-// DELETE PRODUCT
-// DELETE /api/business/products/:id
-// ============================================================
-
-router.delete(
-  "/products/:id",
-  protect,
-  deleteProduct
-);
-
-// ============================================================
+// -----------------------------------------------------
+// BUSINESS OWNER
 // UPDATE PRODUCT
+//
 // PUT /api/business/products/:id
-// ============================================================
+// -----------------------------------------------------
 
 router.put(
   "/products/:id",
@@ -128,14 +163,43 @@ router.put(
   updateProduct
 );
 
-// ============================================================
-// CUSTOMER SHOP PRODUCTS
-// GET /api/business/shop/products
-// ============================================================
+// -----------------------------------------------------
+// BUSINESS OWNER
+// DELETE PRODUCT
+//
+// DELETE /api/business/products/:id
+// -----------------------------------------------------
 
-router.get(
-  "/shop/products",
-  getShopProducts
+router.delete(
+  "/products/:id",
+  protect,
+  deleteProduct
 );
+
+// =====================================================
+// MULTER ERROR HANDLER
+// =====================================================
+
+router.use((err, req, res, next) => {
+  if (err instanceof multer.MulterError) {
+    console.error("MULTER ERROR:", err);
+
+    return res.status(400).json({
+      success: false,
+      message: err.message,
+    });
+  }
+
+  if (err) {
+    console.error("UPLOAD ERROR:", err);
+
+    return res.status(500).json({
+      success: false,
+      message: err.message,
+    });
+  }
+
+  next();
+});
 
 module.exports = router;
