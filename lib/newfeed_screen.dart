@@ -1863,6 +1863,187 @@ removedFile.delete().catchError(
 
 
 // =====================================================
+// CREATE POST ERROR MESSAGE
+// =====================================================
+
+String _createPostErrorMessage(
+Object error,
+) {
+String raw =
+error.toString().trim();
+
+raw = raw.replaceFirst(
+RegExp(
+r'^Exception:\s*',
+caseSensitive: false,
+),
+'',
+);
+
+String? responseCode;
+String? responseMessage;
+
+final int jsonStart =
+raw.indexOf('{');
+final int jsonEnd =
+raw.lastIndexOf('}');
+
+if (jsonStart >= 0 &&
+jsonEnd > jsonStart) {
+final String possibleJson =
+raw.substring(
+jsonStart,
+jsonEnd + 1,
+);
+
+try {
+final dynamic decoded =
+jsonDecode(
+possibleJson,
+);
+
+if (decoded is Map) {
+final Map<String, dynamic> body =
+Map<String, dynamic>.from(
+decoded,
+);
+
+responseCode =
+body['code']?.toString();
+responseMessage =
+body['message']?.toString();
+
+final dynamic moderation =
+body['imageModeration'];
+
+if ((responseCode == null ||
+responseCode!.isEmpty) &&
+moderation is Map) {
+responseCode =
+moderation['errorCode']
+?.toString();
+}
+
+if ((responseMessage == null ||
+responseMessage!.trim().isEmpty) &&
+moderation is Map) {
+responseMessage =
+moderation['reason']
+?.toString();
+}
+}
+} catch (_) {
+// The exception may contain non-JSON text.
+}
+}
+
+final String searchable =
+'${responseCode ?? ''} $raw'
+.toLowerCase();
+
+String? mappedMessage;
+
+if (searchable.contains(
+'openai_quota_exceeded',
+) ||
+searchable.contains(
+'insufficient_quota',
+) ||
+searchable.contains(
+'exceeded your current quota',
+)) {
+mappedMessage =
+'OpenAI API credit သို့မဟုတ် billing မရှိသေးပါ။ API billing ထည့်ပြီးမှ ပုံစစ်ဆေးနိုင်ပါမည်။';
+} else if (searchable.contains(
+'openai_auth_error',
+) ||
+searchable.contains(
+'incorrect api key',
+) ||
+searchable.contains(
+'invalid_api_key',
+)) {
+mappedMessage =
+'OpenAI API key မှားနေသည် သို့မဟုတ် အသုံးပြုခွင့်မရှိပါ။ Railway Variables ထဲက OPENAI_API_KEY ကို ပြန်စစ်ပါ။';
+} else if (searchable.contains(
+'openai_key_missing',
+)) {
+mappedMessage =
+'Railway Variables ထဲမှာ OPENAI_API_KEY မရှိပါ။ Key ထည့်ပြီး Redeploy လုပ်ပါ။';
+} else if (searchable.contains(
+'openai_model_not_available',
+) ||
+searchable.contains(
+'model_not_found',
+)) {
+mappedMessage =
+'OPENAI_VISION_MODEL မှာ သတ်မှတ်ထားသော model ကို အသုံးပြုခွင့်မရှိပါ။ Model name ကို ပြန်စစ်ပါ။';
+} else if (searchable.contains(
+'openai_rate_limited',
+) ||
+searchable.contains(
+'rate limit',
+)) {
+mappedMessage =
+'OpenAI request limit ပြည့်နေပါသည်။ ခဏစောင့်ပြီး ပြန်တင်ပါ။';
+} else if (searchable.contains(
+'openai_timeout',
+) ||
+searchable.contains(
+'timed out',
+) ||
+searchable.contains(
+'aborterror',
+)) {
+mappedMessage =
+'OpenAI ပုံစစ်ဆေးမှု အချိန်ကြာလွန်း၍ ရပ်သွားပါသည်။ ခဏနေ ပြန်တင်ပါ။';
+} else if (searchable.contains(
+'openai_network_error',
+) ||
+searchable.contains(
+'socketexception',
+) ||
+searchable.contains(
+'connection refused',
+)) {
+mappedMessage =
+'Backend မှ OpenAI ကို ဆက်သွယ်၍မရပါ။ Internet သို့မဟုတ် service connection ကို ပြန်စစ်ပါ။';
+} else if (searchable.contains(
+'pet_image_required',
+)) {
+mappedMessage =
+'ခွေး သို့မဟုတ် ကြောင်နှင့် သက်ဆိုင်သောပုံကိုသာ တင်နိုင်ပါသည်။';
+} else if (searchable.contains(
+'application failed to respond',
+) ||
+searchable.contains(
+'502',
+)) {
+mappedMessage =
+'Railway backend က response မပြန်နိုင်သေးပါ။ Deployment ပြီးမှ ပြန်တင်ပါ။';
+}
+
+final String message =
+(mappedMessage ??
+responseMessage ??
+raw)
+.trim();
+
+if (message.isEmpty) {
+return 'Post တင်၍မရပါ။ ပြန်စမ်းကြည့်ပါ။';
+}
+
+if (responseCode != null &&
+responseCode!.trim().isNotEmpty &&
+!message.contains(responseCode!)) {
+return '$message\nCode: $responseCode';
+}
+
+return message;
+}
+
+
+// =====================================================
 // SUBMIT POST
 // =====================================================
 
@@ -1946,10 +2127,8 @@ return;
 
 setState(() {
 _error =
-e.toString()
-    .replaceFirst(
-'Exception: ',
-'',
+_createPostErrorMessage(
+e,
 );
 });
 } finally {
