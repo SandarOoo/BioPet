@@ -1,48 +1,23 @@
 const multer = require("multer");
 
-const storage =
-  multer.memoryStorage();
+const storage = multer.memoryStorage();
 
-const allowedImageTypes =
-  new Set([
-    "image/jpeg",
-    "image/png",
-    "image/webp",
-  ]);
+const fileFilter = (req, file, cb) => {
+  if (file.mimetype.startsWith("image/")) {
+    cb(null, true);
+  } else {
+    cb(
+      new Error("Only image files are allowed."),
+      false
+    );
+  }
+};
 
 const upload = multer({
   storage,
-
+  fileFilter,
   limits: {
-    fileSize:
-      5 * 1024 * 1024,
-
-    files: 10,
-  },
-
-  fileFilter: (
-    req,
-    file,
-    callback
-  ) => {
-    if (
-      !allowedImageTypes.has(
-        file.mimetype
-      )
-    ) {
-      const error =
-        new multer.MulterError(
-          "LIMIT_UNEXPECTED_FILE",
-          file.fieldname
-        );
-
-      error.message =
-        "Only JPG, JPEG, PNG and WEBP images are allowed.";
-
-      return callback(error);
-    }
-
-    callback(null, true);
+    fileSize: 10 * 1024 * 1024,
   },
 });
 
