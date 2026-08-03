@@ -2,54 +2,81 @@ const mongoose = require("mongoose");
 
 const productSchema = new mongoose.Schema(
   {
-    // Product owner
-    owner: {
+    // ========================================================
+    // SELLER / BUSINESS OWNER
+    // ========================================================
+
+    seller: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "User",
       required: true,
     },
 
-    // Product name
+    // ========================================================
+    // PRODUCT NAME
+    // ========================================================
+
     name: {
       type: String,
       required: true,
       trim: true,
     },
 
-    // Product category
+    // ========================================================
+    // CATEGORY
+    // ========================================================
+
     category: {
       type: String,
       required: true,
       trim: true,
     },
 
-    // Product description
-    description: {
-      type: String,
-      default: "",
-      trim: true,
-    },
+    // ========================================================
+    // PRICE
+    // ========================================================
 
-    // Product price
     price: {
       type: Number,
       required: true,
       min: 0,
     },
 
-    // Product stock
+    // ========================================================
+    // STOCK
+    // ========================================================
+
     stock: {
       type: Number,
       default: 0,
       min: 0,
     },
 
-    // Product image
+    // ========================================================
+    // DESCRIPTION
+    // ========================================================
+
+    description: {
+      type: String,
+      default: "",
+      trim: true,
+    },
+
+    // ========================================================
+    // IMAGE
+    //
+    // Stored as Base64 string:
+    //
+    // data:image/jpeg;base64,...
+    //
+    // ========================================================
+
     image: {
       type: String,
       default: "",
     },
   },
+
   {
     timestamps: true,
   }

@@ -284,7 +284,6 @@ data['message'] ??
 // This avoids PathNotFoundException from temporary
 // ImagePicker cache files.
 // =====================================================
-
   Future<bool> addProduct({
     required String name,
     required String category,
@@ -295,113 +294,109 @@ data['message'] ??
     required String imageFileName,
   }) async {
     try {
-      // ===================================================
-      // GET TOKEN
-      // ===================================================
+      final token =
+      await ApiService.getToken();
 
-      final token = await ApiService.getToken();
-
-      if (token == null || token.isEmpty) {
+      if (token == null ||
+          token.isEmpty) {
         throw Exception(
           'Authentication token not found.',
         );
       }
 
-      // ===================================================
-      // VALIDATE IMAGE BYTES
-      // ===================================================
-
-      if (imageBytes.isEmpty) {
-        throw Exception(
-          'Product image is empty.',
-        );
-      }
-
-      // ===================================================
-      // URL
-      // ===================================================
-
       final url =
           '${ApiService.baseUrl}/api/business/products';
 
-      debugPrint('======================================');
-      debugPrint('ADD PRODUCT');
-      debugPrint('URL => $url');
-      debugPrint('PRODUCT NAME => $name');
-      debugPrint('CATEGORY => $category');
-      debugPrint('PRICE => $price');
-      debugPrint('STOCK => $stock');
-      debugPrint('IMAGE NAME => $imageFileName');
+      debugPrint(
+        '=================================',
+      );
+
+      debugPrint(
+        'ADD PRODUCT REQUEST',
+      );
+
+      debugPrint(
+        'URL => $url',
+      );
+
+      debugPrint(
+        'IMAGE => $imageFileName',
+      );
+
       debugPrint(
         'IMAGE BYTES => ${imageBytes.length}',
       );
-      debugPrint('======================================');
 
-      // ===================================================
-      // CREATE MULTIPART REQUEST
-      // ===================================================
+      debugPrint(
+        '=================================',
+      );
 
-      final request = http.MultipartRequest(
+      final request =
+      http.MultipartRequest(
         'POST',
         Uri.parse(url),
       );
 
-      // ===================================================
-      // HEADERS
-      // ===================================================
+      // ========================================================
+      // AUTH
+      // ========================================================
 
-      request.headers.addAll({
-        'Authorization': 'Bearer $token',
-        'Accept': 'application/json',
-        'ngrok-skip-browser-warning': 'true',
-      });
+      request.headers[
+      'Authorization'] =
+      'Bearer $token';
 
-      // ===================================================
+      request.headers[
+      'ngrok-skip-browser-warning'] =
+      'true';
+
+      // ========================================================
       // TEXT FIELDS
-      // ===================================================
+      // ========================================================
 
-      request.fields.addAll({
-        'name': name,
-        'category': category,
-        'price': price.toString(),
-        'stock': stock.toString(),
-        'description': description,
-      });
+      request.fields[
+      'name'] =
+          name;
 
-      // ===================================================
-      // IMAGE
+      request.fields[
+      'category'] =
+          category;
+
+      request.fields[
+      'price'] =
+          price.toString();
+
+      request.fields[
+      'stock'] =
+          stock.toString();
+
+      request.fields[
+      'description'] =
+          description;
+
+      // ========================================================
+      // IMAGE BYTES
       //
       // IMPORTANT:
-      // fromBytes() does NOT use image.path
+      // Do NOT use MultipartFile.fromPath()
       //
-      // So temporary cache file deletion will NOT cause:
-      //
-      // PathNotFoundException
-      //
-      // ===================================================
+      // Because your XFile cache path may disappear.
+      // ========================================================
 
       request.files.add(
         http.MultipartFile.fromBytes(
           'image',
           imageBytes,
-          filename: imageFileName,
+          filename:
+          imageFileName,
         ),
       );
 
-      debugPrint(
-        'Sending multipart request...',
-      );
-
-      // ===================================================
+      // ========================================================
       // SEND REQUEST
-      // ===================================================
+      // ========================================================
 
       final response =
       await request.send();
-
-      // ===================================================
-      // READ RESPONSE
-      // ===================================================
 
       final responseBody =
       await response.stream
@@ -417,69 +412,28 @@ data['message'] ??
             '$responseBody',
       );
 
-      // ===================================================
-      // PARSE RESPONSE
-      // ===================================================
-
-      Map<String, dynamic>? data;
-
-      try {
-        final decoded =
-        jsonDecode(responseBody);
-
-        if (decoded is Map<String, dynamic>) {
-          data = decoded;
-        }
-      } catch (_) {
-        debugPrint(
-          'Response is not valid JSON.',
-        );
-      }
-
-      // ===================================================
+      // ========================================================
       // SUCCESS
-      // ===================================================
+      // ========================================================
 
-      if ((response.statusCode == 200 ||
-          response.statusCode == 201) &&
-          data?['success'] == true) {
-        debugPrint(
-          'PRODUCT ADDED SUCCESSFULLY',
-        );
-
+      if (response.statusCode ==
+          200 ||
+          response.statusCode ==
+              201) {
         return true;
       }
 
-      // ===================================================
-      // SOME BACKENDS MAY NOT RETURN success:true
-      //
-      // If your backend returns 200/201 but no success field,
-      // you can still treat it as success.
-      // ===================================================
-
-      if (response.statusCode == 200 ||
-          response.statusCode == 201) {
-        debugPrint(
-          'PRODUCT CREATED WITH STATUS '
-              '${response.statusCode}',
-        );
-
-        return true;
-      }
-
-      // ===================================================
-      // API ERROR
-      // ===================================================
-
-      final message =
-          data?['message'] ??
-              'Failed to add product.';
+      // ========================================================
+      // ERROR
+      // ========================================================
 
       throw Exception(
-        '$message\n'
-            'Status: ${response.statusCode}',
+        'Status: ${response.statusCode}\n'
+            'Response: $responseBody',
       );
+
     } catch (e) {
+
       debugPrint(
         'ADD PRODUCT ERROR => $e',
       );
