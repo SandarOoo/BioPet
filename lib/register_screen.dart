@@ -90,18 +90,43 @@ class _RegisterScreenState extends State<RegisterScreen>
         maxWidth: 1600,
       );
 
-      if (image != null) {
-        final bytes = await image.readAsBytes();
-
-        if (!mounted) return;
-
-        setState(() {
-          _nrcCardPhoto = image;
-          _nrcCardPhotoBytes = bytes;
-        });
+      if (image == null) {
+        return;
       }
-    } catch (e) {
-      debugPrint('NRC PHOTO PICK ERROR => $e');
+
+      // Read and store bytes immediately.
+      // This prevents problems when the temporary XFile path
+      // is deleted later by Android.
+      final Uint8List bytes = await image.readAsBytes();
+
+      if (!mounted) {
+        return;
+      }
+
+      setState(() {
+        _nrcCardPhoto = image;
+        _nrcCardPhotoBytes = bytes;
+      });
+
+      debugPrint(
+        'NRC PHOTO SELECTED',
+      );
+
+      debugPrint(
+        'NRC FILE NAME => ${image.name}',
+      );
+
+      debugPrint(
+        'NRC BYTES => ${bytes.length}',
+      );
+    } catch (e, stackTrace) {
+      debugPrint(
+        'NRC PHOTO PICK ERROR => $e',
+      );
+
+      debugPrint(
+        'STACK TRACE => $stackTrace',
+      );
 
       if (mounted) {
         _showMessage(
@@ -111,7 +136,6 @@ class _RegisterScreenState extends State<RegisterScreen>
       }
     }
   }
-
 
   Future<void> _handleRegister() async {
     FocusScope.of(context).unfocus();
@@ -172,36 +196,35 @@ class _RegisterScreenState extends State<RegisterScreen>
         // IMPORTANT:
         // Read image as bytes immediately.
         // Do NOT send XFile.path directly.
-        final Uint8List nrcBytes =
-        await _nrcCardPhoto!.readAsBytes();
+        // IMPORTANT:
+// Use the bytes already saved when the image was selected.
+// Do NOT call _nrcCardPhoto!.readAsBytes() again,
+// because XFile.path may point to a temporary cache file
+// that no longer exists.
 
-        data =
-        await ApiService.registerShopOwner(
-          ownerName:
-          _ownerNameController.text.trim(),
+        final Uint8List? nrcBytes = _nrcCardPhotoBytes;
 
-          shopName:
-          _shopNameController.text.trim(),
+        if (nrcBytes == null || nrcBytes.isEmpty) {
+          _showMessage(
+            'NRC card photo could not be loaded. Please select the photo again.',
+            isError: true,
+          );
+          return;
+        }
 
-          email:
-          email,
+        data = await ApiService.registerShopOwner(
+          ownerName: _ownerNameController.text.trim(),
+          shopName: _shopNameController.text.trim(),
+          email: email,
+          phone: _phoneController.text.trim(),
+          shopAddress: _shopAddressController.text.trim(),
+          password: _passwordController.text,
 
-          phone:
-          _phoneController.text.trim(),
+          // Use stored bytes
+          nrcCardPhotoBytes: nrcBytes,
 
-          shopAddress:
-          _shopAddressController.text.trim(),
-
-          password:
-          _passwordController.text,
-
-          // Send image bytes
-          nrcCardPhotoBytes:
-          nrcBytes,
-
-          // Send original filename
-          nrcFileName:
-          _nrcCardPhoto!.name,
+          // Filename can still come from XFile
+          nrcFileName: _nrcCardPhoto!.name,
         );
       }
 
@@ -806,6 +829,7 @@ class _RegisterScreenState extends State<RegisterScreen>
                             : () {
                           setState(() {
                             _nrcCardPhoto = null;
+                            _nrcCardPhotoBytes = null;
                           });
                         },
                         icon: const Icon(
