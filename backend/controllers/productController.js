@@ -129,7 +129,7 @@ exports.createProduct = async (req, res) => {
 
         image: imageBase64,
 
-        owner:
+        seller:
           req.user._id,
       });
 
