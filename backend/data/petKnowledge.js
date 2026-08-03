@@ -261,8 +261,8 @@ const UNRELATED_TERMS = [
   "စာစီစာကုံး",
   "သင်္ချာ",
   "math",
-  "rabbit"
-  "fish"
+  "rabbit",
+  "fish",
 ];
 
 const GREETING_TERMS = [
@@ -271,8 +271,8 @@ const GREETING_TERMS = [
   "hello",
   "hi",
   "hey",
-  "how are you?"
-  "how is great?"
+  "how are you?",
+  "how is great?",
 ];
 
 const HELP_TERMS = [
