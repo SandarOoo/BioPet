@@ -1,19 +1,22 @@
 
 import 'dart:convert';
+import 'dart:typed_data';
 
 import 'package:biopet/services/api_service.dart';
 import 'package:biopet/services/order_service.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:http/http.dart' as http;
-import 'package:image_picker/image_picker.dart';
+import 'package:http_parser/http_parser.dart';
 
 import '../models/product.dart';
 
 class BusinessService {
-final String baseUrl = dotenv.env['BASE_URL'] ?? '';
+final String baseUrl =
+dotenv.env['BASE_URL'] ?? '';
 
-final OrderService orderService = OrderService();
+final OrderService orderService =
+OrderService();
 
 // =====================================================
 // CREATE ORDER
@@ -27,43 +30,54 @@ required String phone,
 required String address,
 String paymentMethod = 'COD',
 }) async {
-final token = await ApiService.getToken();
+final token =
+await ApiService.getToken();
 
 final response = await http.post(
 Uri.parse(
 '${ApiService.baseUrl}/api/orders',
 ),
 headers: {
-'Content-Type': 'application/json',
-'Authorization': 'Bearer $token',
-'ngrok-skip-browser-warning': 'true',
+'Content-Type':
+'application/json',
+'Authorization':
+'Bearer $token',
+'ngrok-skip-browser-warning':
+'true',
 },
 body: jsonEncode({
 'productId': productId,
 'quantity': quantity,
 'phone': phone,
 'address': address,
-'paymentMethod': paymentMethod,
+'paymentMethod':
+paymentMethod,
 }),
 );
 
 debugPrint(
-'CREATE ORDER STATUS => ${response.statusCode}',
+'CREATE ORDER STATUS => '
+'${response.statusCode}',
 );
 
 debugPrint(
-'CREATE ORDER RESPONSE => ${response.body}',
+'CREATE ORDER RESPONSE => '
+'${response.body}',
 );
 
-final data = jsonDecode(response.body);
+final data =
+jsonDecode(response.body);
 
 if (response.statusCode == 201 &&
 data['success'] == true) {
-return Map<String, dynamic>.from(data);
+return Map<String, dynamic>.from(
+data,
+);
 }
 
 throw Exception(
-data['message'] ?? 'Failed to create order',
+data['message'] ??
+'Failed to create order',
 );
 }
 
@@ -72,8 +86,10 @@ data['message'] ?? 'Failed to create order',
 // CUSTOMER
 // =====================================================
 
-Future<List<dynamic>> getMyOrders() async {
-return await orderService.getMyOrders();
+Future<List<dynamic>>
+getMyOrders() async {
+return await orderService
+    .getMyOrders();
 }
 
 // =====================================================
@@ -81,10 +97,12 @@ return await orderService.getMyOrders();
 // CUSTOMER
 // =====================================================
 
-Future<Map<String, dynamic>> getOrderById(
+Future<Map<String, dynamic>>
+getOrderById(
 String orderId,
 ) async {
-return await orderService.getOrderDetail(
+return await orderService
+    .getOrderDetail(
 orderId,
 );
 }
@@ -94,84 +112,122 @@ orderId,
 // BUSINESS OWNER
 // =====================================================
 
-Future<List<dynamic>> getBusinessOrders() async {
-return await orderService.getBusinessOrders();
+Future<List<dynamic>>
+getBusinessOrders() async {
+return await orderService
+    .getBusinessOrders();
 }
 
 // =====================================================
 // GET ALL SHOP PRODUCTS
 // CUSTOMER SHOP
+//
 // GET /api/business/shop/products
 // =====================================================
 
-Future<List<Product>> getShopProducts() async {
+Future<List<Product>>
+getShopProducts() async {
 final url =
-'${ApiService.baseUrl}/api/business/shop/products';
+'${ApiService.baseUrl}'
+'/api/business/shop/products';
 
-debugPrint('======================================');
-debugPrint('GET SHOP PRODUCTS');
-debugPrint('URL => $url');
-debugPrint('======================================');
+debugPrint(
+'======================================',
+);
+
+debugPrint(
+'GET SHOP PRODUCTS',
+);
+
+debugPrint(
+'URL => $url',
+);
+
+debugPrint(
+'======================================',
+);
 
 try {
-final response = await http.get(
+final response =
+await http.get(
 Uri.parse(url),
 headers: {
-'Content-Type': 'application/json',
-'Accept': 'application/json',
-'ngrok-skip-browser-warning': 'true',
+'Content-Type':
+'application/json',
+'Accept':
+'application/json',
+'ngrok-skip-browser-warning':
+'true',
 },
 );
 
 debugPrint(
-'SHOP PRODUCTS STATUS => ${response.statusCode}',
+'SHOP PRODUCTS STATUS => '
+'${response.statusCode}',
 );
 
 debugPrint(
-'SHOP PRODUCTS RESPONSE => ${response.body}',
+'SHOP PRODUCTS RESPONSE => '
+'${response.body}',
 );
 
-if (response.statusCode != 200) {
+if (response.statusCode !=
+200) {
 throw Exception(
 'Failed to load products.\n'
-'Status: ${response.statusCode}\n'
-'Response: ${response.body}',
+'Status: '
+'${response.statusCode}\n'
+'Response: '
+'${response.body}',
 );
 }
 
 final contentType =
-response.headers['content-type'] ?? '';
+response.headers[
+'content-type'] ??
+'';
 
-if (!contentType.contains('application/json')) {
+if (!contentType.contains(
+'application/json',
+)) {
 throw Exception(
 'Server returned non-JSON response.\n'
-'Status: ${response.statusCode}\n'
-'Response: ${response.body}',
+'Status: '
+'${response.statusCode}\n'
+'Response: '
+'${response.body}',
 );
 }
 
-final data = jsonDecode(response.body);
+final data =
+jsonDecode(response.body);
 
-if (data['success'] != true) {
+if (data['success'] !=
+true) {
 throw Exception(
 data['message'] ??
 'Failed to load products',
 );
 }
 
-final List<dynamic> products =
+final List<dynamic>
+products =
 data['products'] ?? [];
 
 return products
     .map(
-(json) => Product.fromJson(
-Map<String, dynamic>.from(json),
+(json) =>
+Product.fromJson(
+Map<String, dynamic>.from(
+json,
+),
 ),
 )
     .toList();
 } catch (e) {
 debugPrint(
-'GET SHOP PRODUCTS ERROR => $e',
+'GET SHOP PRODUCTS ERROR => '
+'$e',
 );
 
 rethrow;
@@ -182,20 +238,27 @@ rethrow;
 // UPDATE ORDER STATUS
 // =====================================================
 
-Future<Map<String, dynamic>> updateOrderStatus({
+Future<Map<String, dynamic>>
+updateOrderStatus({
 required String orderId,
 required String status,
 }) async {
-final token = await ApiService.getToken();
+final token =
+await ApiService.getToken();
 
-final response = await http.put(
+final response =
+await http.put(
 Uri.parse(
-'${ApiService.baseUrl}/api/orders/$orderId/status',
+'${ApiService.baseUrl}'
+'/api/orders/$orderId/status',
 ),
 headers: {
-'Authorization': 'Bearer $token',
-'Content-Type': 'application/json',
-'ngrok-skip-browser-warning': 'true',
+'Authorization':
+'Bearer $token',
+'Content-Type':
+'application/json',
+'ngrok-skip-browser-warning':
+'true',
 },
 body: jsonEncode({
 'status': status,
@@ -203,18 +266,23 @@ body: jsonEncode({
 );
 
 debugPrint(
-'UPDATE ORDER STATUS: ${response.statusCode}',
+'UPDATE ORDER STATUS: '
+'${response.statusCode}',
 );
 
 debugPrint(
-'UPDATE ORDER RESPONSE: ${response.body}',
+'UPDATE ORDER RESPONSE: '
+'${response.body}',
 );
 
-final data = jsonDecode(response.body);
+final data =
+jsonDecode(response.body);
 
 if (response.statusCode == 200 &&
 data['success'] == true) {
-return Map<String, dynamic>.from(data);
+return Map<String, dynamic>.from(
+data,
+);
 }
 
 throw Exception(
@@ -225,19 +293,28 @@ data['message'] ??
 
 // =====================================================
 // GET BUSINESS OWNER PRODUCTS
+//
 // GET /api/business/products
 // =====================================================
 
-Future<List<Product>> getProducts() async {
-final token = await ApiService.getToken();
+Future<List<Product>>
+getProducts() async {
+final token =
+await ApiService.getToken();
 
-final response = await http.get(
+final response =
+await http.get(
 Uri.parse(
-'${ApiService.baseUrl}/api/business/products',
+'${ApiService.baseUrl}'
+'/api/business/products',
 ),
 headers: {
-'Authorization': 'Bearer $token',
-'Content-Type': 'application/json',
+'Authorization':
+'Bearer $token',
+'Content-Type':
+'application/json',
+'Accept':
+'application/json',
 },
 );
 
@@ -251,17 +328,22 @@ debugPrint(
 '${response.body}',
 );
 
-final data = jsonDecode(response.body);
+final data =
+jsonDecode(response.body);
 
 if (response.statusCode == 200 &&
 data['success'] == true) {
-final List<dynamic> products =
+final List<dynamic>
+products =
 data['products'] ?? [];
 
 return products
     .map(
-(item) => Product.fromJson(
-Map<String, dynamic>.from(item),
+(item) =>
+Product.fromJson(
+Map<String, dynamic>.from(
+item,
+),
 ),
 )
     .toList();
@@ -275,174 +357,250 @@ data['message'] ??
 
 // =====================================================
 // ADD PRODUCT
-// FIXED FOR ANDROID XFILE CACHE PATH ERROR
+//
+// POST /api/business/products
+//
+// Uses image bytes instead of XFile path.
+// This prevents PathNotFoundException.
 // =====================================================
 
+Future<bool> addProduct({
+required String name,
+required String category,
+required double price,
+required int stock,
+required String description,
+required Uint8List imageBytes,
+required String imageFileName,
+}) async {
+final token =
+await ApiService.getToken();
+
+if (token == null ||
+token.isEmpty) {
+throw Exception(
+'Authentication token not found.',
+);
+}
+
+if (imageBytes.isEmpty) {
+throw Exception(
+'Product image is empty.',
+);
+}
+
+final url =
+'${ApiService.baseUrl}'
+'/api/business/products';
+
+debugPrint(
+'======================================',
+);
+
+debugPrint(
+'ADD PRODUCT REQUEST',
+);
+
+debugPrint(
+'URL => $url',
+);
+
+debugPrint(
+'Product Name => $name',
+);
+
+debugPrint(
+'Category => $category',
+);
+
+debugPrint(
+'Price => $price',
+);
+
+debugPrint(
+'Stock => $stock',
+);
+
+debugPrint(
+'Image Name => $imageFileName',
+);
+
+debugPrint(
+'Image Bytes => '
+'${imageBytes.length}',
+);
+
+debugPrint(
+'======================================',
+);
+
+final request =
+http.MultipartRequest(
+'POST',
+Uri.parse(url),
+);
+
 // =====================================================
-// ADD PRODUCT
-// Upload image using Uint8List
-// This avoids PathNotFoundException from temporary
-// ImagePicker cache files.
+// HEADERS
 // =====================================================
-  Future<bool> addProduct({
-    required String name,
-    required String category,
-    required double price,
-    required int stock,
-    required String description,
-    required Uint8List imageBytes,
-    required String imageFileName,
-  }) async {
-    try {
-      final token =
-      await ApiService.getToken();
 
-      if (token == null ||
-          token.isEmpty) {
-        throw Exception(
-          'Authentication token not found.',
-        );
-      }
+request.headers.addAll({
+'Authorization':
+'Bearer $token',
+'Accept':
+'application/json',
+'ngrok-skip-browser-warning':
+'true',
+});
 
-      final url =
-          '${ApiService.baseUrl}/api/business/products';
+// =====================================================
+// TEXT FIELDS
+// =====================================================
 
-      debugPrint(
-        '=================================',
-      );
+request.fields.addAll({
+'name': name,
+'category': category,
+'price': price.toString(),
+'stock': stock.toString(),
+'description': description,
+});
 
-      debugPrint(
-        'ADD PRODUCT REQUEST',
-      );
+// =====================================================
+// PREPARE FILE NAME
+// =====================================================
 
-      debugPrint(
-        'URL => $url',
-      );
+String filename =
+imageFileName.trim();
 
-      debugPrint(
-        'IMAGE => $imageFileName',
-      );
+if (filename.isEmpty) {
+filename =
+'product.jpg';
+}
 
-      debugPrint(
-        'IMAGE BYTES => ${imageBytes.length}',
-      );
+String lowerName =
+filename.toLowerCase();
 
-      debugPrint(
-        '=================================',
-      );
+// =====================================================
+// ENSURE VALID IMAGE EXTENSION
+// =====================================================
 
-      final request =
-      http.MultipartRequest(
-        'POST',
-        Uri.parse(url),
-      );
+if (!lowerName.endsWith(
+'.jpg',
+) &&
+!lowerName.endsWith(
+'.jpeg',
+) &&
+!lowerName.endsWith(
+'.png',
+) &&
+!lowerName.endsWith(
+'.webp',
+)) {
+filename =
+'$filename.jpg';
+}
 
-      // ========================================================
-      // AUTH
-      // ========================================================
+lowerName =
+filename.toLowerCase();
 
-      request.headers[
-      'Authorization'] =
-      'Bearer $token';
+// =====================================================
+// DETERMINE MIME TYPE
+// =====================================================
 
-      request.headers[
-      'ngrok-skip-browser-warning'] =
-      'true';
+MediaType contentType =
+MediaType(
+'image',
+'jpeg',
+);
 
-      // ========================================================
-      // TEXT FIELDS
-      // ========================================================
+if (lowerName.endsWith(
+'.png',
+)) {
+contentType =
+MediaType(
+'image',
+'png',
+);
+} else if (lowerName.endsWith(
+'.webp',
+)) {
+contentType =
+MediaType(
+'image',
+'webp',
+);
+}
 
-      request.fields[
-      'name'] =
-          name;
+// =====================================================
+// ADD IMAGE FILE
+// =====================================================
 
-      request.fields[
-      'category'] =
-          category;
+request.files.add(
+http.MultipartFile.fromBytes(
+'image',
+imageBytes,
+filename: filename,
+contentType:
+contentType,
+),
+);
 
-      request.fields[
-      'price'] =
-          price.toString();
+debugPrint(
+'UPLOAD FILE NAME => '
+'$filename',
+);
 
-      request.fields[
-      'stock'] =
-          stock.toString();
+debugPrint(
+'UPLOAD CONTENT TYPE => '
+'$contentType',
+);
 
-      request.fields[
-      'description'] =
-          description;
+// =====================================================
+// SEND REQUEST
+// =====================================================
 
-      // ========================================================
-      // IMAGE BYTES
-      //
-      // IMPORTANT:
-      // Do NOT use MultipartFile.fromPath()
-      //
-      // Because your XFile cache path may disappear.
-      // ========================================================
+final response =
+await request.send();
 
-      request.files.add(
-        http.MultipartFile.fromBytes(
-          'image',
-          imageBytes,
-          filename:
-          imageFileName,
-        ),
-      );
+final responseBody =
+await response.stream
+    .bytesToString();
 
-      // ========================================================
-      // SEND REQUEST
-      // ========================================================
+debugPrint(
+'ADD PRODUCT STATUS => '
+'${response.statusCode}',
+);
 
-      final response =
-      await request.send();
+debugPrint(
+'ADD PRODUCT BODY => '
+'$responseBody',
+);
 
-      final responseBody =
-      await response.stream
-          .bytesToString();
+// =====================================================
+// SUCCESS
+// =====================================================
 
-      debugPrint(
-        'ADD PRODUCT STATUS => '
-            '${response.statusCode}',
-      );
+if (response.statusCode == 200 ||
+response.statusCode == 201) {
+return true;
+}
 
-      debugPrint(
-        'ADD PRODUCT BODY => '
-            '$responseBody',
-      );
+// =====================================================
+// ERROR
+// =====================================================
 
-      // ========================================================
-      // SUCCESS
-      // ========================================================
+throw Exception(
+'Status: '
+'${response.statusCode}\n'
+'Response: '
+'$responseBody',
+);
+}
 
-      if (response.statusCode ==
-          200 ||
-          response.statusCode ==
-              201) {
-        return true;
-      }
-
-      // ========================================================
-      // ERROR
-      // ========================================================
-
-      throw Exception(
-        'Status: ${response.statusCode}\n'
-            'Response: $responseBody',
-      );
-
-    } catch (e) {
-
-      debugPrint(
-        'ADD PRODUCT ERROR => $e',
-      );
-
-      rethrow;
-    }
-  }
 // =====================================================
 // DELETE PRODUCT
+//
+// DELETE /api/business/products/:id
 // =====================================================
 
 Future<bool> deleteProduct(
@@ -451,13 +609,17 @@ String id,
 final token =
 await ApiService.getToken();
 
-final response = await http.delete(
+final response =
+await http.delete(
 Uri.parse(
-'${ApiService.baseUrl}/api/business/products/$id',
+'${ApiService.baseUrl}'
+'/api/business/products/$id',
 ),
 headers: {
-'Authorization': 'Bearer $token',
-'Accept': 'application/json',
+'Authorization':
+'Bearer $token',
+'Accept':
+'application/json',
 },
 );
 
@@ -474,11 +636,24 @@ debugPrint(
 final data =
 jsonDecode(response.body);
 
-return data['success'] == true;
+if (response.statusCode >= 200 &&
+response.statusCode < 300 &&
+data['success'] == true) {
+return true;
+}
+
+throw Exception(
+data['message'] ??
+'Failed to delete product',
+);
 }
 
 // =====================================================
 // UPDATE PRODUCT
+//
+// PUT /api/business/products/:id
+//
+// Supports optional new image.
 // =====================================================
 
 Future<bool> updateProduct({
@@ -488,31 +663,147 @@ required String category,
 required String description,
 required dynamic price,
 required dynamic stock,
-String? image,
+Uint8List? imageBytes,
+String? imageFileName,
 }) async {
 try {
 final token =
 await ApiService.getToken();
 
-final response = await http.put(
-Uri.parse(
-'${ApiService.baseUrl}/api/business/products/$id',
-),
-headers: {
-'Content-Type':
-'application/json',
+if (token == null ||
+token.isEmpty) {
+throw Exception(
+'Authentication token not found.',
+);
+}
+
+final url =
+'${ApiService.baseUrl}'
+'/api/business/products/$id';
+
+// =====================================================
+// CREATE MULTIPART REQUEST
+// =====================================================
+
+final request =
+http.MultipartRequest(
+'PUT',
+Uri.parse(url),
+);
+
+// =====================================================
+// HEADERS
+// =====================================================
+
+request.headers.addAll({
 'Authorization':
 'Bearer $token',
-},
-body: jsonEncode({
+'Accept':
+'application/json',
+'ngrok-skip-browser-warning':
+'true',
+});
+
+// =====================================================
+// TEXT FIELDS
+// =====================================================
+
+request.fields.addAll({
 'name': name,
 'category': category,
-'description': description,
-'price': price,
-'stock': stock,
-'image': image,
-}),
+'description':
+description,
+'price':
+price.toString(),
+'stock':
+stock.toString(),
+});
+
+// =====================================================
+// OPTIONAL IMAGE
+// =====================================================
+
+if (imageBytes != null &&
+imageBytes.isNotEmpty) {
+String filename =
+imageFileName
+    ?.trim() ??
+'product.jpg';
+
+if (filename.isEmpty) {
+filename =
+'product.jpg';
+}
+
+String lowerName =
+filename.toLowerCase();
+
+if (!lowerName.endsWith(
+'.jpg',
+) &&
+!lowerName.endsWith(
+'.jpeg',
+) &&
+!lowerName.endsWith(
+'.png',
+) &&
+!lowerName.endsWith(
+'.webp',
+)) {
+filename =
+'$filename.jpg';
+}
+
+lowerName =
+filename.toLowerCase();
+
+MediaType contentType =
+MediaType(
+'image',
+'jpeg',
 );
+
+if (lowerName.endsWith(
+'.png',
+)) {
+contentType =
+MediaType(
+'image',
+'png',
+);
+} else if (lowerName.endsWith(
+'.webp',
+)) {
+contentType =
+MediaType(
+'image',
+'webp',
+);
+}
+
+request.files.add(
+http.MultipartFile
+    .fromBytes(
+'image',
+imageBytes,
+filename:
+filename,
+contentType:
+contentType,
+),
+);
+}
+
+// =====================================================
+// SEND REQUEST
+// =====================================================
+
+final response =
+await request.send();
+
+final responseBody =
+await response.stream
+    .bytesToString();
 
 debugPrint(
 'UPDATE PRODUCT STATUS => '
@@ -521,20 +812,28 @@ debugPrint(
 
 debugPrint(
 'UPDATE PRODUCT BODY => '
-'${response.body}',
+'$responseBody',
 );
 
-if (response.statusCode == 200) {
+if (response.statusCode ==
+200 ||
+response.statusCode ==
+201) {
 return true;
 }
 
-return false;
+throw Exception(
+'Status: '
+'${response.statusCode}\n'
+'Response: '
+'$responseBody',
+);
 } catch (e) {
 debugPrint(
 'UPDATE PRODUCT ERROR: $e',
 );
 
-return false;
+rethrow;
 }
 }
 
@@ -545,9 +844,11 @@ return false;
 Future<bool> acceptAgreement(
 String token,
 ) async {
-final response = await http.put(
+final response =
+await http.put(
 Uri.parse(
-'$baseUrl/api/business/agreement',
+'$baseUrl'
+'/api/business/agreement',
 ),
 headers: {
 'Content-Type':
@@ -580,9 +881,11 @@ String token,
 double latitude,
 double longitude,
 ) async {
-final response = await http.put(
+final response =
+await http.put(
 Uri.parse(
-'$baseUrl/api/business/location',
+'$baseUrl'
+'/api/business/location',
 ),
 headers: {
 'Content-Type':
@@ -599,7 +902,8 @@ body: jsonEncode({
 final data =
 jsonDecode(response.body);
 
-return response.statusCode == 200 &&
+return response.statusCode ==
+200 &&
 data['success'] == true;
 }
 
@@ -610,9 +914,11 @@ data['success'] == true;
 Future<bool> submitBusiness(
 String token,
 ) async {
-final response = await http.put(
+final response =
+await http.put(
 Uri.parse(
-'$baseUrl/api/business/submit',
+'$baseUrl'
+'/api/business/submit',
 ),
 headers: {
 'Authorization':
@@ -625,7 +931,8 @@ headers: {
 final data =
 jsonDecode(response.body);
 
-return response.statusCode == 200 &&
+return response.statusCode ==
+200 &&
 data['success'] == true;
 }
 
@@ -658,7 +965,8 @@ throw Exception(
 final response =
 await http.put(
 Uri.parse(
-'$baseUrl/api/business/profile',
+'$baseUrl'
+'/api/business/profile',
 ),
 headers: {
 'Content-Type':
@@ -693,7 +1001,8 @@ debugPrint(
 final data =
 jsonDecode(response.body);
 
-if (response.statusCode >= 200 &&
+if (response.statusCode >=
+200 &&
 response.statusCode < 300 &&
 data['success'] == true) {
 return Map<String, dynamic>.from(
@@ -707,7 +1016,8 @@ data['message'] ??
 );
 } catch (e) {
 debugPrint(
-'UPDATE BUSINESS PROFILE ERROR: $e',
+'UPDATE BUSINESS PROFILE ERROR: '
+'$e',
 );
 
 rethrow;

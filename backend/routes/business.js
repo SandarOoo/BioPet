@@ -1,52 +1,25 @@
 const express = require("express");
+const router = express.Router();
 
-const router =
-  express.Router();
-
-
-// ============================================================
-// MIDDLEWARE
-// ============================================================
-
-const {
-  protect,
-} = require("../middleware/auth");
-
-const upload =
-  require("../middleware/upload");
-
-
-// ============================================================
-// CONTROLLER
-// ============================================================
+const { protect } = require("../middleware/auth");
+const upload = require("../middleware/upload");
 
 const {
   acceptAgreement,
-
   updateLocation,
-
   submitBusiness,
-
   getMySellerProfile,
-
   getSellerProfile,
-
   updateBusinessProfile,
+} = require("../controllers/businessController");
 
+const {
   addProduct,
-
   getBusinessProducts,
-
-  getShopProducts,
-
-  updateProduct,
-
   deleteProduct,
-
-} = require(
-  "../controllers/businessController"
-);
-
+  updateProduct,
+  getShopProducts,
+} = require("../controllers/productController");
 
 // ============================================================
 // BUSINESS PROFILE
@@ -58,9 +31,8 @@ router.put(
   updateBusinessProfile
 );
 
-
 // ============================================================
-// ACCEPT AGREEMENT
+// BUSINESS AGREEMENT
 // ============================================================
 
 router.put(
@@ -69,9 +41,8 @@ router.put(
   acceptAgreement
 );
 
-
 // ============================================================
-// UPDATE LOCATION
+// BUSINESS LOCATION
 // ============================================================
 
 router.put(
@@ -79,7 +50,6 @@ router.put(
   protect,
   updateLocation
 );
-
 
 // ============================================================
 // SUBMIT BUSINESS
@@ -91,9 +61,8 @@ router.put(
   submitBusiness
 );
 
-
 // ============================================================
-// OWNER PROFILE
+// MY SELLER PROFILE
 // ============================================================
 
 router.get(
@@ -101,7 +70,6 @@ router.get(
   protect,
   getMySellerProfile
 );
-
 
 // ============================================================
 // PUBLIC SELLER PROFILE
@@ -112,40 +80,12 @@ router.get(
   getSellerProfile
 );
 
-
-// ============================================================
-// CUSTOMER SHOP PRODUCTS
-//
-// GET /api/business/shop/products
-// ============================================================
-
-router.get(
-  "/shop/products",
-  getShopProducts
-);
-
-
-// ============================================================
-// BUSINESS OWNER PRODUCTS
-//
-// GET /api/business/products
-// ============================================================
-
-router.get(
-  "/products",
-  protect,
-  getBusinessProducts
-);
-
-
 // ============================================================
 // ADD PRODUCT
-//
 // POST /api/business/products
 //
-// multipart/form-data
-//
-// image field = "image"
+// Flutter:
+// Multipart field name = image
 // ============================================================
 
 router.post(
@@ -155,23 +95,19 @@ router.post(
   addProduct
 );
 
-
 // ============================================================
-// UPDATE PRODUCT
-//
-// PUT /api/business/products/:id
+// GET BUSINESS OWNER PRODUCTS
+// GET /api/business/products
 // ============================================================
 
-router.put(
-  "/products/:id",
+router.get(
+  "/products",
   protect,
-  updateProduct
+  getBusinessProducts
 );
-
 
 // ============================================================
 // DELETE PRODUCT
-//
 // DELETE /api/business/products/:id
 // ============================================================
 
@@ -181,10 +117,25 @@ router.delete(
   deleteProduct
 );
 
+// ============================================================
+// UPDATE PRODUCT
+// PUT /api/business/products/:id
+// ============================================================
+
+router.put(
+  "/products/:id",
+  protect,
+  updateProduct
+);
 
 // ============================================================
-// EXPORT
+// CUSTOMER SHOP PRODUCTS
+// GET /api/business/shop/products
 // ============================================================
 
-module.exports =
-  router;
+router.get(
+  "/shop/products",
+  getShopProducts
+);
+
+module.exports = router;

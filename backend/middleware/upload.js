@@ -1,13 +1,8 @@
 const multer = require("multer");
+const path = require("path");
 
 // ============================================================
-// MULTER MEMORY STORAGE
-// ============================================================
-//
-// Image will stay in memory as Buffer.
-// We can convert it to Base64 and save it to MongoDB.
-//
-// This matches your Flutter imageBytes upload.
+// STORAGE
 // ============================================================
 
 const storage = multer.memoryStorage();
@@ -17,34 +12,61 @@ const storage = multer.memoryStorage();
 // ============================================================
 
 const fileFilter = (req, file, cb) => {
-  if (
-    file.mimetype &&
-    file.mimetype.startsWith("image/")
-  ) {
+  console.log("======================================");
+  console.log("UPLOAD FILE");
+  console.log("Original Name:", file.originalname);
+  console.log("Mimetype:", file.mimetype);
+  console.log("Field Name:", file.fieldname);
+  console.log("======================================");
+
+  // Accept image MIME types
+  if (file.mimetype && file.mimetype.startsWith("image/")) {
     cb(null, true);
-  } else {
-    cb(
-      new Error(
-        "Only image files are allowed."
-      ),
-      false
-    );
+    return;
   }
+
+  // Fallback: check file extension
+  const allowedExtensions = [
+    ".jpg",
+    ".jpeg",
+    ".png",
+    ".webp",
+    ".gif",
+  ];
+
+  const extension = path
+    .extname(file.originalname || "")
+    .toLowerCase();
+
+  if (allowedExtensions.includes(extension)) {
+    cb(null, true);
+    return;
+  }
+
+  cb(
+    new Error(
+      "Only image files are allowed."
+    ),
+    false
+  );
 };
 
 // ============================================================
-// MULTER CONFIGURATION
+// MULTER
 // ============================================================
 
 const upload = multer({
   storage: storage,
 
-  fileFilter: fileFilter,
-
   limits: {
-    // Maximum image size = 5 MB
-    fileSize: 5 * 1024 * 1024,
+    fileSize: 10 * 1024 * 1024, // 10 MB
   },
+
+  fileFilter: fileFilter,
 });
+
+// ============================================================
+// EXPORT
+// ============================================================
 
 module.exports = upload;
