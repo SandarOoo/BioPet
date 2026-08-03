@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'package:flutter/cupertino.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:http/http.dart' as http;
 import 'package:image_picker/image_picker.dart';
@@ -166,19 +167,39 @@ class ApiService {
       'address': shopAddress,
     });
 
+    // ==========================================
+    // NRC CARD PHOTO
+    // ==========================================
+
     if (nrcCardPhoto != null) {
+      final bytes = await nrcCardPhoto.readAsBytes();
+
       request.files.add(
-        await http.MultipartFile.fromPath(
+        http.MultipartFile.fromBytes(
           'nrcCardPhoto',
-          nrcCardPhoto.path,
+          bytes,
+          filename: nrcCardPhoto.name,
         ),
       );
     }
 
+    // ==========================================
+    // SEND REQUEST
+    // ==========================================
+
     final streamedResponse = await request.send();
 
-    final response =
-    await http.Response.fromStream(streamedResponse);
+    final response = await http.Response.fromStream(
+      streamedResponse,
+    );
+
+    debugPrint(
+      'REGISTER STATUS => ${response.statusCode}',
+    );
+
+    debugPrint(
+      'REGISTER BODY => ${response.body}',
+    );
 
     return jsonDecode(response.body);
   }
