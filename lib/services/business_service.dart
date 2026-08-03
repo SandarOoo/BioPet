@@ -2,8 +2,10 @@ import 'dart:convert';
 
 import 'package:biopet/services/api_service.dart';
 import 'package:biopet/services/order_service.dart';
+import 'package:flutter/cupertino.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:http/http.dart' as http;
+import 'package:image_picker/image_picker.dart';
 
 import '../models/product.dart';
 
@@ -283,66 +285,56 @@ class BusinessService {
   // ADD PRODUCT
   // =====================================================
 
-  Future<bool> addProduct(
-      Map<String, dynamic> body,
-      ) async {
-    final token =
-    await ApiService.getToken();
+  Future<bool> addProduct({
+    required String name,
+    required String category,
+    required double price,
+    required int stock,
+    required String description,
+    required XFile image,
+  }) async {
+    final token = await ApiService.getToken();
 
-    final url =
-        '${ApiService.baseUrl}/api/business/createProducts';
-
-    print(
-      'ADD PRODUCT URL: $url',
+    final request = http.MultipartRequest(
+      'POST',
+      Uri.parse(
+        '${ApiService.baseUrl}/api/business/products',
+      ),
     );
 
-    print(
-      'ADD PRODUCT BODY: $body',
+    request.headers['Authorization'] =
+    'Bearer $token';
+
+    request.fields['name'] = name;
+    request.fields['category'] = category;
+    request.fields['price'] = price.toString();
+    request.fields['stock'] = stock.toString();
+    request.fields['description'] = description;
+
+    request.files.add(
+      await http.MultipartFile.fromPath(
+        'image',
+        image.path,
+        filename: image.name,
+      ),
     );
 
-    final response = await http.post(
-      Uri.parse(url),
-      headers: {
-        'Authorization': 'Bearer $token',
-        'Content-Type': 'application/json',
-        'Accept': 'application/json',
-      },
-      body: jsonEncode(body),
+    final response = await request.send();
+
+    final responseBody =
+    await response.stream.bytesToString();
+
+    debugPrint(
+      'ADD PRODUCT STATUS => ${response.statusCode}',
     );
 
-    print(
-      'STATUS CODE: ${response.statusCode}',
+    debugPrint(
+      'ADD PRODUCT BODY => $responseBody',
     );
 
-    print(
-      'RESPONSE BODY: ${response.body}',
-    );
-
-    if (response.headers['content-type']
-        ?.contains('application/json') !=
-        true) {
-      throw Exception(
-        'Server returned non-JSON response.\n'
-            'Status: ${response.statusCode}\n'
-            'Response: ${response.body}',
-      );
-    }
-
-    final data =
-    jsonDecode(response.body);
-
-    if (response.statusCode >= 200 &&
-        response.statusCode < 300 &&
-        data['success'] == true) {
-      return true;
-    }
-
-    throw Exception(
-      data['message'] ??
-          'Failed to add product',
-    );
+    return response.statusCode == 200 ||
+        response.statusCode == 201;
   }
-
   // =====================================================
   // DELETE PRODUCT
   // =====================================================
