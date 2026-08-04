@@ -81,81 +81,68 @@ const createPost = async (req, res) => {
     }
 
     if (req.files && req.files.length > 0) {
-      /*
-       * PRESENTATION MODE
-       * OpenRouter ကို မခေါ်ဘဲ ပုံ upload ကို ချက်ချင်းခွင့်ပြုထားသည်။
-       * Presentation ပြီးရင် ဒီ constant ကို false ပြောင်းပါ။
-       */
-      const presentationMode = true;
+      console.log(
+        "CHECKING IMAGES WITH AI PET MODERATION..."
+      );
 
-      if (presentationMode) {
-        console.warn(
-          "IMAGE MODERATION PRESENTATION MODE: image accepted without external AI call."
-        );
-      } else {
-        console.log(
-          "CHECKING IMAGES WITH AI PET MODERATION..."
-        );
+      const imageModerationResult =
+        await moderatePetImages(req.files);
 
-        const imageModerationResult =
-          await moderatePetImages(req.files);
+      console.log("IMAGE MODERATION RESULT =>", {
+        allowed: imageModerationResult.allowed,
+        status: imageModerationResult.status,
+        category: imageModerationResult.category,
+        errorCode: imageModerationResult.errorCode,
+        providerStatus:
+          imageModerationResult.providerStatus,
+        retryable: imageModerationResult.retryable,
+        retryAfterSeconds:
+          imageModerationResult.retryAfterSeconds,
+        providerModel:
+          imageModerationResult.providerModel,
+        reason: imageModerationResult.reason,
+      });
 
-        console.log("IMAGE MODERATION RESULT =>", {
-          allowed: imageModerationResult.allowed,
-          status: imageModerationResult.status,
-          category: imageModerationResult.category,
-          errorCode: imageModerationResult.errorCode,
+      if (!imageModerationResult.allowed) {
+        const httpStatus =
+          getImageModerationHttpStatus(
+            imageModerationResult
+          );
+
+        return res.status(httpStatus).json({
+          success: false,
+          code:
+            imageModerationResult.errorCode ||
+            (imageModerationResult.status ===
+            "review_required"
+              ? "IMAGE_MODERATION_UNAVAILABLE"
+              : "PET_IMAGE_REQUIRED"),
+          message:
+            imageModerationResult.reason ||
+            (imageModerationResult.status ===
+            "review_required"
+              ? "ပုံစစ်ဆေးမှု service ကို အသုံးပြု၍မရသေးပါ။"
+              : "ခွေး သို့မဟုတ် ကြောင်နှင့် သက်ဆိုင်သောပုံကိုသာ တင်နိုင်ပါသည်။"),
+          retryable:
+            imageModerationResult.retryable === true,
           providerStatus:
-            imageModerationResult.providerStatus,
-          retryable: imageModerationResult.retryable,
+            imageModerationResult.providerStatus ||
+            null,
           retryAfterSeconds:
-            imageModerationResult.retryAfterSeconds,
+            imageModerationResult.retryAfterSeconds ||
+            null,
           providerModel:
-            imageModerationResult.providerModel,
-          reason: imageModerationResult.reason,
+            imageModerationResult.providerModel ||
+            null,
+          imageModeration: {
+            status: imageModerationResult.status,
+            category: imageModerationResult.category,
+            errorCode:
+              imageModerationResult.errorCode || null,
+            reason: imageModerationResult.reason,
+            images: imageModerationResult.images || [],
+          },
         });
-
-        if (!imageModerationResult.allowed) {
-          const httpStatus =
-            getImageModerationHttpStatus(
-              imageModerationResult
-            );
-
-          return res.status(httpStatus).json({
-            success: false,
-            code:
-              imageModerationResult.errorCode ||
-              (imageModerationResult.status ===
-              "review_required"
-                ? "IMAGE_MODERATION_UNAVAILABLE"
-                : "PET_IMAGE_REQUIRED"),
-            message:
-              imageModerationResult.reason ||
-              (imageModerationResult.status ===
-              "review_required"
-                ? "ပုံစစ်ဆေးမှု service ကို အသုံးပြု၍မရသေးပါ။"
-                : "ခွေး သို့မဟုတ် ကြောင်နှင့် သက်ဆိုင်သောပုံကိုသာ တင်နိုင်ပါသည်။"),
-            retryable:
-              imageModerationResult.retryable === true,
-            providerStatus:
-              imageModerationResult.providerStatus ||
-              null,
-            retryAfterSeconds:
-              imageModerationResult.retryAfterSeconds ||
-              null,
-            providerModel:
-              imageModerationResult.providerModel ||
-              null,
-            imageModeration: {
-              status: imageModerationResult.status,
-              category: imageModerationResult.category,
-              errorCode:
-                imageModerationResult.errorCode || null,
-              reason: imageModerationResult.reason,
-              images: imageModerationResult.images || [],
-            },
-          });
-        }
       }
     }
 
