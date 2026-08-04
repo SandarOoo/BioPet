@@ -291,7 +291,12 @@ const toggleLike = async (req, res) => {
 
 const addComment = async (req, res) => {
   try {
-    const { postId, userId, text } = req.body;
+    const {
+      postId,
+      userId,
+      userName,
+      text,
+    } = req.body;
 
     if (!text || text.trim().length === 0) {
       return res.status(400).json({
@@ -311,7 +316,15 @@ const addComment = async (req, res) => {
 
     post.comments.push({
       userId: userId || "guest",
+
+      userName:
+        userName && userName.trim()
+          ? userName.trim()
+          : "Anonymous",
+
       text: text.trim(),
+
+      replies: [],
     });
 
     await post.save();
@@ -330,9 +343,96 @@ const addComment = async (req, res) => {
   }
 };
 
+
+const addReply = async (req, res) => {
+  try {
+    const {
+      postId,
+      commentId,
+      userId,
+      userName,
+      text,
+    } = req.body;
+
+    if (!postId || !commentId) {
+      return res.status(400).json({
+        success: false,
+        message:
+          "postId and commentId are required",
+      });
+    }
+
+    if (!text || text.trim().length === 0) {
+      return res.status(400).json({
+        success: false,
+        message:
+          "Reply text is required",
+      });
+    }
+
+    const post =
+      await Post.findById(postId);
+
+    if (!post) {
+      return res.status(404).json({
+        success: false,
+        message:
+          "Post not found",
+      });
+    }
+
+    const comment =
+      post.comments.id(
+        commentId
+      );
+
+    if (!comment) {
+      return res.status(404).json({
+        success: false,
+        message:
+          "Comment not found",
+      });
+    }
+
+    comment.replies.push({
+      userId:
+        userId || "guest",
+
+      userName:
+        userName &&
+        userName.trim()
+          ? userName.trim()
+          : "Anonymous",
+
+      text:
+        text.trim(),
+    });
+
+    await post.save();
+
+    return res.status(200).json({
+      success: true,
+      comments:
+        post.comments,
+    });
+  } catch (error) {
+    console.error(
+      "ADD REPLY ERROR:",
+      error
+    );
+
+    return res.status(500).json({
+      success: false,
+      message:
+        error.message,
+    });
+  }
+};
+
 module.exports = {
   createPost,
   getPosts,
   toggleLike,
   addComment,
+  addReply
 };

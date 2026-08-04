@@ -4,26 +4,72 @@ const mongoose = require("mongoose");
 // COMMENT SCHEMA
 // =====================================================
 
-const commentSchema =
-  new mongoose.Schema(
-    {
-      userId: {
-        type: String,
-        required: true,
-      },
+// =====================================================
+// REPLY SCHEMA
+// =====================================================
 
-      text: {
-        type: String,
-        required: true,
-      },
+const replySchema = new mongoose.Schema(
+  {
+    userId: {
+      type: String,
+      required: true,
+    },
 
-      createdAt: {
-        type: Date,
-        default: Date.now,
-      },
-    }
-  );
+    userName: {
+      type: String,
+      default: "Anonymous",
+    },
 
+    text: {
+      type: String,
+      required: true,
+    },
+
+    createdAt: {
+      type: Date,
+      default: Date.now,
+    },
+  },
+  {
+    _id: true,
+  }
+);
+
+// =====================================================
+// COMMENT SCHEMA
+// =====================================================
+
+const commentSchema = new mongoose.Schema(
+  {
+    userId: {
+      type: String,
+      required: true,
+    },
+
+    userName: {
+      type: String,
+      default: "Anonymous",
+    },
+
+    text: {
+      type: String,
+      required: true,
+    },
+
+    createdAt: {
+      type: Date,
+      default: Date.now,
+    },
+
+    replies: {
+      type: [replySchema],
+      default: [],
+    },
+  },
+  {
+    _id: true,
+  }
+);
 // =====================================================
 // AI REVIEW SCHEMA
 // =====================================================

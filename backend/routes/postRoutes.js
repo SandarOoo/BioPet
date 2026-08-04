@@ -99,4 +99,9 @@ router.post(
   addComment
 );
 
+router.post(
+  "/reply",
+  addReply
+);
+
 module.exports = router;
