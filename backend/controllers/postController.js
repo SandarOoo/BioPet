@@ -4,48 +4,6 @@ const {
   moderatePetPost,
 } = require("../services/ruleBasedModeration");
 
-const {
-  moderatePetImages,
-} = require("../services/imagePetModeration");
-
-const getImageModerationHttpStatus = (result) => {
-  switch (result?.errorCode) {
-    case "OPENROUTER_RATE_LIMITED":
-      return 429;
-
-    case "OPENROUTER_TIMEOUT":
-      return 504;
-
-    case "INVALID_IMAGE_FILE":
-    case "UNSUPPORTED_IMAGE_TYPE":
-    case "PET_IMAGE_REQUIRED":
-    case "OPENROUTER_PAYLOAD_TOO_LARGE":
-      return 400;
-
-    case "OPENROUTER_CREDITS_REQUIRED":
-      return 402;
-
-    case "OPENROUTER_KEY_MISSING":
-    case "OPENROUTER_AUTH_ERROR":
-    case "OPENROUTER_PERMISSION_DENIED":
-    case "OPENROUTER_MODEL_NOT_AVAILABLE":
-    case "OPENROUTER_BAD_REQUEST":
-    case "OPENROUTER_PROVIDER_UNAVAILABLE":
-    case "OPENROUTER_SERVICE_UNAVAILABLE":
-    case "OPENROUTER_REQUEST_FAILED":
-    case "OPENROUTER_NETWORK_ERROR":
-    case "OPENROUTER_NON_JSON_RESPONSE":
-    case "OPENROUTER_EMPTY_RESPONSE":
-    case "OPENROUTER_INVALID_JSON_CONTENT":
-    case "OPENROUTER_RESULT_COUNT_MISMATCH":
-      return 503;
-
-    default:
-      return result?.status === "review_required"
-        ? 503
-        : 400;
-  }
-};
 
 const createPost = async (req, res) => {
   try {
@@ -80,83 +38,16 @@ const createPost = async (req, res) => {
       });
     }
 
+    /*
+     * Images are checked on the Flutter device with the existing local
+     * MobileNet TensorFlow Lite breed classifier before this request is sent.
+     * No OpenAI, Gemini, or OpenRouter API call is made by the backend.
+     */
     if (req.files && req.files.length > 0) {
-      /*
-       * PRESENTATION MODE
-       * OpenRouter ကို မခေါ်ဘဲ ပုံ upload ကို ချက်ချင်းခွင့်ပြုထားသည်။
-       * Presentation ပြီးရင် ဒီ constant ကို false ပြောင်းပါ။
-       */
-      const presentationMode = true;
-
-      if (presentationMode) {
-        console.warn(
-          "IMAGE MODERATION PRESENTATION MODE: image accepted without external AI call."
-        );
-      } else {
-        console.log(
-          "CHECKING IMAGES WITH AI PET MODERATION..."
-        );
-
-        const imageModerationResult =
-          await moderatePetImages(req.files);
-
-        console.log("IMAGE MODERATION RESULT =>", {
-          allowed: imageModerationResult.allowed,
-          status: imageModerationResult.status,
-          category: imageModerationResult.category,
-          errorCode: imageModerationResult.errorCode,
-          providerStatus:
-            imageModerationResult.providerStatus,
-          retryable: imageModerationResult.retryable,
-          retryAfterSeconds:
-            imageModerationResult.retryAfterSeconds,
-          providerModel:
-            imageModerationResult.providerModel,
-          reason: imageModerationResult.reason,
-        });
-
-        if (!imageModerationResult.allowed) {
-          const httpStatus =
-            getImageModerationHttpStatus(
-              imageModerationResult
-            );
-
-          return res.status(httpStatus).json({
-            success: false,
-            code:
-              imageModerationResult.errorCode ||
-              (imageModerationResult.status ===
-              "review_required"
-                ? "IMAGE_MODERATION_UNAVAILABLE"
-                : "PET_IMAGE_REQUIRED"),
-            message:
-              imageModerationResult.reason ||
-              (imageModerationResult.status ===
-              "review_required"
-                ? "ပုံစစ်ဆေးမှု service ကို အသုံးပြု၍မရသေးပါ။"
-                : "ခွေး သို့မဟုတ် ကြောင်နှင့် သက်ဆိုင်သောပုံကိုသာ တင်နိုင်ပါသည်။"),
-            retryable:
-              imageModerationResult.retryable === true,
-            providerStatus:
-              imageModerationResult.providerStatus ||
-              null,
-            retryAfterSeconds:
-              imageModerationResult.retryAfterSeconds ||
-              null,
-            providerModel:
-              imageModerationResult.providerModel ||
-              null,
-            imageModeration: {
-              status: imageModerationResult.status,
-              category: imageModerationResult.category,
-              errorCode:
-                imageModerationResult.errorCode || null,
-              reason: imageModerationResult.reason,
-              images: imageModerationResult.images || [],
-            },
-          });
-        }
-      }
+      console.log(
+        "LOCAL PET IMAGE VALIDATION COMPLETED ON CLIENT =>",
+        req.files.length
+      );
     }
 
     const images = [];
