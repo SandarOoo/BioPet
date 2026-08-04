@@ -306,101 +306,92 @@ exports.cancelOrder = async (
 // GET BUSINESS OWNER ORDERS
 // =====================================================
 
-exports.getBusinessOrders = async (
-  req,
-  res
-) => {
+exports.getBusinessOrders = async (req, res) => {
   try {
-    // 1. Find products owned by current business owner
-    const businessProducts =
-      await Product.find({
-        owner: req.user._id,
-      }).select("_id");
+    const sellerId = req.user._id;
 
-    const productIds =
-      businessProducts.map(
-        (product) => product._id.toString()
-      );
+    // Product schema uses `seller`, not `owner`.
+    const sellerProducts = await Product.find({
+      seller: sellerId,
+    }).select("_id");
 
-    // 2. Find orders containing business owner's products
-    const orders =
-      await Order.find({
-        "items.product": {
-          $in: productIds,
-        },
+    const productIds = sellerProducts.map(
+      (product) => product._id
+    );
+
+    if (productIds.length === 0) {
+      return res.status(200).json({
+        success: true,
+        orders: [],
+      });
+    }
+
+    const productIdSet = new Set(
+      productIds.map((id) => id.toString())
+    );
+
+    const orders = await Order.find({
+      "items.product": {
+        $in: productIds,
+      },
+    })
+      .populate(
+        "customer",
+        "name email phone"
+      )
+      .populate({
+        path: "items.product",
+        select:
+          "name image price stock category seller",
       })
-        .populate(
-          "customer",
-          "name email phone"
-        )
-        .populate(
-          "items.product"
-        )
-        .sort({
-          createdAt: -1,
-        });
+      .sort({
+        createdAt: -1,
+      });
 
-    // 3. Return only this business owner's products
-    const businessOrders =
-      orders.map((order) => {
+    const businessOrders = orders
+      .map((order) => {
         const filteredItems =
           order.items.filter((item) => {
             if (!item.product) {
               return false;
             }
 
-            return productIds.includes(
+            return productIdSet.has(
               item.product._id.toString()
             );
           });
 
         return {
           _id: order._id,
-          orderNumber:
-            order.orderNumber,
-
-          customer:
-            order.customer,
-
-          items:
-            filteredItems,
-
-          // Calculate only this business owner's total
-          totalAmount:
-            filteredItems.reduce(
-              (total, item) =>
-                total +
-                Number(item.price) *
-                  Number(item.quantity),
-              0
-            ),
-
+          orderNumber: order.orderNumber,
+          customer: order.customer,
+          items: filteredItems,
+          totalAmount: filteredItems.reduce(
+            (total, item) =>
+              total +
+              Number(item.price) *
+                Number(item.quantity),
+            0
+          ),
           shippingAddress:
             order.shippingAddress,
-
           paymentMethod:
             order.paymentMethod,
-
           paymentStatus:
             order.paymentStatus,
-
-          status:
-            order.status,
-
-          createdAt:
-            order.createdAt,
-
-          updatedAt:
-            order.updatedAt,
+          status: order.status,
+          createdAt: order.createdAt,
+          updatedAt: order.updatedAt,
         };
-      });
+      })
+      .filter(
+        (order) => order.items.length > 0
+      );
 
     return res.status(200).json({
       success: true,
-      orders:
-        businessOrders,
+      orders: businessOrders,
     });
-
   } catch (error) {
     console.error(
       "GET BUSINESS ORDERS ERROR:",
@@ -454,16 +445,10 @@ exports.getAllOrders = async (req, res) => {
 // UPDATE ORDER STATUS - BUSINESS OWNER
 // =====================================================
 
-exports.updateOrderStatus = async (
-  req,
-  res
-) => {
+exports.updateOrderStatus = async (req, res) => {
   try {
-    const {
-      status,
-    } = req.body;
+    const { status } = req.body;
 
-    // Allowed statuses
     const allowedStatuses = [
       "Pending",
       "Confirmed",
@@ -473,50 +458,49 @@ exports.updateOrderStatus = async (
       "Cancelled",
     ];
 
-    // Check status
     if (
       !status ||
       !allowedStatuses.includes(status)
     ) {
       return res.status(400).json({
         success: false,
-        message:
-          "Invalid order status",
+        message: "Invalid order status",
         allowedStatuses,
       });
     }
 
-    // Find order
-    const order =
-      await Order.findById(
-        req.params.id
-      ).populate(
-        "items.product"
-      );
+    const order = await Order.findById(
+      req.params.id
+    ).populate({
+      path: "items.product",
+      select:
+        "name image price stock category seller",
+    });
 
     if (!order) {
       return res.status(404).json({
         success: false,
-        message:
-          "Order not found",
+        message: "Order not found",
       });
     }
 
-    // Check if business owner owns
-    // at least one product in this order
-    const isBusinessOwner =
+    // Product schema uses `seller`, not `owner`.
+    const isSellerOfOrder =
       order.items.some((item) => {
-        if (!item.product) {
+        const productSeller =
+          item.product?.seller;
+
+        if (!productSeller) {
           return false;
         }
 
         return (
-          item.product.owner.toString() ===
+          productSeller.toString() ===
           req.user._id.toString()
         );
       });
 
-    if (!isBusinessOwner) {
+    if (!isSellerOfOrder) {
       return res.status(403).json({
         success: false,
         message:
@@ -524,32 +508,27 @@ exports.updateOrderStatus = async (
       });
     }
 
-    // Update status
     order.status = status;
-
     await order.save();
 
-    // Populate response
     const updatedOrder =
-      await Order.findById(
-        order._id
-      )
+      await Order.findById(order._id)
         .populate(
           "customer",
           "name email phone"
         )
-        .populate(
-          "items.product"
-        );
+        .populate({
+          path: "items.product",
+          select:
+            "name image price stock category seller",
+        });
 
     return res.status(200).json({
       success: true,
       message:
         "Order status updated successfully",
-      order:
-        updatedOrder,
+      order: updatedOrder,
     });
-
   } catch (error) {
     console.error(
       "UPDATE ORDER STATUS ERROR:",
