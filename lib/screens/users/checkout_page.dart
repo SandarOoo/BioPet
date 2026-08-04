@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 import '../../services/cart_service.dart';
 import 'payment_page.dart';
@@ -42,8 +43,15 @@ class _CheckoutPageState extends State<CheckoutPage> {
   double get total => widget.subtotal + currentDeliveryFee;
 
   void _continueToPayment() {
-    if (phoneController.text.trim().isEmpty) {
+    final phone = phoneController.text.trim();
+
+    if (phone.isEmpty) {
       _showMessage('Please enter your phone number');
+      return;
+    }
+
+    if (!RegExp(r'^09\d{9}$').hasMatch(phone)) {
+      _showMessage('Phone number must start with 09 and contain exactly 11 digits');
       return;
     }
 
@@ -60,7 +68,7 @@ class _CheckoutPageState extends State<CheckoutPage> {
           subtotal: widget.subtotal,
           deliveryFee: currentDeliveryFee,
           total: total,
-          phone: phoneController.text.trim(),
+          phone: phone,
           address: addressController.text.trim(),
           note: noteController.text.trim(),
           deliveryType: deliveryType,
@@ -184,11 +192,20 @@ class _CheckoutPageState extends State<CheckoutPage> {
         children: [
           TextField(
             controller: phoneController,
-            keyboardType: TextInputType.phone,
+            keyboardType: TextInputType.number,
+            textInputAction: TextInputAction.next,
+            maxLength: 11,
+            inputFormatters: [
+              FilteringTextInputFormatter.digitsOnly,
+              LengthLimitingTextInputFormatter(11),
+            ],
             decoration: UserShopTheme.input(
               label: 'Phone Number',
               hint: '09xxxxxxxxx',
               icon: Icons.phone_outlined,
+            ).copyWith(
+              counterText: '',
+              helperText: 'Must start with 09 and contain 11 digits',
             ),
           ),
           const SizedBox(height: 14),

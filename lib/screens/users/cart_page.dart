@@ -253,10 +253,25 @@ class CartItemCard extends StatelessWidget {
             ),
             child: ClipRRect(
               borderRadius: BorderRadius.circular(18),
-              child: image.isNotEmpty
+              child: image.trim().isNotEmpty
                   ? Image.network(
-                image,
-                fit: BoxFit.cover,
+                image.trim(),
+                width: double.infinity,
+                height: double.infinity,
+                fit: BoxFit.contain,
+                loadingBuilder: (context, child, progress) {
+                  if (progress == null) return child;
+                  return const Center(
+                    child: SizedBox(
+                      width: 24,
+                      height: 24,
+                      child: CircularProgressIndicator(
+                        color: UserShopTheme.emerald,
+                        strokeWidth: 2.2,
+                      ),
+                    ),
+                  );
+                },
                 errorBuilder: (_, __, ___) => const Icon(
                   Icons.pets_rounded,
                   size: 42,

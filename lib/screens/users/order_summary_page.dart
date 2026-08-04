@@ -26,8 +26,8 @@ class OrderSummaryPage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final items = order['items'] as List? ?? [];
-    final orderNumber =
-        order['orderNumber']?.toString() ?? order['_id']?.toString() ?? 'N/A';
+    final productTitle = _orderProductTitle(items);
+    final headerImage = items.isNotEmpty ? _itemImage(items.first) : '';
     final status = order['status']?.toString() ?? 'Pending';
 
     return Scaffold(
@@ -53,16 +53,44 @@ class OrderSummaryPage extends StatelessWidget {
               child: Row(
                 children: [
                   Container(
-                    width: 52,
-                    height: 52,
+                    width: 58,
+                    height: 58,
                     decoration: BoxDecoration(
-                      color: Colors.white.withOpacity(0.15),
-                      borderRadius: BorderRadius.circular(16),
+                      color: Colors.white.withOpacity(0.16),
+                      borderRadius: BorderRadius.circular(17),
                     ),
-                    child: const Icon(
-                      Icons.receipt_long_outlined,
-                      color: Colors.white,
-                      size: 27,
+                    child: ClipRRect(
+                      borderRadius: BorderRadius.circular(17),
+                      child: headerImage.isNotEmpty
+                          ? Image.network(
+                        headerImage,
+                        width: double.infinity,
+                        height: double.infinity,
+                        fit: BoxFit.cover,
+                        loadingBuilder: (context, child, progress) {
+                          if (progress == null) return child;
+                          return const Center(
+                            child: SizedBox(
+                              width: 22,
+                              height: 22,
+                              child: CircularProgressIndicator(
+                                color: Colors.white,
+                                strokeWidth: 2,
+                              ),
+                            ),
+                          );
+                        },
+                        errorBuilder: (_, __, ___) => const Icon(
+                          Icons.pets_rounded,
+                          color: Colors.white,
+                          size: 28,
+                        ),
+                      )
+                          : const Icon(
+                        Icons.pets_rounded,
+                        color: Colors.white,
+                        size: 28,
+                      ),
                     ),
                   ),
                   const SizedBox(width: 14),
@@ -71,7 +99,7 @@ class OrderSummaryPage extends StatelessWidget {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         const Text(
-                          'ORDER NUMBER',
+                          'PRODUCT NAME',
                           style: TextStyle(
                             color: Colors.white70,
                             fontSize: 10,
@@ -81,8 +109,8 @@ class OrderSummaryPage extends StatelessWidget {
                         ),
                         const SizedBox(height: 4),
                         Text(
-                          '#$orderNumber',
-                          maxLines: 1,
+                          productTitle,
+                          maxLines: 2,
                           overflow: TextOverflow.ellipsis,
                           style: const TextStyle(
                             color: Colors.white,
@@ -239,10 +267,14 @@ class OrderSummaryPage extends StatelessWidget {
   }
 
   Widget _productCard(dynamic item) {
-    final name = item['name']?.toString() ?? 'Product';
-    final image = item['image']?.toString() ?? '';
-    final quantity = ((item['quantity'] ?? 1) as num).toInt();
-    final price = ((item['price'] ?? 0) as num).toDouble();
+    final itemMap = _asMap(item);
+    final name = _itemName(item);
+    final image = _itemImage(item);
+    final quantity = _asInt(itemMap['quantity'], fallback: 1);
+    final productMap = _asMap(itemMap['product']);
+    final price = _asDouble(
+      itemMap['price'] ?? productMap['price'],
+    );
     final lineTotal = price * quantity;
 
     return Container(
@@ -262,7 +294,22 @@ class OrderSummaryPage extends StatelessWidget {
               child: image.isNotEmpty
                   ? Image.network(
                 image,
-                fit: BoxFit.cover,
+                width: double.infinity,
+                height: double.infinity,
+                fit: BoxFit.contain,
+                loadingBuilder: (context, child, progress) {
+                  if (progress == null) return child;
+                  return const Center(
+                    child: SizedBox(
+                      width: 23,
+                      height: 23,
+                      child: CircularProgressIndicator(
+                        color: UserShopTheme.emerald,
+                        strokeWidth: 2.2,
+                      ),
+                    ),
+                  );
+                },
                 errorBuilder: (_, __, ___) => const Icon(
                   Icons.pets_rounded,
                   size: 42,
@@ -314,6 +361,98 @@ class OrderSummaryPage extends StatelessWidget {
         ],
       ),
     );
+  }
+
+  String _orderProductTitle(List items) {
+    if (items.isEmpty) return 'Product';
+
+    final firstName = _itemName(items.first);
+    if (items.length == 1) return firstName;
+
+    return '$firstName + ${items.length - 1} more';
+  }
+
+  String _itemName(dynamic item) {
+    final itemMap = _asMap(item);
+    final productMap = _asMap(itemMap['product']);
+
+    return _firstText([
+      itemMap['name'],
+      itemMap['productName'],
+      productMap['name'],
+      productMap['productName'],
+    ], fallback: 'Product');
+  }
+
+  String _itemImage(dynamic item) {
+    final itemMap = _asMap(item);
+    final productMap = _asMap(itemMap['product']);
+
+    return _firstImage([
+      itemMap['image'],
+      itemMap['imageUrl'],
+      itemMap['images'],
+      productMap['image'],
+      productMap['imageUrl'],
+      productMap['images'],
+    ]);
+  }
+
+  Map<String, dynamic> _asMap(dynamic value) {
+    if (value is Map<String, dynamic>) return value;
+    if (value is Map) return Map<String, dynamic>.from(value);
+    return <String, dynamic>{};
+  }
+
+  String _firstText(List<dynamic> values, {required String fallback}) {
+    for (final value in values) {
+      final text = value?.toString().trim() ?? '';
+      if (text.isNotEmpty && text != 'null') return text;
+    }
+    return fallback;
+  }
+
+  String _firstImage(List<dynamic> values) {
+    for (final value in values) {
+      if (value is List && value.isNotEmpty) {
+        final first = value.first;
+        if (first is Map) {
+          final map = Map<String, dynamic>.from(first);
+          final nested = _firstText(
+            [map['url'], map['secure_url'], map['image']],
+            fallback: '',
+          );
+          if (nested.isNotEmpty) return nested;
+        }
+
+        final text = first?.toString().trim() ?? '';
+        if (text.isNotEmpty && text != 'null') return text;
+      }
+
+      if (value is Map) {
+        final map = Map<String, dynamic>.from(value);
+        final nested = _firstText(
+          [map['url'], map['secure_url'], map['image']],
+          fallback: '',
+        );
+        if (nested.isNotEmpty) return nested;
+      }
+
+      final text = value?.toString().trim() ?? '';
+      if (text.isNotEmpty && text != 'null') return text;
+    }
+
+    return '';
+  }
+
+  int _asInt(dynamic value, {required int fallback}) {
+    if (value is num) return value.toInt();
+    return int.tryParse(value?.toString() ?? '') ?? fallback;
+  }
+
+  double _asDouble(dynamic value) {
+    if (value is num) return value.toDouble();
+    return double.tryParse(value?.toString() ?? '') ?? 0;
   }
 
   Widget _infoCard({required List<_InfoRow> rows}) {

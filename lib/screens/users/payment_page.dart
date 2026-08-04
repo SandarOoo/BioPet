@@ -106,9 +106,53 @@ class _PaymentPageState extends State<PaymentPage> {
 
       if (!mounted) return;
 
-      CartService().clear();
-
       final order = Map<String, dynamic>.from(result['order'] ?? result);
+      final serverItems = order['items'] is List
+          ? List<dynamic>.from(order['items'] as List)
+          : <dynamic>[];
+
+      order['items'] = widget.items.map((cartItem) {
+        Map<String, dynamic> serverItem = <String, dynamic>{};
+
+        for (final rawItem in serverItems) {
+          if (rawItem is! Map) continue;
+
+          final candidate = Map<String, dynamic>.from(rawItem);
+          final rawProduct = candidate['product'];
+          final serverProductId = rawProduct is Map
+              ? (rawProduct['_id'] ?? rawProduct['id'])?.toString()
+              : rawProduct?.toString();
+
+          if (serverProductId == cartItem.product.id.toString()) {
+            serverItem = candidate;
+            break;
+          }
+        }
+
+        final nestedProduct = serverItem['product'];
+        final nestedProductMap = nestedProduct is Map
+            ? Map<String, dynamic>.from(nestedProduct)
+            : <String, dynamic>{};
+
+        return <String, dynamic>{
+          ...serverItem,
+          'product': nestedProductMap.isNotEmpty
+              ? nestedProductMap
+              : cartItem.product.id,
+          'name': serverItem['name'] ??
+              nestedProductMap['name'] ??
+              cartItem.product.name,
+          'image': serverItem['image'] ??
+              nestedProductMap['image'] ??
+              cartItem.product.image,
+          'price': serverItem['price'] ??
+              nestedProductMap['price'] ??
+              cartItem.product.price,
+          'quantity': serverItem['quantity'] ?? cartItem.quantity,
+        };
+      }).toList();
+
+      CartService().clear();
 
       Navigator.pushReplacement(
         context,

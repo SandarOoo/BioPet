@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 
 import '../../models/product.dart';
 import '../../services/cart_service.dart';
-import 'order_detail_page.dart';
 import 'user_shop_theme.dart';
 
 class ProductDetailPage extends StatefulWidget {
@@ -24,8 +23,6 @@ class _ProductDetailPageState extends State<ProductDetailPage> {
   @override
   Widget build(BuildContext context) {
     final product = widget.product;
-    final totalPrice = product.price * quantity;
-
     return Scaffold(
       backgroundColor: UserShopTheme.background,
       appBar: AppBar(
@@ -84,8 +81,19 @@ class _ProductDetailPageState extends State<ProductDetailPage> {
                 borderRadius: BorderRadius.circular(27),
                 child: product.image.isNotEmpty
                     ? Image.network(
-                  product.image,
+                  product.image.trim(),
+                  width: double.infinity,
+                  height: double.infinity,
                   fit: BoxFit.contain,
+                  loadingBuilder: (context, child, progress) {
+                    if (progress == null) return child;
+                    return const Center(
+                      child: CircularProgressIndicator(
+                        color: UserShopTheme.emerald,
+                        strokeWidth: 2.5,
+                      ),
+                    );
+                  },
                   errorBuilder: (_, __, ___) => const Icon(
                     Icons.pets_rounded,
                     size: 100,
@@ -218,79 +226,37 @@ class _ProductDetailPageState extends State<ProductDetailPage> {
                     ],
                   ),
                   const SizedBox(height: 28),
-                  Row(
-                    children: [
-                      Expanded(
-                        child: SizedBox(
-                          height: 56,
-                          child: OutlinedButton.icon(
-                            onPressed: product.stock > 0
-                                ? () {
-                              CartService().addProduct(
-                                product,
-                                quantity: quantity,
-                              );
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                SnackBar(
-                                  content: Text(
-                                    '${product.name} added to cart',
-                                  ),
-                                  backgroundColor:
-                                  UserShopTheme.textPrimary,
-                                  behavior: SnackBarBehavior.floating,
-                                ),
-                              );
-                            }
-                                : null,
-                            style: UserShopTheme.outlineButton(),
-                            icon: const Icon(Icons.add_shopping_cart_rounded),
-                            label: const Text(
-                              'Add to Cart',
-                              style: TextStyle(fontWeight: FontWeight.w800),
+                  SizedBox(
+                    width: double.infinity,
+                    height: 56,
+                    child: ElevatedButton.icon(
+                      onPressed: product.stock > 0
+                          ? () {
+                        CartService().addProduct(
+                          product,
+                          quantity: quantity,
+                        );
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(
+                            content: Text(
+                              '${product.name} added to cart',
                             ),
+                            backgroundColor: UserShopTheme.textPrimary,
+                            behavior: SnackBarBehavior.floating,
                           ),
+                        );
+                      }
+                          : null,
+                      style: UserShopTheme.primaryButton(),
+                      icon: const Icon(Icons.add_shopping_cart_rounded),
+                      label: const Text(
+                        'Add to Cart',
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w900,
                         ),
                       ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: SizedBox(
-                          height: 56,
-                          child: ElevatedButton(
-                            onPressed: product.stock > 0
-                                ? () {
-                              Navigator.push(
-                                context,
-                                MaterialPageRoute(
-                                  builder: (_) =>
-                                      OrderDetailPage(product: product),
-                                ),
-                              );
-                            }
-                                : null,
-                            style: UserShopTheme.primaryButton(),
-                            child: Column(
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              children: [
-                                const Text(
-                                  'Buy Now',
-                                  style: TextStyle(
-                                    fontSize: 15,
-                                    fontWeight: FontWeight.w900,
-                                  ),
-                                ),
-                                Text(
-                                  '${totalPrice.toStringAsFixed(0)} MMK',
-                                  style: const TextStyle(
-                                    fontSize: 11,
-                                    color: Colors.white70,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                        ),
-                      ),
-                    ],
+                    ),
                   ),
                 ],
               ),

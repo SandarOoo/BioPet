@@ -103,7 +103,32 @@ const createPost = async (req, res) => {
         reason: imageModerationResult.reason,
       });
 
-      if (!imageModerationResult.allowed) {
+      const imageModerationDemoMode =
+        String(
+          process.env.IMAGE_MODERATION_DEMO_MODE || ""
+        )
+          .trim()
+          .toLowerCase() === "true";
+
+      if (
+        !imageModerationResult.allowed &&
+        imageModerationDemoMode
+      ) {
+        console.warn(
+          "IMAGE MODERATION DEMO MODE: AI moderation failed, but the image is temporarily allowed for demonstration.",
+          {
+            errorCode:
+              imageModerationResult.errorCode || null,
+            reason:
+              imageModerationResult.reason || null,
+          }
+        );
+      }
+
+      if (
+        !imageModerationResult.allowed &&
+        !imageModerationDemoMode
+      ) {
         const httpStatus =
           getImageModerationHttpStatus(
             imageModerationResult
