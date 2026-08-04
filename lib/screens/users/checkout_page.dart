@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
-import 'payment_page.dart';
+
 import '../../services/cart_service.dart';
+import 'payment_page.dart';
+import 'user_shop_theme.dart';
 
 class CheckoutPage extends StatefulWidget {
   final List<CartItem> items;
@@ -19,7 +21,7 @@ class CheckoutPage extends StatefulWidget {
 }
 
 class _CheckoutPageState extends State<CheckoutPage> {
-  String deliveryType = "Standard Delivery";
+  String deliveryType = 'Standard Delivery';
 
   final phoneController = TextEditingController();
   final addressController = TextEditingController();
@@ -33,23 +35,20 @@ class _CheckoutPageState extends State<CheckoutPage> {
     super.dispose();
   }
 
-  double get currentDeliveryFee =>
-      deliveryType == "Express Delivery" ? widget.deliveryFee + 2000 : widget.deliveryFee;
+  double get currentDeliveryFee => deliveryType == 'Express Delivery'
+      ? widget.deliveryFee + 2000
+      : widget.deliveryFee;
 
   double get total => widget.subtotal + currentDeliveryFee;
 
   void _continueToPayment() {
     if (phoneController.text.trim().isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("Please enter your phone number")),
-      );
+      _showMessage('Please enter your phone number');
       return;
     }
 
     if (addressController.text.trim().isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("Please enter your delivery address")),
-      );
+      _showMessage('Please enter your delivery address');
       return;
     }
 
@@ -70,68 +69,79 @@ class _CheckoutPageState extends State<CheckoutPage> {
     );
   }
 
+  void _showMessage(String message) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(message),
+        backgroundColor: UserShopTheme.textPrimary,
+        behavior: SnackBarBehavior.floating,
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xffF7F7F7),
-      appBar: AppBar(
-        title: const Text(
-          "Checkout",
-          style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold),
-        ),
-        centerTitle: true,
-        backgroundColor: Colors.white,
-        elevation: 0,
-        iconTheme: const IconThemeData(color: Colors.black),
-      ),
+      backgroundColor: UserShopTheme.background,
+      appBar: UserShopTheme.appBar('Checkout'),
       body: SingleChildScrollView(
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.fromLTRB(
+          UserShopTheme.pagePadding,
+          12,
+          UserShopTheme.pagePadding,
+          28,
+        ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            sectionTitle("Delivery Address"),
+            _sectionTitle(Icons.location_on_outlined, 'Delivery Address'),
+            const SizedBox(height: 12),
+            _addressCard(),
+            const SizedBox(height: 24),
+            _sectionTitle(Icons.local_shipping_outlined, 'Delivery Option'),
+            const SizedBox(height: 12),
+            _deliveryOption(
+              title: 'Standard Delivery',
+              subtitle: 'Arrives in 2–3 days',
+              icon: Icons.inventory_2_outlined,
+            ),
             const SizedBox(height: 10),
-            addressCard(),
-            const SizedBox(height: 25),
-            sectionTitle("Delivery Option"),
-            const SizedBox(height: 10),
-            deliveryOption("Standard Delivery", "2-3 Days"),
-            deliveryOption("Express Delivery", "1 Day (+2,000 MMK)"),
-            const SizedBox(height: 25),
-            sectionTitle("Order Note"),
-            const SizedBox(height: 10),
+            _deliveryOption(
+              title: 'Express Delivery',
+              subtitle: 'Arrives in 1 day · +2,000 MMK',
+              icon: Icons.bolt_rounded,
+            ),
+            const SizedBox(height: 24),
+            _sectionTitle(Icons.edit_note_rounded, 'Order Note'),
+            const SizedBox(height: 12),
             Container(
-              padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(15),
-              ),
+              padding: const EdgeInsets.all(4),
+              decoration: UserShopTheme.card(),
               child: TextField(
                 controller: noteController,
                 maxLines: 3,
-                decoration: const InputDecoration(
-                  hintText: "Write note for seller",
-                  border: InputBorder.none,
-                ),
+                decoration: UserShopTheme.input(
+                  label: 'Note for seller',
+                  hint: 'Colour, size, delivery instructions…',
+                  icon: Icons.chat_bubble_outline_rounded,
+                ).copyWith(border: InputBorder.none),
               ),
             ),
-            const SizedBox(height: 25),
-            sectionTitle("Order Summary"),
-            const SizedBox(height: 10),
-            summaryCard(),
-            const SizedBox(height: 30),
+            const SizedBox(height: 24),
+            _sectionTitle(Icons.receipt_long_outlined, 'Order Summary'),
+            const SizedBox(height: 12),
+            _summaryCard(),
+            const SizedBox(height: 24),
             SizedBox(
               width: double.infinity,
-              height: 55,
-              child: ElevatedButton(
+              height: 56,
+              child: ElevatedButton.icon(
                 onPressed: _continueToPayment,
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.orange,
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
-                ),
-                child: const Text(
-                  "Continue Payment",
-                  style: TextStyle(color: Colors.white, fontSize: 17, fontWeight: FontWeight.bold),
+                style: UserShopTheme.primaryButton(),
+                icon: const Icon(Icons.arrow_forward_rounded),
+                label: const Text(
+                  'Continue to Payment',
+                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800),
                 ),
               ),
             ),
@@ -141,34 +151,54 @@ class _CheckoutPageState extends State<CheckoutPage> {
     );
   }
 
-  Widget sectionTitle(String title) {
-    return Text(title, style: const TextStyle(fontSize: 19, fontWeight: FontWeight.bold));
+  Widget _sectionTitle(IconData icon, String title) {
+    return Row(
+      children: [
+        Container(
+          width: 36,
+          height: 36,
+          decoration: BoxDecoration(
+            color: UserShopTheme.mintSoft,
+            borderRadius: BorderRadius.circular(12),
+          ),
+          child: Icon(icon, color: UserShopTheme.emerald, size: 20),
+        ),
+        const SizedBox(width: 10),
+        Text(
+          title,
+          style: const TextStyle(
+            color: UserShopTheme.textPrimary,
+            fontSize: 19,
+            fontWeight: FontWeight.w900,
+          ),
+        ),
+      ],
+    );
   }
 
-  Widget addressCard() {
+  Widget _addressCard() {
     return Container(
       padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(18)),
+      decoration: UserShopTheme.card(),
       child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           TextField(
             controller: phoneController,
             keyboardType: TextInputType.phone,
-            decoration: const InputDecoration(
-              labelText: "Phone Number",
-              prefixIcon: Icon(Icons.phone),
-              border: OutlineInputBorder(),
+            decoration: UserShopTheme.input(
+              label: 'Phone Number',
+              hint: '09xxxxxxxxx',
+              icon: Icons.phone_outlined,
             ),
           ),
-          const SizedBox(height: 15),
+          const SizedBox(height: 14),
           TextField(
             controller: addressController,
             maxLines: 2,
-            decoration: const InputDecoration(
-              labelText: "Delivery Address",
-              prefixIcon: Icon(Icons.location_on),
-              border: OutlineInputBorder(),
+            decoration: UserShopTheme.input(
+              label: 'Delivery Address',
+              hint: 'Street, township and city',
+              icon: Icons.location_on_outlined,
             ),
           ),
         ],
@@ -176,62 +206,136 @@ class _CheckoutPageState extends State<CheckoutPage> {
     );
   }
 
-  Widget deliveryOption(String title, String subtitle) {
-    return Container(
-      margin: const EdgeInsets.only(bottom: 12),
-      decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(15)),
-      child: RadioListTile(
-        value: title,
-        groupValue: deliveryType,
-        onChanged: (value) {
-          setState(() => deliveryType = value.toString());
-        },
-        title: Text(title, style: const TextStyle(fontWeight: FontWeight.bold)),
-        subtitle: Text(subtitle),
-        activeColor: Colors.orange,
+  Widget _deliveryOption({
+    required String title,
+    required String subtitle,
+    required IconData icon,
+  }) {
+    final selected = deliveryType == title;
+
+    return InkWell(
+      onTap: () => setState(() => deliveryType = title),
+      borderRadius: BorderRadius.circular(UserShopTheme.cardRadius),
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 180),
+        padding: const EdgeInsets.all(14),
+        decoration: UserShopTheme.selectedCard(selected: selected),
+        child: Row(
+          children: [
+            Container(
+              width: 46,
+              height: 46,
+              decoration: BoxDecoration(
+                color: selected
+                    ? UserShopTheme.mint
+                    : UserShopTheme.cream,
+                borderRadius: BorderRadius.circular(15),
+              ),
+              child: Icon(icon, color: UserShopTheme.emerald),
+            ),
+            const SizedBox(width: 14),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    title,
+                    style: const TextStyle(
+                      color: UserShopTheme.textPrimary,
+                      fontSize: 16,
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    subtitle,
+                    style: const TextStyle(
+                      color: UserShopTheme.textSecondary,
+                      fontSize: 13,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            Radio<String>(
+              value: title,
+              groupValue: deliveryType,
+              activeColor: UserShopTheme.emerald,
+              onChanged: (value) {
+                if (value != null) setState(() => deliveryType = value);
+              },
+            ),
+          ],
+        ),
       ),
     );
   }
 
-  Widget summaryCard() {
+  Widget _summaryCard() {
     return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(18)),
+      padding: const EdgeInsets.all(17),
+      decoration: UserShopTheme.card(color: UserShopTheme.cream),
       child: Column(
         children: [
           ...widget.items.map(
-                (item) => summaryRow(
-              "${item.product.name} x${item.quantity}",
-              "${item.lineTotal.toStringAsFixed(0)} MMK",
+                (item) => _summaryRow(
+              '${item.product.name} × ${item.quantity}',
+              '${item.lineTotal.toStringAsFixed(0)} MMK',
             ),
           ),
-          const Divider(),
-          summaryRow("Subtotal", "${widget.subtotal.toStringAsFixed(0)} MMK"),
-          summaryRow("Delivery Fee", "${currentDeliveryFee.toStringAsFixed(0)} MMK"),
-          const Divider(),
-          summaryRow("Total", "${total.toStringAsFixed(0)} MMK", bold: true),
+          const Padding(
+            padding: EdgeInsets.symmetric(vertical: 4),
+            child: Divider(color: UserShopTheme.border),
+          ),
+          _summaryRow(
+            'Subtotal',
+            '${widget.subtotal.toStringAsFixed(0)} MMK',
+          ),
+          _summaryRow(
+            'Delivery Fee',
+            '${currentDeliveryFee.toStringAsFixed(0)} MMK',
+          ),
+          const Padding(
+            padding: EdgeInsets.symmetric(vertical: 4),
+            child: Divider(color: UserShopTheme.border),
+          ),
+          _summaryRow(
+            'Total',
+            '${total.toStringAsFixed(0)} MMK',
+            bold: true,
+          ),
         ],
       ),
     );
   }
 
-  Widget summaryRow(String title, String value, {bool bold = false}) {
+  Widget _summaryRow(String title, String value, {bool bold = false}) {
     return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 8),
+      padding: const EdgeInsets.symmetric(vertical: 7),
       child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Expanded(
             child: Text(
               title,
-              style: TextStyle(fontWeight: bold ? FontWeight.bold : FontWeight.normal),
+              style: TextStyle(
+                color: bold
+                    ? UserShopTheme.textPrimary
+                    : UserShopTheme.textSecondary,
+                fontSize: bold ? 16 : 14,
+                fontWeight: bold ? FontWeight.w900 : FontWeight.w500,
+              ),
             ),
           ),
+          const SizedBox(width: 12),
           Text(
             value,
             style: TextStyle(
-              fontWeight: bold ? FontWeight.bold : FontWeight.normal,
-              color: bold ? Colors.green : Colors.black,
+              color: bold
+                  ? UserShopTheme.emerald
+                  : UserShopTheme.textPrimary,
+              fontSize: bold ? 18 : 14,
+              fontWeight: bold ? FontWeight.w900 : FontWeight.w700,
             ),
           ),
         ],

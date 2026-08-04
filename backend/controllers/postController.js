@@ -10,30 +10,34 @@ const {
 
 const getImageModerationHttpStatus = (result) => {
   switch (result?.errorCode) {
-    case "OPENAI_RATE_LIMITED":
+    case "OPENROUTER_RATE_LIMITED":
       return 429;
 
-    case "OPENAI_TIMEOUT":
+    case "OPENROUTER_TIMEOUT":
       return 504;
 
     case "INVALID_IMAGE_FILE":
     case "UNSUPPORTED_IMAGE_TYPE":
     case "PET_IMAGE_REQUIRED":
+    case "OPENROUTER_PAYLOAD_TOO_LARGE":
       return 400;
 
-    case "OPENAI_KEY_MISSING":
-    case "OPENAI_AUTH_ERROR":
-    case "OPENAI_PERMISSION_DENIED":
-    case "OPENAI_QUOTA_EXCEEDED":
-    case "OPENAI_MODEL_NOT_AVAILABLE":
-    case "OPENAI_BAD_REQUEST":
-    case "OPENAI_SERVICE_UNAVAILABLE":
-    case "OPENAI_REQUEST_FAILED":
-    case "OPENAI_NETWORK_ERROR":
-    case "OPENAI_NON_JSON_RESPONSE":
-    case "OPENAI_EMPTY_RESPONSE":
-    case "OPENAI_INVALID_JSON_CONTENT":
-    case "OPENAI_RESULT_COUNT_MISMATCH":
+    case "OPENROUTER_CREDITS_REQUIRED":
+      return 402;
+
+    case "OPENROUTER_KEY_MISSING":
+    case "OPENROUTER_AUTH_ERROR":
+    case "OPENROUTER_PERMISSION_DENIED":
+    case "OPENROUTER_MODEL_NOT_AVAILABLE":
+    case "OPENROUTER_BAD_REQUEST":
+    case "OPENROUTER_PROVIDER_UNAVAILABLE":
+    case "OPENROUTER_SERVICE_UNAVAILABLE":
+    case "OPENROUTER_REQUEST_FAILED":
+    case "OPENROUTER_NETWORK_ERROR":
+    case "OPENROUTER_NON_JSON_RESPONSE":
+    case "OPENROUTER_EMPTY_RESPONSE":
+    case "OPENROUTER_INVALID_JSON_CONTENT":
+    case "OPENROUTER_RESULT_COUNT_MISMATCH":
       return 503;
 
     default:
@@ -92,6 +96,10 @@ const createPost = async (req, res) => {
         providerStatus:
           imageModerationResult.providerStatus,
         retryable: imageModerationResult.retryable,
+        retryAfterSeconds:
+          imageModerationResult.retryAfterSeconds,
+        providerModel:
+          imageModerationResult.providerModel,
         reason: imageModerationResult.reason,
       });
 
@@ -119,6 +127,12 @@ const createPost = async (req, res) => {
             imageModerationResult.retryable === true,
           providerStatus:
             imageModerationResult.providerStatus ||
+            null,
+          retryAfterSeconds:
+            imageModerationResult.retryAfterSeconds ||
+            null,
+          providerModel:
+            imageModerationResult.providerModel ||
             null,
           imageModeration: {
             status: imageModerationResult.status,
@@ -293,15 +307,25 @@ const addComment = async (req, res) => {
   try {
     const {
       postId,
+      commentId,
       userId,
       userName,
       text,
     } = req.body;
 
+    if (!postId) {
+      return res.status(400).json({
+        success: false,
+        message: "postId is required",
+      });
+    }
+
     if (!text || text.trim().length === 0) {
       return res.status(400).json({
         success: false,
-        message: "Comment text is required",
+        message: commentId
+          ? "Reply text is required"
+          : "Comment text is required",
       });
     }
 
@@ -314,27 +338,76 @@ const addComment = async (req, res) => {
       });
     }
 
+    const safeUserId =
+      userId && String(userId).trim()
+        ? String(userId).trim()
+        : "guest";
+
+    const safeUserName =
+      userName && String(userName).trim()
+        ? String(userName).trim()
+        : "Anonymous";
+
+    const safeText = String(text).trim();
+
+    // Existing /comment route can also create a reply when commentId is sent.
+    // This keeps reply support working without requiring a new route.
+    if (commentId) {
+      const comment = post.comments.id(commentId);
+
+      if (!comment) {
+        return res.status(404).json({
+          success: false,
+          message: "Comment not found",
+        });
+      }
+
+      if (!Array.isArray(comment.replies)) {
+        comment.replies = [];
+      }
+
+      comment.replies.push({
+        userId: safeUserId,
+        userName: safeUserName,
+        text: safeText,
+        createdAt: new Date(),
+      });
+
+      const reply =
+        comment.replies[comment.replies.length - 1];
+
+      await post.save();
+
+      return res.status(200).json({
+        success: true,
+        message: "Reply added successfully",
+        reply,
+        comment,
+        comments: post.comments,
+      });
+    }
+
     post.comments.push({
-      userId: userId || "guest",
-
-      userName:
-        userName && userName.trim()
-          ? userName.trim()
-          : "Anonymous",
-
-      text: text.trim(),
-
+      userId: safeUserId,
+      userName: safeUserName,
+      text: safeText,
+      createdAt: new Date(),
       replies: [],
     });
+
+    const comment =
+      post.comments[post.comments.length - 1];
 
     await post.save();
 
     return res.status(200).json({
       success: true,
+      message: "Comment added successfully",
+      comment,
       comments: post.comments,
     });
   } catch (error) {
-    console.error("ADD COMMENT ERROR:", error);
+    console.error("ADD COMMENT/REPLY ERROR:", error);
 
     return res.status(500).json({
       success: false,
@@ -343,91 +416,10 @@ const addComment = async (req, res) => {
   }
 };
 
+// Optional dedicated /reply route can point to the same handler.
+// The existing /comment route already works when commentId is included.
+const addReply = addComment;
 
-const addReply = async (req, res) => {
-  try {
-    const {
-      postId,
-      commentId,
-      userId,
-      userName,
-      text,
-    } = req.body;
-
-    if (!postId || !commentId) {
-      return res.status(400).json({
-        success: false,
-        message:
-          "postId and commentId are required",
-      });
-    }
-
-    if (!text || text.trim().length === 0) {
-      return res.status(400).json({
-        success: false,
-        message:
-          "Reply text is required",
-      });
-    }
-
-    const post =
-      await Post.findById(postId);
-
-    if (!post) {
-      return res.status(404).json({
-        success: false,
-        message:
-          "Post not found",
-      });
-    }
-
-    const comment =
-      post.comments.id(
-        commentId
-      );
-
-    if (!comment) {
-      return res.status(404).json({
-        success: false,
-        message:
-          "Comment not found",
-      });
-    }
-
-    comment.replies.push({
-      userId:
-        userId || "guest",
-
-      userName:
-        userName &&
-        userName.trim()
-          ? userName.trim()
-          : "Anonymous",
-
-      text:
-        text.trim(),
-    });
-
-    await post.save();
-
-    return res.status(200).json({
-      success: true,
-      comments:
-        post.comments,
-    });
-  } catch (error) {
-    console.error(
-      "ADD REPLY ERROR:",
-      error
-    );
-
-    return res.status(500).json({
-      success: false,
-      message:
-        error.message,
-    });
-  }
-};
 
 module.exports = {
   createPost,

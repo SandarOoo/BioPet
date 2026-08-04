@@ -1,5 +1,5 @@
-const OPENAI_API_URL =
-  "https://api.openai.com/v1/chat/completions";
+const OPENROUTER_API_URL =
+  "https://openrouter.ai/api/v1/chat/completions";
 
 const APPROVED_CATEGORIES = new Set([
   "cat",
@@ -28,14 +28,38 @@ const normalizeJsonText = (value) => {
     .trim();
 };
 
+const extractMessageText = (content) => {
+  if (typeof content === "string") {
+    return content;
+  }
+
+  if (!Array.isArray(content)) {
+    return "";
+  }
+
+  return content
+    .map((part) => {
+      if (typeof part === "string") {
+        return part;
+      }
+
+      if (typeof part?.text === "string") {
+        return part.text;
+      }
+
+      return "";
+    })
+    .join("");
+};
+
 const sanitizeProviderMessage = (value) => {
   if (typeof value !== "string") {
     return "";
   }
 
   return value
-    .replace(/sk-[A-Za-z0-9_-]+/g, "[REDACTED_API_KEY]")
-    .replace(/Bearer\s+[A-Za-z0-9._-]+/gi, "Bearer [REDACTED]")
+    .replace(/sk-or-v1-[A-Za-z0-9_-]+/g, "[REDACTED_API_KEY]")
+    .replace(/authorization\s*[:=]\s*bearer\s+\S+/gi, "Authorization: Bearer [REDACTED]")
     .trim();
 };
 
@@ -46,7 +70,10 @@ const createRejectedResult = ({
     "The image is not clearly related to cats or dogs.",
   errorCode = null,
   providerStatus = null,
+  providerErrorType = null,
   retryable = false,
+  retryAfterSeconds = null,
+  providerModel = null,
   images = [],
 } = {}) => ({
   allowed: false,
@@ -55,133 +82,208 @@ const createRejectedResult = ({
   reason,
   errorCode,
   providerStatus,
+  providerErrorType,
   retryable,
+  retryAfterSeconds,
+  providerModel,
   images,
 });
 
 const createProviderErrorResult = ({
   httpStatus,
-  providerCode,
-  providerType,
+  providerErrorType,
   providerMessage,
+  retryAfterSeconds,
 }) => {
   const safeMessage = sanitizeProviderMessage(
     providerMessage
   );
 
   const searchable = [
-    providerCode,
-    providerType,
+    providerErrorType,
     safeMessage,
   ]
     .filter(Boolean)
     .join(" ")
     .toLowerCase();
 
-  if (httpStatus === 401) {
+  if (
+    httpStatus === 401 ||
+    searchable.includes("authentication") ||
+    searchable.includes("invalid api key") ||
+    searchable.includes("invalid credentials")
+  ) {
     return createRejectedResult({
       status: "review_required",
       category: "moderation_error",
-      errorCode: "OPENAI_AUTH_ERROR",
+      errorCode: "OPENROUTER_AUTH_ERROR",
       providerStatus: httpStatus,
+      providerErrorType,
       retryable: false,
       reason:
-        "OpenAI API key မှားနေသည် သို့မဟုတ် အသုံးပြုခွင့်မရှိပါ။ Railway Variables ထဲက OPENAI_API_KEY ကို ပြန်စစ်ပါ။",
+        "OpenRouter API key မှားနေသည်၊ ပိတ်ထားသည် သို့မဟုတ် ဖျက်ထားပါသည်။ Railway Variables ထဲက OPENROUTER_API_KEY ကို ပြန်စစ်ပါ။",
     });
   }
 
-  if (httpStatus === 403) {
+  if (
+    httpStatus === 402 ||
+    searchable.includes("payment_required") ||
+    searchable.includes("insufficient credits")
+  ) {
     return createRejectedResult({
       status: "review_required",
       category: "moderation_error",
-      errorCode: "OPENAI_PERMISSION_DENIED",
+      errorCode: "OPENROUTER_CREDITS_REQUIRED",
       providerStatus: httpStatus,
+      providerErrorType,
       retryable: false,
       reason:
-        "ဒီ OpenAI API key မှာ ပုံစစ်ဆေးမှုအတွက် လိုအပ်သော permission မရှိပါ။",
+        "OpenRouter account သို့မဟုတ် API key မှာ အသုံးပြုနိုင်သော credit မရှိပါ။ OPENROUTER_VISION_MODEL ကို openrouter/free ထားထားကြောင်းလည်း ပြန်စစ်ပါ။",
     });
   }
 
-  if (httpStatus === 429) {
-    const isQuotaError =
-      searchable.includes("insufficient_quota") ||
-      searchable.includes("exceeded your current quota") ||
-      searchable.includes("billing") ||
-      searchable.includes("credit balance") ||
-      searchable.includes("quota");
-
-    if (isQuotaError) {
-      return createRejectedResult({
-        status: "review_required",
-        category: "moderation_error",
-        errorCode: "OPENAI_QUOTA_EXCEEDED",
-        providerStatus: httpStatus,
-        retryable: false,
-        reason:
-          "OpenAI API credit သို့မဟုတ် billing မရှိသေးပါ။ API billing ထည့်ပြီးမှ ပုံစစ်ဆေးနိုင်ပါမည်။",
-      });
-    }
-
+  if (
+    httpStatus === 403 ||
+    searchable.includes("permission_denied")
+  ) {
     return createRejectedResult({
       status: "review_required",
       category: "moderation_error",
-      errorCode: "OPENAI_RATE_LIMITED",
+      errorCode: "OPENROUTER_PERMISSION_DENIED",
       providerStatus: httpStatus,
+      providerErrorType,
+      retryable: false,
+      reason:
+        "ဒီ OpenRouter API key မှာ လိုအပ်သော permission မရှိပါ သို့မဟုတ် request ကို guardrail က ပိတ်ထားပါသည်။",
+    });
+  }
+
+  if (
+    httpStatus === 408 ||
+    searchable.includes("timeout")
+  ) {
+    return createRejectedResult({
+      status: "review_required",
+      category: "moderation_error",
+      errorCode: "OPENROUTER_TIMEOUT",
+      providerStatus: httpStatus,
+      providerErrorType,
       retryable: true,
       reason:
-        "OpenAI request limit ပြည့်နေပါသည်။ ခဏစောင့်ပြီး ပြန်တင်ပါ။",
+        "OpenRouter ပုံစစ်ဆေးမှု အချိန်ကြာလွန်း၍ ရပ်သွားပါသည်။ ခဏနေ ပြန်တင်ပါ။",
+    });
+  }
+
+  if (
+    httpStatus === 429 ||
+    searchable.includes("rate_limit_exceeded") ||
+    searchable.includes("rate limit")
+  ) {
+    return createRejectedResult({
+      status: "review_required",
+      category: "moderation_error",
+      errorCode: "OPENROUTER_RATE_LIMITED",
+      providerStatus: httpStatus,
+      providerErrorType,
+      retryable: true,
+      retryAfterSeconds,
+      reason: retryAfterSeconds
+        ? `OpenRouter free request limit ပြည့်နေပါသည်။ ${retryAfterSeconds} စက္ကန့်ခန့်စောင့်ပြီး ပြန်တင်ပါ။`
+        : "OpenRouter free request limit ပြည့်နေပါသည်။ ခဏစောင့်ပြီး ပြန်တင်ပါ။",
     });
   }
 
   if (
     httpStatus === 404 ||
-    searchable.includes("model_not_found") ||
-    searchable.includes("does not exist") ||
-    searchable.includes("do not have access to model")
+    searchable.includes("not_found") ||
+    (searchable.includes("model") &&
+      searchable.includes("not found"))
   ) {
     return createRejectedResult({
       status: "review_required",
       category: "moderation_error",
-      errorCode: "OPENAI_MODEL_NOT_AVAILABLE",
+      errorCode: "OPENROUTER_MODEL_NOT_AVAILABLE",
       providerStatus: httpStatus,
+      providerErrorType,
       retryable: false,
       reason:
-        "OPENAI_VISION_MODEL မှာ သတ်မှတ်ထားသော model ကို အသုံးပြုခွင့်မရှိပါ။ Model name ကို ပြန်စစ်ပါ။",
+        "OPENROUTER_VISION_MODEL မှာ သတ်မှတ်ထားသော model ကို အသုံးပြု၍မရပါ။ openrouter/free သို့ ပြန်ပြောင်းပါ။",
     });
   }
 
-  if (httpStatus === 400) {
+  if (httpStatus === 413) {
     return createRejectedResult({
       status: "review_required",
       category: "moderation_error",
-      errorCode: "OPENAI_BAD_REQUEST",
+      errorCode: "OPENROUTER_PAYLOAD_TOO_LARGE",
       providerStatus: httpStatus,
+      providerErrorType,
       retryable: false,
       reason:
-        "OpenAI ပုံစစ်ဆေးမှု request ပုံစံမမှန်ပါ။ imagePetModeration.js configuration ကို ပြန်စစ်ပါ။",
+        "OpenRouter သို့ပို့သောပုံအရွယ်အစား ကြီးလွန်းပါသည်။ ပုံအရွယ်အစားကို လျှော့ပြီး ပြန်တင်ပါ။",
     });
   }
 
-  if (httpStatus >= 500) {
+  if (
+    httpStatus === 400 ||
+    searchable.includes("invalid_request") ||
+    searchable.includes("invalid_prompt")
+  ) {
     return createRejectedResult({
       status: "review_required",
       category: "moderation_error",
-      errorCode: "OPENAI_SERVICE_UNAVAILABLE",
+      errorCode: "OPENROUTER_BAD_REQUEST",
       providerStatus: httpStatus,
+      providerErrorType,
+      retryable: false,
+      reason:
+        "OpenRouter ပုံစစ်ဆေးမှု request ပုံစံမမှန်ပါ။ imagePetModeration.js configuration ကို ပြန်စစ်ပါ။",
+    });
+  }
+
+  if (
+    httpStatus === 502 ||
+    searchable.includes("provider_unavailable")
+  ) {
+    return createRejectedResult({
+      status: "review_required",
+      category: "moderation_error",
+      errorCode: "OPENROUTER_PROVIDER_UNAVAILABLE",
+      providerStatus: httpStatus,
+      providerErrorType,
       retryable: true,
       reason:
-        "OpenAI service ခဏမရနိုင်သေးပါ။ ခဏစောင့်ပြီး ပြန်တင်ပါ။",
+        "OpenRouter ရွေးချယ်ထားသော free vision provider ခဏမရနိုင်သေးပါ။ ခဏစောင့်ပြီး ပြန်တင်ပါ။",
+    });
+  }
+
+  if (
+    httpStatus === 503 ||
+    searchable.includes("provider_overloaded")
+  ) {
+    return createRejectedResult({
+      status: "review_required",
+      category: "moderation_error",
+      errorCode: "OPENROUTER_SERVICE_UNAVAILABLE",
+      providerStatus: httpStatus,
+      providerErrorType,
+      retryable: true,
+      retryAfterSeconds,
+      reason:
+        "OpenRouter free vision model/provider ခဏမရနိုင်သေးပါ။ ခဏစောင့်ပြီး ပြန်တင်ပါ။",
     });
   }
 
   return createRejectedResult({
     status: "review_required",
     category: "moderation_error",
-    errorCode: "OPENAI_REQUEST_FAILED",
+    errorCode: "OPENROUTER_REQUEST_FAILED",
     providerStatus: httpStatus || null,
+    providerErrorType,
     retryable: true,
+    retryAfterSeconds,
     reason:
-      "OpenAI ပုံစစ်ဆေးမှု request မအောင်မြင်ပါ။ ခဏစောင့်ပြီး ပြန်တင်ပါ။",
+      "OpenRouter ပုံစစ်ဆေးမှု request မအောင်မြင်ပါ။ ခဏစောင့်ပြီး ပြန်တင်ပါ။",
   });
 };
 
@@ -194,25 +296,32 @@ const moderatePetImages = async (files = []) => {
       reason: "No images were uploaded.",
       errorCode: null,
       providerStatus: null,
+      providerErrorType: null,
       retryable: false,
+      retryAfterSeconds: null,
+      providerModel: null,
       images: [],
     };
   }
 
-  const apiKey = process.env.OPENAI_API_KEY;
+  const apiKey = process.env.OPENROUTER_API_KEY;
+  const model =
+    process.env.OPENROUTER_VISION_MODEL ||
+    process.env.OPENROUTER_MODEL ||
+    "openrouter/free";
 
   if (!apiKey) {
     console.error("IMAGE PET MODERATION ERROR:", {
-      errorCode: "OPENAI_KEY_MISSING",
+      errorCode: "OPENROUTER_KEY_MISSING",
     });
 
     return createRejectedResult({
       status: "review_required",
       category: "configuration_error",
-      errorCode: "OPENAI_KEY_MISSING",
+      errorCode: "OPENROUTER_KEY_MISSING",
       retryable: false,
       reason:
-        "Railway Variables ထဲမှာ OPENAI_API_KEY မရှိပါ။ API key ထည့်ပြီး Redeploy လုပ်ပါ။",
+        "Railway Variables ထဲမှာ OPENROUTER_API_KEY မရှိပါ။ API key ထည့်ပြီး Redeploy လုပ်ပါ။",
     });
   }
 
@@ -307,41 +416,58 @@ unrelated, other_animal, unsafe, uncertain
         url:
           `data:${file.mimetype};base64,` +
           file.buffer.toString("base64"),
-        detail: "low",
       },
     });
   });
 
+  const headers = {
+    Authorization: `Bearer ${apiKey}`,
+    "Content-Type": "application/json",
+  };
+
+  if (process.env.OPENROUTER_SITE_URL) {
+    headers["HTTP-Referer"] =
+      process.env.OPENROUTER_SITE_URL;
+  }
+
+  headers["X-OpenRouter-Title"] =
+    process.env.OPENROUTER_APP_NAME || "BioPet";
+
   const controller = new AbortController();
   const timeoutId = setTimeout(
     () => controller.abort(),
-    45000
+    60000
   );
 
   try {
-    const response = await fetch(OPENAI_API_URL, {
+    const response = await fetch(OPENROUTER_API_URL, {
       method: "POST",
-      headers: {
-        Authorization: `Bearer ${apiKey}`,
-        "Content-Type": "application/json",
-      },
+      headers,
       body: JSON.stringify({
-        model:
-          process.env.OPENAI_VISION_MODEL ||
-          "gpt-4.1-mini",
-        temperature: 0,
-        response_format: {
-          type: "json_object",
-        },
+        model,
         messages: [
           {
             role: "user",
             content: messageContent,
           },
         ],
+        temperature: 0,
+        max_tokens: 900,
+        response_format: {
+          type: "json_object",
+        },
       }),
       signal: controller.signal,
     });
+
+    const retryAfterHeader = Number(
+      response.headers.get("Retry-After")
+    );
+    const retryAfterSeconds =
+      Number.isFinite(retryAfterHeader) &&
+      retryAfterHeader > 0
+        ? retryAfterHeader
+        : null;
 
     const responseText = await response.text();
     let responseBody = null;
@@ -351,69 +477,78 @@ unrelated, other_animal, unsafe, uncertain
         responseBody = JSON.parse(responseText);
       } catch (parseError) {
         console.error("IMAGE PET MODERATION ERROR:", {
-          errorCode: "OPENAI_NON_JSON_RESPONSE",
+          errorCode: "OPENROUTER_NON_JSON_RESPONSE",
           providerStatus: response.status,
-          message: sanitizeProviderMessage(responseText).slice(
-            0,
-            500
-          ),
+          message: sanitizeProviderMessage(
+            responseText
+          ).slice(0, 500),
         });
 
         return createRejectedResult({
           status: "review_required",
           category: "moderation_error",
-          errorCode: "OPENAI_NON_JSON_RESPONSE",
+          errorCode: "OPENROUTER_NON_JSON_RESPONSE",
           providerStatus: response.status,
           retryable: true,
           reason:
-            "OpenAI က မှန်ကန်သော JSON response မပြန်ပါ။ ခဏစောင့်ပြီး ပြန်တင်ပါ။",
+            "OpenRouter က မှန်ကန်သော response မပြန်ပါ။ ခဏစောင့်ပြီး ပြန်တင်ပါ။",
         });
       }
     }
 
-    if (!response.ok) {
-      const providerError = responseBody?.error || {};
+    const providerError = responseBody?.error;
+
+    if (!response.ok || providerError) {
+      const providerStatus = Number(
+        providerError?.code || response.status
+      );
+      const providerErrorType =
+        providerError?.metadata?.error_type || null;
 
       const result = createProviderErrorResult({
-        httpStatus: response.status,
-        providerCode: providerError.code,
-        providerType: providerError.type,
+        httpStatus: Number.isFinite(providerStatus)
+          ? providerStatus
+          : response.status,
+        providerErrorType,
         providerMessage:
-          providerError.message || responseText,
+          providerError?.message || responseText,
+        retryAfterSeconds,
       });
 
       console.error("IMAGE PET MODERATION ERROR:", {
         errorCode: result.errorCode,
-        providerStatus: response.status,
-        providerCode: providerError.code || null,
-        providerType: providerError.type || null,
+        providerStatus:
+          result.providerStatus || response.status,
+        providerErrorType,
         providerMessage: sanitizeProviderMessage(
-          providerError.message || responseText
+          providerError?.message || responseText
         ).slice(0, 500),
       });
 
       return result;
     }
 
-    const rawContent =
-      responseBody?.choices?.[0]?.message?.content;
-
+    const rawContent = extractMessageText(
+      responseBody?.choices?.[0]?.message?.content
+    );
     const normalizedContent = normalizeJsonText(rawContent);
 
     if (!normalizedContent) {
       console.error("IMAGE PET MODERATION ERROR:", {
-        errorCode: "OPENAI_EMPTY_RESPONSE",
+        errorCode: "OPENROUTER_EMPTY_RESPONSE",
         providerStatus: response.status,
+        providerModel: responseBody?.model || null,
       });
 
       return createRejectedResult({
         status: "review_required",
         category: "moderation_error",
-        errorCode: "OPENAI_EMPTY_RESPONSE",
+        errorCode: "OPENROUTER_EMPTY_RESPONSE",
         providerStatus: response.status,
+        providerModel: responseBody?.model || null,
         retryable: true,
         reason:
-          "OpenAI က ပုံစစ်ဆေးမှုရလဒ် မပြန်ပါ။ ခဏစောင့်ပြီး ပြန်တင်ပါ။",
+          "OpenRouter က ပုံစစ်ဆေးမှုရလဒ် မပြန်ပါ။ ခဏစောင့်ပြီး ပြန်တင်ပါ။",
       });
     }
 
@@ -423,8 +558,9 @@ unrelated, other_animal, unsafe, uncertain
       parsed = JSON.parse(normalizedContent);
     } catch (parseError) {
       console.error("IMAGE PET MODERATION ERROR:", {
-        errorCode: "OPENAI_INVALID_JSON_CONTENT",
+        errorCode: "OPENROUTER_INVALID_JSON_CONTENT",
         providerStatus: response.status,
+        providerModel: responseBody?.model || null,
         message: parseError.message,
         content: normalizedContent.slice(0, 500),
       });
@@ -432,11 +568,12 @@ unrelated, other_animal, unsafe, uncertain
       return createRejectedResult({
         status: "review_required",
         category: "moderation_error",
-        errorCode: "OPENAI_INVALID_JSON_CONTENT",
+        errorCode: "OPENROUTER_INVALID_JSON_CONTENT",
         providerStatus: response.status,
+        providerModel: responseBody?.model || null,
         retryable: true,
         reason:
-          "OpenAI ပုံစစ်ဆေးမှုရလဒ်ကို ဖတ်၍မရပါ။ ခဏစောင့်ပြီး ပြန်တင်ပါ။",
+          "OpenRouter ပုံစစ်ဆေးမှုရလဒ်ကို ဖတ်၍မရပါ။ ခဏစောင့်ပြီး ပြန်တင်ပါ။",
       });
     }
 
@@ -446,19 +583,21 @@ unrelated, other_animal, unsafe, uncertain
 
     if (results.length !== files.length) {
       console.error("IMAGE PET MODERATION ERROR:", {
-        errorCode: "OPENAI_RESULT_COUNT_MISMATCH",
+        errorCode: "OPENROUTER_RESULT_COUNT_MISMATCH",
         expected: files.length,
         received: results.length,
+        providerModel: responseBody?.model || null,
       });
 
       return createRejectedResult({
         status: "review_required",
         category: "moderation_error",
-        errorCode: "OPENAI_RESULT_COUNT_MISMATCH",
+        errorCode: "OPENROUTER_RESULT_COUNT_MISMATCH",
         providerStatus: response.status,
+        providerModel: responseBody?.model || null,
         retryable: true,
         reason:
-          "တင်ထားသောပုံအရေအတွက်နှင့် OpenAI ရလဒ်အရေအတွက် မကိုက်ညီပါ။ ပြန်တင်ကြည့်ပါ။",
+          "တင်ထားသောပုံအရေအတွက်နှင့် OpenRouter ရလဒ်အရေအတွက် မကိုက်ညီပါ။ ပြန်တင်ကြည့်ပါ။",
       });
     }
 
@@ -500,6 +639,8 @@ unrelated, other_animal, unsafe, uncertain
         errorCode: "PET_IMAGE_REQUIRED",
         reason:
           "ခွေး သို့မဟုတ် ကြောင်နှင့် သက်ဆိုင်သောပုံကိုသာ တင်နိုင်ပါသည်။",
+        providerStatus: response.status,
+        providerModel: responseBody?.model || null,
         images: normalizedResults,
       });
     }
@@ -512,7 +653,10 @@ unrelated, other_animal, unsafe, uncertain
         "All uploaded images are related to cats or dogs.",
       errorCode: null,
       providerStatus: response.status,
+      providerErrorType: null,
       retryable: false,
+      retryAfterSeconds: null,
+      providerModel: responseBody?.model || null,
       images: normalizedResults,
     };
   } catch (error) {
@@ -526,12 +670,12 @@ unrelated, other_animal, unsafe, uncertain
       status: "review_required",
       category: "moderation_error",
       errorCode: isTimeout
-        ? "OPENAI_TIMEOUT"
-        : "OPENAI_NETWORK_ERROR",
+        ? "OPENROUTER_TIMEOUT"
+        : "OPENROUTER_NETWORK_ERROR",
       retryable: true,
       reason: isTimeout
-        ? "OpenAI ပုံစစ်ဆေးမှု အချိန်ကြာလွန်း၍ ရပ်သွားပါသည်။ ခဏနေ ပြန်တင်ပါ။"
-        : "Railway backend မှ OpenAI ကို ဆက်သွယ်၍မရပါ။ Internet သို့မဟုတ် service connection ကို ပြန်စစ်ပါ။",
+        ? "OpenRouter ပုံစစ်ဆေးမှု အချိန်ကြာလွန်း၍ ရပ်သွားပါသည်။ ခဏနေ ပြန်တင်ပါ။"
+        : "Railway backend မှ OpenRouter ကို ဆက်သွယ်၍မရပါ။ Internet သို့မဟုတ် service connection ကို ပြန်စစ်ပါ။",
     });
 
     console.error("IMAGE PET MODERATION ERROR:", {

@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
+
 import 'my_orders_page.dart';
+import 'user_shop_theme.dart';
 
 class OrderSuccessPage extends StatelessWidget {
   final Map<String, dynamic> order;
@@ -8,90 +10,169 @@ class OrderSuccessPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final orderNumber = order['orderNumber']?.toString() ?? order['_id']?.toString() ?? 'N/A';
+    final orderNumber =
+        order['orderNumber']?.toString() ?? order['_id']?.toString() ?? 'N/A';
     final status = order['status']?.toString() ?? 'Pending';
 
     return Scaffold(
-      backgroundColor: const Color(0xffF7F7F7),
-      body: Center(
-        child: Padding(
-          padding: const EdgeInsets.all(25),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Container(
-                height: 120,
-                width: 120,
-                decoration: BoxDecoration(color: Colors.green.withOpacity(0.15), shape: BoxShape.circle),
-                child: const Icon(Icons.check_circle, size: 100, color: Colors.green),
-              ),
-              const SizedBox(height: 30),
-              const Text("Order Successful!", style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold)),
-              const SizedBox(height: 15),
-              const Text(
-                "Your pet products have been ordered successfully.",
-                textAlign: TextAlign.center,
-                style: TextStyle(fontSize: 16, color: Colors.grey),
-              ),
-              const SizedBox(height: 35),
-              Container(
-                width: double.infinity,
-                padding: const EdgeInsets.all(20),
-                decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(20)),
+      backgroundColor: UserShopTheme.background,
+      body: SafeArea(
+        child: LayoutBuilder(
+          builder: (context, constraints) {
+            return SingleChildScrollView(
+              padding: const EdgeInsets.all(24),
+              child: ConstrainedBox(
+                constraints: BoxConstraints(
+                  minHeight: constraints.maxHeight - 48,
+                ),
                 child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    orderInfo("Order ID", "#$orderNumber"),
-                    const Divider(),
-                    orderInfo("Estimated Delivery", "2 - 3 Days"),
-                    const Divider(),
-                    orderInfo("Payment Status", status),
+                    Container(
+                      width: 132,
+                      height: 132,
+                      decoration: BoxDecoration(
+                        gradient: const LinearGradient(
+                          colors: [UserShopTheme.mint, UserShopTheme.mintSoft],
+                          begin: Alignment.topLeft,
+                          end: Alignment.bottomRight,
+                        ),
+                        shape: BoxShape.circle,
+                        boxShadow: UserShopTheme.softShadow,
+                      ),
+                      child: const Icon(
+                        Icons.check_rounded,
+                        size: 72,
+                        color: UserShopTheme.emerald,
+                      ),
+                    ),
+                    const SizedBox(height: 28),
+                    const Text(
+                      'Order Successful!',
+                      textAlign: TextAlign.center,
+                      style: TextStyle(
+                        color: UserShopTheme.textPrimary,
+                        fontSize: 29,
+                        fontWeight: FontWeight.w900,
+                      ),
+                    ),
+                    const SizedBox(height: 10),
+                    const Text(
+                      'Your pet products have been ordered successfully. You can track the order at any time.',
+                      textAlign: TextAlign.center,
+                      style: TextStyle(
+                        color: UserShopTheme.textSecondary,
+                        fontSize: 15,
+                        height: 1.5,
+                      ),
+                    ),
+                    const SizedBox(height: 30),
+                    Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.all(18),
+                      decoration: UserShopTheme.card(color: UserShopTheme.cream),
+                      child: Column(
+                        children: [
+                          _orderInfo('Order ID', '#$orderNumber'),
+                          const Padding(
+                            padding: EdgeInsets.symmetric(vertical: 13),
+                            child: Divider(
+                              color: UserShopTheme.border,
+                              height: 1,
+                            ),
+                          ),
+                          _orderInfo('Estimated Delivery', '2 – 3 Days'),
+                          const Padding(
+                            padding: EdgeInsets.symmetric(vertical: 13),
+                            child: Divider(
+                              color: UserShopTheme.border,
+                              height: 1,
+                            ),
+                          ),
+                          _orderInfo('Payment Status', status),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 28),
+                    SizedBox(
+                      width: double.infinity,
+                      height: 56,
+                      child: ElevatedButton.icon(
+                        onPressed: () {
+                          Navigator.pushReplacement(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) => const MyOrdersPage(),
+                            ),
+                          );
+                        },
+                        style: UserShopTheme.primaryButton(),
+                        icon: const Icon(Icons.local_shipping_outlined),
+                        label: const Text(
+                          'Track Order',
+                          style: TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w900,
+                          ),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    SizedBox(
+                      width: double.infinity,
+                      height: 56,
+                      child: OutlinedButton.icon(
+                        onPressed: () => Navigator.popUntil(
+                          context,
+                              (route) => route.isFirst,
+                        ),
+                        style: UserShopTheme.outlineButton(),
+                        icon: const Icon(Icons.storefront_outlined),
+                        label: const Text(
+                          'Continue Shopping',
+                          style: TextStyle(
+                            fontSize: 15,
+                            fontWeight: FontWeight.w800,
+                          ),
+                        ),
+                      ),
+                    ),
                   ],
                 ),
               ),
-              const SizedBox(height: 35),
-              SizedBox(
-                width: double.infinity,
-                height: 55,
-                child: ElevatedButton(
-                  onPressed: () {
-                    Navigator.pushReplacement(
-                      context,
-                      MaterialPageRoute(builder: (context) => const MyOrdersPage()),
-                    );
-                  },
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.orange,
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
-                  ),
-                  child: const Text("Track Order",
-                      style: TextStyle(color: Colors.white, fontSize: 17, fontWeight: FontWeight.bold)),
-                ),
-              ),
-              const SizedBox(height: 15),
-              SizedBox(
-                width: double.infinity,
-                height: 55,
-                child: OutlinedButton(
-                  onPressed: () => Navigator.popUntil(context, (route) => route.isFirst),
-                  style: OutlinedButton.styleFrom(
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
-                  ),
-                  child: const Text("Continue Shopping", style: TextStyle(fontSize: 16)),
-                ),
-              ),
-            ],
-          ),
+            );
+          },
         ),
       ),
     );
   }
 
-  Widget orderInfo(String title, String value) {
+  Widget _orderInfo(String title, String value) {
     return Row(
-      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(title, style: const TextStyle(color: Colors.grey, fontSize: 15)),
-        Text(value, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
+        Expanded(
+          child: Text(
+            title,
+            style: const TextStyle(
+              color: UserShopTheme.textSecondary,
+              fontSize: 14,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+        ),
+        const SizedBox(width: 14),
+        Flexible(
+          child: Text(
+            value,
+            textAlign: TextAlign.end,
+            style: const TextStyle(
+              color: UserShopTheme.textPrimary,
+              fontSize: 14,
+              fontWeight: FontWeight.w900,
+            ),
+          ),
+        ),
       ],
     );
   }

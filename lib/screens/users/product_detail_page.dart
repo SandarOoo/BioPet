@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
-import '../../models/product.dart';import '../../services/cart_service.dart';
 
+import '../../models/product.dart';
+import '../../services/cart_service.dart';
 import 'order_detail_page.dart';
+import 'user_shop_theme.dart';
 
 class ProductDetailPage extends StatefulWidget {
   final Product product;
@@ -22,29 +24,43 @@ class _ProductDetailPageState extends State<ProductDetailPage> {
   @override
   Widget build(BuildContext context) {
     final product = widget.product;
-    double totalPrice = product.price * quantity;
+    final totalPrice = product.price * quantity;
 
     return Scaffold(
-      backgroundColor: const Color(0xffF7F7F7),
+      backgroundColor: UserShopTheme.background,
       appBar: AppBar(
-        backgroundColor: Colors.white,
+        backgroundColor: UserShopTheme.background,
+        surfaceTintColor: UserShopTheme.background,
         elevation: 0,
-        title: const Text(
-          "Product Details",
-          style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold),
-        ),
         centerTitle: true,
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back, color: Colors.black),
-          onPressed: () => Navigator.pop(context),
+        title: const Text(
+          'Product Details',
+          style: TextStyle(
+            color: UserShopTheme.textPrimary,
+            fontWeight: FontWeight.w800,
+          ),
         ),
+        iconTheme: const IconThemeData(color: UserShopTheme.textPrimary),
         actions: [
-          IconButton(
-            icon: Icon(
-              isFavorite ? Icons.favorite : Icons.favorite_border,
-              color: isFavorite ? Colors.red : Colors.black,
+          Padding(
+            padding: const EdgeInsets.only(right: 8),
+            child: IconButton(
+              onPressed: () => setState(() => isFavorite = !isFavorite),
+              style: IconButton.styleFrom(
+                backgroundColor: isFavorite
+                    ? UserShopTheme.danger.withOpacity(0.10)
+                    : UserShopTheme.surface,
+                side: const BorderSide(color: UserShopTheme.border),
+              ),
+              icon: Icon(
+                isFavorite
+                    ? Icons.favorite_rounded
+                    : Icons.favorite_border_rounded,
+                color: isFavorite
+                    ? UserShopTheme.danger
+                    : UserShopTheme.textPrimary,
+              ),
             ),
-            onPressed: () => setState(() => isFavorite = !isFavorite),
           ),
         ],
       ),
@@ -52,150 +68,224 @@ class _ProductDetailPageState extends State<ProductDetailPage> {
         child: Column(
           children: [
             Container(
-              height: 300,
+              margin: const EdgeInsets.fromLTRB(16, 8, 16, 0),
+              height: 310,
               width: double.infinity,
-              color: Colors.white,
-              child: product.image.isNotEmpty
-                  ? Image.network(
-                product.image,
-                fit: BoxFit.contain,
-                errorBuilder: (context, error, stack) {
-                  return const Icon(Icons.pets, size: 100, color: Colors.orange);
-                },
-              )
-                  : const Icon(Icons.pets, size: 100, color: Colors.orange),
+              decoration: BoxDecoration(
+                gradient: const LinearGradient(
+                  colors: [UserShopTheme.cream, UserShopTheme.mintSoft],
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                ),
+                borderRadius: BorderRadius.circular(28),
+                border: Border.all(color: UserShopTheme.border),
+              ),
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(27),
+                child: product.image.isNotEmpty
+                    ? Image.network(
+                  product.image,
+                  fit: BoxFit.contain,
+                  errorBuilder: (_, __, ___) => const Icon(
+                    Icons.pets_rounded,
+                    size: 100,
+                    color: UserShopTheme.emerald,
+                  ),
+                )
+                    : const Icon(
+                  Icons.pets_rounded,
+                  size: 100,
+                  color: UserShopTheme.emerald,
+                ),
+              ),
             ),
             Container(
-              padding: const EdgeInsets.all(20),
-              decoration: const BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.only(
-                  topLeft: Radius.circular(25),
-                  topRight: Radius.circular(25),
+              margin: const EdgeInsets.only(top: 14),
+              padding: const EdgeInsets.fromLTRB(20, 22, 20, 30),
+              decoration: BoxDecoration(
+                color: UserShopTheme.surface,
+                borderRadius: const BorderRadius.only(
+                  topLeft: Radius.circular(30),
+                  topRight: Radius.circular(30),
                 ),
+                border: const Border(
+                  top: BorderSide(color: UserShopTheme.border),
+                ),
+                boxShadow: UserShopTheme.softShadow,
               ),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(
-                    product.name,
-                    style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Expanded(
+                        child: Text(
+                          product.name,
+                          style: const TextStyle(
+                            color: UserShopTheme.textPrimary,
+                            fontSize: 24,
+                            height: 1.2,
+                            fontWeight: FontWeight.w900,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      _StockBadge(inStock: product.stock > 0),
+                    ],
                   ),
-                  const SizedBox(height: 15),
+                  const SizedBox(height: 12),
                   Text(
-                    "${product.price.toStringAsFixed(0)} MMK",
+                    '${product.price.toStringAsFixed(0)} MMK',
                     style: const TextStyle(
-                      color: Colors.green,
-                      fontSize: 26,
-                      fontWeight: FontWeight.bold,
+                      color: UserShopTheme.emerald,
+                      fontSize: 27,
+                      fontWeight: FontWeight.w900,
                     ),
                   ),
-                  const SizedBox(height: 25),
-                  const Text(
-                    "Product Information",
-                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                  const SizedBox(height: 18),
+                  Wrap(
+                    spacing: 10,
+                    runSpacing: 10,
+                    children: [
+                      _InfoChip(
+                        icon: Icons.category_outlined,
+                        label: product.category,
+                      ),
+                      _InfoChip(
+                        icon: Icons.inventory_2_outlined,
+                        label: product.stock > 0
+                            ? '${product.stock} available'
+                            : 'Out of stock',
+                      ),
+                    ],
                   ),
-                  const SizedBox(height: 10),
-                  productInfo("Category", product.category),
-                  productInfo(
-                    "Stock",
-                    product.stock > 0 ? "${product.stock} Available" : "Out of Stock",
-                  ),
-                  const SizedBox(height: 25),
-                  const Text(
-                    "Description",
-                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-                  ),
+                  const SizedBox(height: 26),
+                  const _SectionHeading('Description'),
                   const SizedBox(height: 10),
                   Text(
-                    product.description,
-                    style: const TextStyle(fontSize: 15, color: Colors.black87),
+                    product.description.isEmpty
+                        ? 'No description available for this product.'
+                        : product.description,
+                    style: const TextStyle(
+                      color: UserShopTheme.textSecondary,
+                      fontSize: 15,
+                      height: 1.6,
+                    ),
                   ),
-                  const SizedBox(height: 25),
+                  const SizedBox(height: 28),
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      const Text(
-                        "Quantity",
-                        style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-                      ),
+                      const _SectionHeading('Quantity'),
                       Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 6,
+                          vertical: 5,
+                        ),
                         decoration: BoxDecoration(
-                          color: Colors.grey.shade200,
-                          borderRadius: BorderRadius.circular(15),
+                          color: UserShopTheme.mintSoft,
+                          borderRadius: BorderRadius.circular(18),
+                          border: Border.all(color: UserShopTheme.border),
                         ),
                         child: Row(
                           children: [
-                            IconButton(
-                              onPressed: quantity > 1
-                                  ? () => setState(() => quantity--)
-                                  : null,
-                              icon: const Icon(Icons.remove),
+                            _QuantityIconButton(
+                              icon: Icons.remove_rounded,
+                              enabled: quantity > 1,
+                              onPressed: () => setState(() => quantity--),
                             ),
-                            Text(
-                              quantity.toString(),
-                              style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                            SizedBox(
+                              width: 42,
+                              child: Text(
+                                quantity.toString(),
+                                textAlign: TextAlign.center,
+                                style: const TextStyle(
+                                  color: UserShopTheme.textPrimary,
+                                  fontSize: 18,
+                                  fontWeight: FontWeight.w900,
+                                ),
+                              ),
                             ),
-                            IconButton(
-                              onPressed: quantity < product.stock
-                                  ? () => setState(() => quantity++)
-                                  : null,
-                              icon: const Icon(Icons.add),
+                            _QuantityIconButton(
+                              icon: Icons.add_rounded,
+                              enabled: quantity < product.stock,
+                              onPressed: () => setState(() => quantity++),
                             ),
                           ],
                         ),
                       ),
                     ],
                   ),
-                  const SizedBox(height: 30),
+                  const SizedBox(height: 28),
                   Row(
                     children: [
                       Expanded(
                         child: SizedBox(
-                          height: 55,
-                          child: SizedBox(
-                            height: 55,
-                            child: OutlinedButton(
-                              onPressed: product.stock > 0
-                                  ? () {
-                                CartService().addProduct(product, quantity: quantity);
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  SnackBar(content: Text("${product.name} added to cart")),
-                                );
-                              }
-                                  : null,
-                              style: OutlinedButton.styleFrom(
-                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
-                              ),
-                              child: const Text("Add To Cart"),
+                          height: 56,
+                          child: OutlinedButton.icon(
+                            onPressed: product.stock > 0
+                                ? () {
+                              CartService().addProduct(
+                                product,
+                                quantity: quantity,
+                              );
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(
+                                  content: Text(
+                                    '${product.name} added to cart',
+                                  ),
+                                  backgroundColor:
+                                  UserShopTheme.textPrimary,
+                                  behavior: SnackBarBehavior.floating,
+                                ),
+                              );
+                            }
+                                : null,
+                            style: UserShopTheme.outlineButton(),
+                            icon: const Icon(Icons.add_shopping_cart_rounded),
+                            label: const Text(
+                              'Add to Cart',
+                              style: TextStyle(fontWeight: FontWeight.w800),
                             ),
                           ),
                         ),
                       ),
-                      const SizedBox(width: 15),
+                      const SizedBox(width: 12),
                       Expanded(
                         child: SizedBox(
-                          height: 55,
+                          height: 56,
                           child: ElevatedButton(
                             onPressed: product.stock > 0
                                 ? () {
                               Navigator.push(
                                 context,
                                 MaterialPageRoute(
-                                  builder: (_) => OrderDetailPage(product: product),
+                                  builder: (_) =>
+                                      OrderDetailPage(product: product),
                                 ),
                               );
                             }
                                 : null,
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: Colors.orange,
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(15),
-                              ),
-                            ),
-                            child: Text(
-                              "Buy ${totalPrice.toStringAsFixed(0)} MMK",
-                              style: const TextStyle(color: Colors.white),
+                            style: UserShopTheme.primaryButton(),
+                            child: Column(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                const Text(
+                                  'Buy Now',
+                                  style: TextStyle(
+                                    fontSize: 15,
+                                    fontWeight: FontWeight.w900,
+                                  ),
+                                ),
+                                Text(
+                                  '${totalPrice.toStringAsFixed(0)} MMK',
+                                  style: const TextStyle(
+                                    fontSize: 11,
+                                    color: Colors.white70,
+                                  ),
+                                ),
+                              ],
                             ),
                           ),
                         ),
@@ -210,16 +300,112 @@ class _ProductDetailPageState extends State<ProductDetailPage> {
       ),
     );
   }
+}
 
-  Widget productInfo(String title, String value) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 6),
+class _SectionHeading extends StatelessWidget {
+  final String title;
+
+  const _SectionHeading(this.title);
+
+  @override
+  Widget build(BuildContext context) {
+    return Text(
+      title,
+      style: const TextStyle(
+        color: UserShopTheme.textPrimary,
+        fontSize: 18,
+        fontWeight: FontWeight.w900,
+      ),
+    );
+  }
+}
+
+class _InfoChip extends StatelessWidget {
+  final IconData icon;
+  final String label;
+
+  const _InfoChip({required this.icon, required this.label});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 9),
+      decoration: BoxDecoration(
+        color: UserShopTheme.cream,
+        borderRadius: BorderRadius.circular(30),
+        border: Border.all(color: UserShopTheme.border),
+      ),
       child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        mainAxisSize: MainAxisSize.min,
         children: [
-          Text(title, style: const TextStyle(color: Colors.grey)),
-          Text(value, style: const TextStyle(fontWeight: FontWeight.bold)),
+          Icon(icon, color: UserShopTheme.emerald, size: 17),
+          const SizedBox(width: 7),
+          Text(
+            label,
+            style: const TextStyle(
+              color: UserShopTheme.textPrimary,
+              fontWeight: FontWeight.w700,
+              fontSize: 13,
+            ),
+          ),
         ],
+      ),
+    );
+  }
+}
+
+class _StockBadge extends StatelessWidget {
+  final bool inStock;
+
+  const _StockBadge({required this.inStock});
+
+  @override
+  Widget build(BuildContext context) {
+    final color = inStock ? UserShopTheme.emerald : UserShopTheme.danger;
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
+      decoration: BoxDecoration(
+        color: color.withOpacity(0.10),
+        borderRadius: BorderRadius.circular(30),
+      ),
+      child: Text(
+        inStock ? 'In stock' : 'Sold out',
+        style: TextStyle(
+          color: color,
+          fontSize: 12,
+          fontWeight: FontWeight.w900,
+        ),
+      ),
+    );
+  }
+}
+
+class _QuantityIconButton extends StatelessWidget {
+  final IconData icon;
+  final bool enabled;
+  final VoidCallback onPressed;
+
+  const _QuantityIconButton({
+    required this.icon,
+    required this.enabled,
+    required this.onPressed,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      width: 36,
+      height: 36,
+      child: IconButton(
+        padding: EdgeInsets.zero,
+        onPressed: enabled ? onPressed : null,
+        style: IconButton.styleFrom(
+          backgroundColor: UserShopTheme.surface,
+          foregroundColor: UserShopTheme.emerald,
+          disabledForegroundColor: UserShopTheme.textSecondary.withOpacity(0.4),
+        ),
+        icon: Icon(icon, size: 19),
       ),
     );
   }
