@@ -8,31 +8,64 @@ class IsolateInference {
 
   final ReceivePort _receivePort = ReceivePort();
 
-  late Isolate _isolate;
-  late SendPort _sendPort;
+  Isolate? _isolate;
+  SendPort? _sendPort;
 
-  SendPort get sendPort => _sendPort;
+  SendPort get sendPort {
+    final port = _sendPort;
+
+    if (port == null) {
+      throw StateError('Inference isolate has not been started.');
+    }
+
+    return port;
+  }
 
   Future<void> start() async {
+    if (_isolate != null && _sendPort != null) {
+      return;
+    }
+
     _isolate = await Isolate.spawn<SendPort>(
       entryPoint,
       _receivePort.sendPort,
       debugName: _debugName,
     );
 
-    _sendPort = await _receivePort.first as SendPort;
+    final firstMessage = await _receivePort.first;
+
+    if (firstMessage is! SendPort) {
+      _isolate?.kill(priority: Isolate.immediate);
+      _isolate = null;
+
+      throw StateError(
+        'Inference isolate did not return a SendPort.',
+      );
+    }
+
+    _sendPort = firstMessage;
   }
 
   Future<void> close() async {
-    _isolate.kill(priority: Isolate.immediate);
+    _isolate?.kill(priority: Isolate.immediate);
+    _isolate = null;
+    _sendPort = null;
     _receivePort.close();
   }
 
-  static void entryPoint(SendPort sendPort) async {
-    final port = ReceivePort();
-    sendPort.send(port.sendPort);
+  static Future<void> entryPoint(
+      SendPort mainSendPort,
+      ) async {
+    final isolateReceivePort = ReceivePort();
+    mainSendPort.send(isolateReceivePort.sendPort);
 
-    await for (final InferenceModel isolateModel in port) {
+    await for (final message in isolateReceivePort) {
+      if (message is! InferenceModel) {
+        continue;
+      }
+
+      final isolateModel = message;
+
       try {
         final sourceImage = isolateModel.image;
 
@@ -41,33 +74,45 @@ class IsolateInference {
           continue;
         }
 
-        final imageInput = image_lib.copyResize(
+        if (isolateModel.inputShape.length < 4 ||
+            isolateModel.outputShape.length < 2) {
+          throw StateError('Unexpected TensorFlow Lite tensor shape.');
+        }
+
+        final inputHeight = isolateModel.inputShape[1];
+        final inputWidth = isolateModel.inputShape[2];
+
+        final resizedImage = image_lib.copyResize(
           sourceImage,
-          width: isolateModel.inputShape[1],
-          height: isolateModel.inputShape[2],
+          width: inputWidth,
+          height: inputHeight,
         );
 
-        final imageMatrix = List.generate(
-          imageInput.height,
-          (y) => List.generate(
-            imageInput.width,
-            (x) {
-              final pixel = imageInput.getPixel(x, y);
+        final imageMatrix = List<List<List<int>>>.generate(
+          inputHeight,
+              (y) => List<List<int>>.generate(
+            inputWidth,
+                (x) {
+              final pixel = resizedImage.getPixel(x, y);
+
               return <int>[
                 pixel.r.toInt(),
                 pixel.g.toInt(),
                 pixel.b.toInt(),
               ];
             },
+            growable: false,
           ),
+          growable: false,
         );
 
-        final input = [imageMatrix];
-        final output = [
-          List<int>.filled(
-            isolateModel.outputShape[1],
-            0,
-          ),
+        final input = <Object>[
+          imageMatrix,
+        ];
+
+        final outputLength = isolateModel.outputShape[1];
+        final output = <List<int>>[
+          List<int>.filled(outputLength, 0),
         ];
 
         final interpreter = Interpreter.fromAddress(
@@ -76,11 +121,14 @@ class IsolateInference {
 
         interpreter.run(input, output);
 
-        final result = output.first;
-        final totalScore = result.fold<int>(
-          0,
-          (sum, score) => sum + score,
-        );
+        final scores = output.first;
+        final usableLength = scores.length < isolateModel.labels.length
+            ? scores.length
+            : isolateModel.labels.length;
+
+        final totalScore = scores
+            .take(usableLength)
+            .fold<int>(0, (sum, score) => sum + score);
 
         if (totalScore <= 0) {
           isolateModel.responsePort.send(<String, double>{});
@@ -88,43 +136,44 @@ class IsolateInference {
         }
 
         final classification = <String, double>{};
-        final resultCount = result.length < isolateModel.labels.length
-            ? result.length
-            : isolateModel.labels.length;
 
-        for (var index = 0; index < resultCount; index++) {
-          final score = result[index];
+        for (var index = 0; index < usableLength; index++) {
+          final score = scores[index];
 
-          if (score <= 0) continue;
+          if (score <= 0) {
+            continue;
+          }
 
           classification[isolateModel.labels[index]] =
               score.toDouble() / totalScore.toDouble();
         }
 
         isolateModel.responsePort.send(classification);
-      } catch (error) {
-        isolateModel.responsePort.sendError(
-          error,
-          StackTrace.current,
-        );
+      } catch (error, stackTrace) {
+        // SendPort has only send(); sending an empty result keeps the
+        // caller safe and avoids crashing the isolate or the Flutter app.
+        print('TFLITE INFERENCE ERROR: $error');
+        print(stackTrace);
+        isolateModel.responsePort.send(<String, double>{});
       }
     }
   }
 }
 
 class InferenceModel {
-  image_lib.Image? image;
-  int interpreterAddress;
-  List<String> labels;
-  List<int> inputShape;
-  List<int> outputShape;
+  final image_lib.Image? image;
+  final int interpreterAddress;
+  final List<String> labels;
+  final List<int> inputShape;
+  final List<int> outputShape;
+
   late SendPort responsePort;
 
   InferenceModel(
-    this.image,
-    this.interpreterAddress,
-    this.labels,
-    this.inputShape,
-    this.outputShape,
-  );
+      this.image,
+      this.interpreterAddress,
+      this.labels,
+      this.inputShape,
+      this.outputShape,
+      );
 }

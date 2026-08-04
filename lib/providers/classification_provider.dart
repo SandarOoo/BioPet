@@ -91,7 +91,7 @@ class ClassificationProvider extends ChangeNotifier {
       if (!_isInitialized) {
         _setError(
           'AI model could not be initialized. '
-          'Please restart the app and try again.',
+              'Please restart the app and try again.',
         );
         return;
       }
@@ -127,8 +127,8 @@ class ClassificationProvider extends ChangeNotifier {
   /// Used by Newfeed. It checks a prepared image with the existing local
   /// MobileNet model and does not save it to classification history.
   Future<PetImageValidationResult> validatePetImageForPost(
-    String imagePath,
-  ) async {
+      String imagePath,
+      ) async {
     if (!_isInitialized) {
       await initialize();
     }
@@ -146,8 +146,8 @@ class ClassificationProvider extends ChangeNotifier {
 
   /// Checks every selected Newfeed image in order.
   Future<List<PetImageValidationResult>> validatePetImagesForPost(
-    Iterable<String> imagePaths,
-  ) async {
+      Iterable<String> imagePaths,
+      ) async {
     final results = <PetImageValidationResult>[];
 
     for (final imagePath in imagePaths) {

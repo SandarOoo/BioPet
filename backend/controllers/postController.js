@@ -4,7 +4,6 @@ const {
   moderatePetPost,
 } = require("../services/ruleBasedModeration");
 
-
 const createPost = async (req, res) => {
   try {
     console.log("=================================");
@@ -38,17 +37,10 @@ const createPost = async (req, res) => {
       });
     }
 
-    /*
-     * Images are checked on the Flutter device with the existing local
-     * MobileNet TensorFlow Lite breed classifier before this request is sent.
-     * No OpenAI, Gemini, or OpenRouter API call is made by the backend.
-     */
-    if (req.files && req.files.length > 0) {
-      console.log(
-        "LOCAL PET IMAGE VALIDATION COMPLETED ON CLIENT =>",
-        req.files.length
-      );
-    }
+    // Images are checked on-device by the existing MobileNet/TFLite
+    // classifier before this request is sent. The backend does not call
+    // any external image-moderation API.
+
 
     const images = [];
 
