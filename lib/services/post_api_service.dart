@@ -649,22 +649,16 @@ class PostApiService {
   // ADD COMMENT
   // ============================================================
 
-  static Future<
-      Map<String, dynamic>>
+  static Future<Map<String, dynamic>>
   addComment(
       String postId,
       String text,
       ) async {
-
-    if (
-    currentUserId.isEmpty
-    ) {
+    if (currentUserId.isEmpty) {
       await init();
     }
 
-    if (
-    currentUserId.isEmpty
-    ) {
+    if (currentUserId.isEmpty) {
       throw Exception(
         'User information not found. Please login again.',
       );
@@ -687,6 +681,9 @@ class PostApiService {
         'userId':
         currentUserId,
 
+        'userName':
+        currentUserName,
+
         'text':
         text,
       }),
@@ -697,18 +694,14 @@ class PostApiService {
           '${response.statusCode}',
     );
 
-    if (
-    response.statusCode != 200 &&
-        response.statusCode != 201
-    ) {
+    if (response.statusCode != 200 &&
+        response.statusCode != 201) {
       throw Exception(
         response.body,
       );
     }
 
-    if (
-    response.body.isEmpty
-    ) {
+    if (response.body.isEmpty) {
       return {};
     }
 
@@ -717,10 +710,81 @@ class PostApiService {
       response.body,
     );
 
-    if (
-    decoded
-    is Map<String, dynamic>
-    ) {
+    if (decoded
+    is Map<String, dynamic>) {
+      return decoded;
+    }
+
+    return {};
+  }
+
+  static Future<Map<String, dynamic>>
+  addReply({
+    required String postId,
+    required String commentId,
+    required String text,
+  }) async {
+    if (currentUserId.isEmpty) {
+      await init();
+    }
+
+    if (currentUserId.isEmpty) {
+      throw Exception(
+        'User information not found. Please login again.',
+      );
+    }
+
+    final response =
+    await http.post(
+      Uri.parse(
+        '$_baseUrl/api/posts/reply',
+      ),
+      headers:
+      await _headers(
+        jsonContent: true,
+      ),
+      body:
+      jsonEncode({
+        'postId':
+        postId,
+
+        'commentId':
+        commentId,
+
+        'userId':
+        currentUserId,
+
+        'userName':
+        currentUserName,
+
+        'text':
+        text,
+      }),
+    );
+
+    print(
+      'ADD REPLY STATUS => '
+          '${response.statusCode}',
+    );
+
+    if (response.statusCode != 200 &&
+        response.statusCode != 201) {
+      throw Exception(
+        response.body,
+      );
+    }
+
+    if (response.body.isEmpty) {
+      return {};
+    }
+
+    final decoded =
+    jsonDecode(
+      response.body,
+    );
+
+    if (decoded
+    is Map<String, dynamic>) {
       return decoded;
     }
 

@@ -12,6 +12,7 @@ const {
   getPosts,
   toggleLike,
   addComment,
+  addReply
 } = require(
   "../controllers/postController"
 );

@@ -2730,465 +2730,497 @@ _CommentsSheetState();
 
 
 class _CommentsSheetState
-extends State<_CommentsSheet> {
-final TextEditingController
-_controller =
-TextEditingController();
+    extends State<_CommentsSheet> {
+  final TextEditingController
+  _controller =
+  TextEditingController();
 
-bool _isSending = false;
-
+  bool _isSending = false;
 
 // =====================================================
 // SEND COMMENT
 // =====================================================
 
-Future<void> _sendComment() async {
-final String text =
-_controller.text.trim();
-
-if (text.isEmpty ||
-_isSending) {
-return;
-}
-
-final String userId =
-PostApiService.currentUserId;
-
-if (userId.isEmpty) {
-ScaffoldMessenger.of(
-context,
-).showSnackBar(
-const SnackBar(
-content: Text(
-'Please login again.',
-),
-),
-);
-
-return;
-}
-
-setState(() {
-_isSending = true;
-});
-
-try {
-await PostApiService.addComment(
-widget.post.id,
-text,
-);
-
-final Comment comment =
-Comment(
-userId:
-userId,
-text:
-text,
-);
-
-widget.onCommentAdded(
-comment,
-);
-
-_controller.clear();
-} catch (e) {
-debugPrint(
-'COMMENT ERROR: $e',
-);
-
-if (mounted) {
-ScaffoldMessenger.of(
-context,
-).showSnackBar(
-const SnackBar(
-content: Text(
-'Could not send comment.',
-),
-),
-);
-}
-} finally {
-if (mounted) {
-setState(() {
-_isSending = false;
-});
-}
-}
-}
+  Future<void> _sendComment() async {
+    if (_isSending) {
+      return;
+    }
 
 
-@override
-void dispose() {
-_controller.dispose();
+    final String text =
+    _controller.text.trim();
 
-super.dispose();
-}
+    if (text.isEmpty) {
+    return;
+    }
 
+    String userId =
+    PostApiService.currentUserId;
+
+    if (userId.isEmpty) {
+    await PostApiService.init();
+
+    userId =
+    PostApiService.currentUserId;
+    }
+
+    if (userId.isEmpty) {
+    if (!mounted) {
+    return;
+    }
+
+    ScaffoldMessenger.of(
+    context,
+    ).showSnackBar(
+    const SnackBar(
+    content: Text(
+    'Please login again to comment.',
+    ),
+    ),
+    );
+
+    return;
+    }
+
+    setState(() {
+    _isSending = true;
+    });
+
+    try {
+    final Map<String, dynamic>
+    response =
+    await PostApiService.addComment(
+    widget.post.id,
+    text,
+    );
+
+    debugPrint(
+    'ADD COMMENT RESPONSE => '
+    '$response',
+    );
+
+    Comment comment;
+
+    final dynamic commentJson =
+    response['comment'];
+
+    if (commentJson is Map) {
+    comment =
+    Comment.fromJson(
+    Map<String, dynamic>.from(
+    commentJson,
+    ),
+    );
+    } else {
+    comment =
+    Comment(
+    id: '',
+    userId:
+    PostApiService
+        .currentUserId,
+    userName:
+    PostApiService
+        .currentUserName
+        .isNotEmpty
+    ? PostApiService
+        .currentUserName
+        : 'Anonymous',
+    text: text,
+    createdAt:
+    DateTime.now(),
+    replies: [],
+    );
+    }
+
+    if (!mounted) {
+    return;
+    }
+
+    _controller.clear();
+
+    widget.onCommentAdded(
+    comment,
+    );
+    } catch (e) {
+    debugPrint(
+    'ADD COMMENT ERROR => $e',
+    );
+
+    if (!mounted) {
+    return;
+    }
+
+    ScaffoldMessenger.of(
+    context,
+    ).showSnackBar(
+    SnackBar(
+    content: Text(
+    'Could not add comment: $e',
+    ),
+    ),
+    );
+    } finally {
+    if (mounted) {
+    setState(() {
+    _isSending = false;
+    });
+    }
+    }
+
+
+  }
+
+// =====================================================
+// DISPOSE
+// =====================================================
+
+  @override
+  void dispose() {
+    _controller.dispose();
+
+
+    super.dispose();
+
+
+  }
 
 // =====================================================
 // BUILD
 // =====================================================
 
-@override
-Widget build(
-BuildContext context,
-) {
-final double bottomPad =
-MediaQuery.of(
-context,
-).viewInsets.bottom;
-
-return SafeArea(
-child:
-Container(
-padding:
-EdgeInsets.only(
-bottom:
-bottomPad,
-),
-
-decoration:
-const BoxDecoration(
-color:
-_T.surface,
-
-borderRadius:
-BorderRadius.vertical(
-top:
-Radius.circular(
-24,
-),
-),
-),
-
-child:
-Column(
-mainAxisSize:
-MainAxisSize.min,
-
-children: [
-const SizedBox(
-height: 12,
-),
-
-// Handle
-Center(
-child:
-Container(
-width:
-40,
-height:
-4,
-
-decoration:
-BoxDecoration(
-color:
-_T.divider,
-
-borderRadius:
-BorderRadius.circular(
-4,
-),
-),
-),
-),
-
-const SizedBox(
-height: 12,
-),
-
-// Title
-const Padding(
-padding:
-EdgeInsets.symmetric(
-horizontal:
-20,
-),
-
-child:
-Row(
-children: [
-Text(
-'💬',
-style:
-TextStyle(
-fontSize:
-18,
-),
-),
-
-SizedBox(
-width:
-8,
-),
-
-Text(
-'Comments',
-
-style:
-TextStyle(
-fontSize:
-17,
-fontWeight:
-FontWeight.w700,
-color:
-_T.textPrimary,
-),
-),
-],
-),
-),
-
-const SizedBox(
-height: 8,
-),
-
-const Divider(
-height:
-1,
-color:
-_T.divider,
-),
+  @override
+  Widget build(
+      BuildContext context,
+      ) {
+    final double bottomPad =
+        MediaQuery.of(
+          context,
+        ).viewInsets.bottom;
 
 
-// Comments
-ConstrainedBox(
-constraints:
-BoxConstraints(
-maxHeight:
-MediaQuery.of(
-context,
-).size.height *
-0.4,
-),
+    return SafeArea(
+    child:
+    Container(
+    padding:
+    EdgeInsets.only(
+    bottom:
+    bottomPad,
+    ),
+    decoration:
+    const BoxDecoration(
+    color:
+    _T.surface,
+    borderRadius:
+    BorderRadius.vertical(
+    top:
+    Radius.circular(
+    24,
+    ),
+    ),
+    ),
+    child:
+    Column(
+    mainAxisSize:
+    MainAxisSize.min,
+    children: [
+    const SizedBox(
+    height:
+    12,
+    ),
 
-child:
-widget.post.comments.isEmpty
-? const Padding(
-padding:
-EdgeInsets.symmetric(
-vertical:
-32,
-),
+    // Handle
+    Center(
+    child:
+    Container(
+    width:
+    40,
+    height:
+    4,
+    decoration:
+    BoxDecoration(
+    color:
+    _T.divider,
+    borderRadius:
+    BorderRadius.circular(
+    4,
+    ),
+    ),
+    ),
+    ),
 
-child:
-Center(
-child:
-Text(
-'No comments yet. Be the first! 🐾',
+    const SizedBox(
+    height:
+    12,
+    ),
 
-style:
-TextStyle(
-color:
-_T.textSecondary,
-fontSize:
-14,
-),
-),
-),
-)
-    : ListView.separated(
-shrinkWrap:
-true,
+    // Title
+    const Padding(
+    padding:
+    EdgeInsets.symmetric(
+    horizontal:
+    20,
+    ),
+    child:
+    Row(
+    children: [
+    Text(
+    '💬',
+    style:
+    TextStyle(
+    fontSize:
+    18,
+    ),
+    ),
+    SizedBox(
+    width:
+    8,
+    ),
+    Text(
+    'Comments',
+    style:
+    TextStyle(
+    fontSize:
+    17,
+    fontWeight:
+    FontWeight.w700,
+    color:
+    _T.textPrimary,
+    ),
+    ),
+    ],
+    ),
+    ),
 
-padding:
-const EdgeInsets.symmetric(
-horizontal:
-16,
-vertical:
-12,
-),
+    const SizedBox(
+    height:
+    8,
+    ),
 
-itemCount:
-widget.post.comments.length,
+    const Divider(
+    height:
+    1,
+    color:
+    _T.divider,
+    ),
 
-separatorBuilder:
-(
-_,
-__,
-) =>
-const SizedBox(
-height:
-10,
-),
+    // Comments
+    ConstrainedBox(
+    constraints:
+    BoxConstraints(
+    maxHeight:
+    MediaQuery.of(
+    context,
+    ).size.height *
+    0.4,
+    ),
+    child:
+    widget.post.comments.isEmpty
+    ? const Padding(
+    padding:
+    EdgeInsets.symmetric(
+    vertical:
+    32,
+    ),
+    child:
+    Center(
+    child:
+    Text(
+    'No comments yet. Be the first! 🐾',
+    style:
+    TextStyle(
+    color:
+    _T.textSecondary,
+    fontSize:
+    14,
+    ),
+    ),
+    ),
+    )
+        : ListView.separated(
+    shrinkWrap:
+    true,
+    padding:
+    const EdgeInsets.symmetric(
+    horizontal:
+    16,
+    vertical:
+    12,
+    ),
+    itemCount:
+    widget
+        .post
+        .comments
+        .length,
+    separatorBuilder:
+    (
+    _,
+    __,
+    ) =>
+    const SizedBox(
+    height:
+    10,
+    ),
+    itemBuilder:
+    (
+    _,
+    index,
+    ) {
+    return _CommentTile(
+    comment:
+    widget
+        .post
+        .comments[
+    index],
+    );
+    },
+    ),
+    ),
 
-itemBuilder:
-(
-_,
-index,
-) {
-return _CommentTile(
-comment:
-widget.post.comments[
-index],
-);
-},
-),
-),
+    const Divider(
+    height:
+    1,
+    color:
+    _T.divider,
+    ),
+
+    // Comment input
+    Padding(
+    padding:
+    const EdgeInsets.fromLTRB(
+    12,
+    10,
+    12,
+    14,
+    ),
+    child:
+    Row(
+    children: [
+    const CircleAvatar(
+    radius:
+    18,
+    backgroundColor:
+    _T.primaryLight,
+    child:
+    Text(
+    '🐾',
+    style:
+    TextStyle(
+    fontSize:
+    14,
+    ),
+    ),
+    ),
+
+    const SizedBox(
+    width:
+    10,
+    ),
+
+    Expanded(
+    child:
+    TextField(
+    controller:
+    _controller,
+    textInputAction:
+    TextInputAction.send,
+    onSubmitted:
+    (_) {
+    _sendComment();
+    },
+    style:
+    const TextStyle(
+    fontSize:
+    14,
+    color:
+    _T.textPrimary,
+    ),
+    decoration:
+    InputDecoration(
+    hintText:
+    'Add a comment…',
+    hintStyle:
+    const TextStyle(
+    color:
+    _T.textSecondary,
+    fontSize:
+    14,
+    ),
+    filled:
+    true,
+    fillColor:
+    _T.bg,
+    contentPadding:
+    const EdgeInsets.symmetric(
+    horizontal:
+    14,
+    vertical:
+    10,
+    ),
+    border:
+    OutlineInputBorder(
+    borderRadius:
+    BorderRadius.circular(
+    _T.chipRadius,
+    ),
+    borderSide:
+    BorderSide.none,
+    ),
+    ),
+    ),
+    ),
+
+    const SizedBox(
+    width:
+    8,
+    ),
+
+    _isSending
+    ? const SizedBox(
+    width:
+    36,
+    height:
+    36,
+    child:
+    CircularProgressIndicator(
+    color:
+    _T.primary,
+    strokeWidth:
+    2,
+    ),
+    )
+        : IconButton(
+    onPressed:
+    _sendComment,
+    icon:
+    const Icon(
+    Icons.send_rounded,
+    ),
+    color:
+    _T.primary,
+    iconSize:
+    26,
+    padding:
+    EdgeInsets.zero,
+    constraints:
+    const BoxConstraints(
+    minWidth:
+    36,
+    minHeight:
+    36,
+    ),
+    ),
+    ],
+    ),
+    ),
+    ],
+    ),
+    ),
+    );
 
 
-const Divider(
-height:
-1,
-color:
-_T.divider,
-),
-
-
-// Comment input
-Padding(
-padding:
-const EdgeInsets.fromLTRB(
-12,
-10,
-12,
-14,
-),
-
-child:
-Row(
-children: [
-const CircleAvatar(
-radius:
-18,
-
-backgroundColor:
-_T.primaryLight,
-
-child:
-Text(
-'🐾',
-style:
-TextStyle(
-fontSize:
-14,
-),
-),
-),
-
-const SizedBox(
-width:
-10,
-),
-
-Expanded(
-child:
-TextField(
-controller:
-_controller,
-
-textInputAction:
-TextInputAction.send,
-
-onSubmitted:
-(_) {
-_sendComment();
-},
-
-style:
-const TextStyle(
-fontSize:
-14,
-color:
-_T.textPrimary,
-),
-
-decoration:
-InputDecoration(
-hintText:
-'Add a comment…',
-
-hintStyle:
-const TextStyle(
-color:
-_T.textSecondary,
-fontSize:
-14,
-),
-
-filled:
-true,
-
-fillColor:
-_T.bg,
-
-contentPadding:
-const EdgeInsets.symmetric(
-horizontal:
-14,
-vertical:
-10,
-),
-
-border:
-OutlineInputBorder(
-borderRadius:
-BorderRadius.circular(
-_T.chipRadius,
-),
-
-borderSide:
-BorderSide.none,
-),
-),
-),
-),
-
-const SizedBox(
-width:
-8,
-),
-
-_isSending
-? const SizedBox(
-width:
-36,
-height:
-36,
-
-child:
-CircularProgressIndicator(
-color:
-_T.primary,
-strokeWidth:
-2,
-),
-)
-    : IconButton(
-onPressed:
-_sendComment,
-
-icon:
-const Icon(
-Icons.send_rounded,
-),
-
-color:
-_T.primary,
-
-iconSize:
-26,
-
-padding:
-EdgeInsets.zero,
-
-constraints:
-const BoxConstraints(
-minWidth:
-36,
-minHeight:
-36,
-),
-),
-],
-),
-),
-],
-),
-),
-);
+    }
 }
-}
+
 
 
 // =====================================================
